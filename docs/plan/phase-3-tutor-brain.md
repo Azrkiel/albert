@@ -125,11 +125,11 @@ scripts/eval-hints.ts
 5. `ladder.ts` — implement the checks as pure functions over `WriteHint` and `Diagnose`, each returning a list of violations with messages written so they can be fed straight back to the model.
 
 **Acceptance**
-- [ ] **P3.3-AC1** — The rule checks catch what they should. *Verify:* `tests/unit/ladder.test.ts`: a rung 1 hint without a question mark fails; one with 30 words fails; a rung 2 hint containing `dx = 4\cos\theta\,d\theta` fails; a hint naming "partial fractions" fails unless the sentence defers it; an unknown `subskillId` fails; an `unreadable` status with marks fails.
-- [ ] **P3.3-AC2** — Unknown cluster labels do not break anything. *Verify:* unit test: a `mark` naming cluster 99 becomes a whole-row mark.
-- [ ] **P3.3-AC3** — A live call on the main case is right. *Verify:* `pnpm eval:hints --case missing-dx-r1` (built in P3.4; until then a one-off script) prints: status `error`, row 3, clusters overlapping the expected ones, a question, no `4\cos` anywhere in the hint.
-- [ ] **P3.3-AC4** — A retry repairs a bad reply. *Verify:* unit test with a fake model that first returns an over-long rung 1 hint and then a valid one: one `hint` event, no `error` event, and the second prompt contains the violation text.
-- [ ] **P3.3-AC5** — `privateNote` is never in the stream. *Verify:* unit test asserting no emitted event contains the string.
+- [x] **P3.3-AC1** — The rule checks catch what they should. *Verify:* `tests/unit/ladder.test.ts`: a rung 1 hint without a question mark fails; one with 30 words fails; a rung 2 hint containing `dx = 4\cos\theta\,d\theta` fails; a hint naming "partial fractions" fails unless the sentence defers it; an unknown `subskillId` fails; an `unreadable` status with marks fails.
+- [x] **P3.3-AC2** — Unknown cluster labels do not break anything. *Verify:* unit test: a `mark` naming cluster 99 becomes a whole-row mark.
+- [x] **P3.3-AC3** — A live call on the main case is right. *Verify:* `pnpm eval:hints --case missing-dx-r1` (built in P3.4; until then a one-off script) prints: status `error`, row 3, clusters overlapping the expected ones, a question, no `4\cos` anywhere in the hint.
+- [x] **P3.3-AC4** — A retry repairs a bad reply. *Verify:* unit test with a fake model that first returns an over-long rung 1 hint and then a valid one: one `hint` event, no `error` event, and the second prompt contains the violation text.
+- [x] **P3.3-AC5** — `privateNote` is never in the stream. *Verify:* unit test asserting no emitted event contains the string.
 
 ---
 
