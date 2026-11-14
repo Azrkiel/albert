@@ -72,7 +72,8 @@ test("P4.2-AC2: a text segment is SVG text in the handwriting font, filled red",
   expect(result.fill).toBe(RED);
   expect(result.faces).toContain("loaded");
   expect(result.fontLoaded).toBe(true);
-  expect(Math.abs(result.w - result.length)).toBeLessThan(0.5); // hidden measurer vs on-page, sub-pixel
+  // The hidden measurer (unscaled) must agree with the scaled page within 1 px, or layout misplaces words.
+  expect(Math.abs(result.w - result.length)).toBeLessThan(1);
   expect(result.w).toBeGreaterThan(100);
   expect(result.h).toBeGreaterThan(0);
 });

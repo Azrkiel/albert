@@ -30,6 +30,9 @@ export function textNode(text: string, size: number): SVGTextElement {
   node.setAttribute("fill", INK.albert);
   node.setAttribute("data-ink-text", "");
   node.style.whiteSpace = "pre";
+  // Unhinted advances scale linearly, so a width measured unscaled matches the scaled page.
+  // Without it Linux Chrome measured 3.8 px wider than it drew (CI, PR #27).
+  node.setAttribute("text-rendering", "geometricPrecision");
   return node;
 }
 
