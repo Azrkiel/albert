@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useSearchParams } from "next/navigation";
-import type { CanvasLayout, Rung, SessionEvent, SessionRecording, Stroke } from "@/lib/contracts";
+import type { CanvasLayout, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
-import { clearRow, createSessionState, eraseGesture, exportRecording, historyEvent, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
+import { clearRow, createSessionState, detectStuck, eraseGesture, exportRecording, historyEvent, isProblemSolved, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
-import { ProblemBlock } from "./ProblemBlock";
+import { ProblemBlock, type HintRequested } from "./ProblemBlock";
 
 declare global {
   interface Window { __albert?: { state: SessionState; replayDone: boolean } }
@@ -25,6 +25,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const devTools = devBuild && params.get("dev") === "1";
   const urlLayout = params.get("layout");
   const layout: CanvasLayout = urlLayout === "free" || urlLayout === "ruled" ? urlLayout : envLayout;
+  const autoHint = params.get("auto") === "1" || process.env.NEXT_PUBLIC_AUTO_HINT === "1";
   const urlSpeed = params.get("speed");
   const initialSpeed = urlSpeed === "instant" || urlSpeed === "4" ? urlSpeed : "1";
   const [speed, setSpeed] = useState<PlaybackSpeed>(initialSpeed);
@@ -34,6 +35,9 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const origin = useRef<number | null>(null);
   const player = useRef<Replayer | null>(null);
   const loaded = useRef<SessionRecording | null>(null);
+  const replayClock = useRef<{ started: number; speed: number; duration: number; instant: boolean } | null>(null);
+  const seeking = useRef(false);
+  const markVisibleSince = useRef(new WeakMap<StuckSignal, number>());
   const loadId = useRef(0);
   const [revision, setRevision] = useState(0);
   const [replayDone, setReplayDone] = useState(false);
@@ -43,27 +47,42 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const hint = useHint();
   const [hintTarget, setHintTarget] = useState<{ problemId: string; rowId: string } | null>(null);
   const sendHint = hint.requestHint;
+  const getSessionStart = useCallback(() => origin.current ??= performance.now(), []);
+  const now = useCallback(() => {
+    const replay = replayClock.current;
+    return replay ? replay.instant ? replay.duration : Math.min(replay.duration, (performance.now() - replay.started) * replay.speed)
+      : Math.max(current.current.durationMs, performance.now() - getSessionStart());
+  }, [getSessionStart]);
+  const replace = useCallback((next: SessionState) => { current.current = next; setState(next); }, []);
+  const detect = useCallback((at: number) => {
+    const s = current.current;
+    const signal = detectStuck(s.events, at, s.rows, listClusters(s));
+    if (signal) replace(reduceSessionEvent(s, { type: "stuck", at, signal }));
+  }, [replace]);
+  const sink = useCallback((event: SessionEvent) => {
+    replace(reduceSessionEvent(current.current, event));
+    if (!seeking.current) detect(event.at);
+  }, [replace, detect]);
   // P2.6 can call this same entry point through the canvas ref. P2.7 will
   // replace the placeholder PNG and empty cluster lists with a real snapshot.
-  const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung) => {
+  const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual") => {
+    sink({ type: "hint_requested", at: now(), hintId: `hint-${sessionId}-${current.current.events.length}`, rowId, rung });
     setHintTarget({ problemId, rowId });
-    await sendHint({ sessionId, worksheetId: current.current.worksheetId, problemId, rowId, rung, trigger: "manual",
+    await sendHint({ sessionId, worksheetId: current.current.worksheetId, problemId, rowId, rung, trigger,
       image: { marked: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC", width: 1, height: 1 },
       rows: current.current.rows.filter((row) => row.problemId === problemId).map((row) => ({ rowId: row.id, index: row.index, clusterLabels: [] })), history: [] });
-  }, [sendHint, sessionId]);
+  }, [sendHint, sessionId, sink, now]);
   useImperativeHandle(ref, () => ({ requestHint }), [requestHint]);
   const hintText = hint.events.filter((event) => event.type === "hint" || event.type === "error").map((event) =>
     event.type === "error" ? event.message : event.segments.map((segment) =>
       segment.type === "text" ? segment.text : segment.type === "math" ? segment.latex : "\n").join("")).join("\n");
-  const getSessionStart = useCallback(() => origin.current ??= performance.now(), []);
-  const replace = useCallback((next: SessionState) => { current.current = next; setState(next); }, []);
-  const sink = useCallback((event: SessionEvent) => replace(reduceSessionEvent(current.current, event)), [replace]);
   const liveEvents = useCallback((events: SessionEvent[]) => {
     if (!events.length) return;
     // New live input takes ownership of the timeline; a pending replay cannot add old ink.
     player.current?.cancel();
     player.current = null;
     loaded.current = null;
+    replayClock.current = null;
     loadId.current++;
     setLoading(false);
     for (const event of events) sink(event);
@@ -77,6 +96,34 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     const event = historyEvent(current.current, direction, at);
     if (event) liveEvents([event]);
   }, [getSessionStart, liveEvents]);
+
+  const onHintRequested = useCallback((problemId: string, request: HintRequested) => {
+    if (isProblemSolved(current.current.events, problemId)) return;
+    if (request.trigger === "manual") {
+      const signal: StuckSignal = { kind: "manual", problemId, rowId: request.rowId, at: now() };
+      sink({ type: "stuck", at: signal.at, signal });
+    }
+    void requestHint(problemId, request.rowId, request.rung, request.trigger);
+  }, [now, requestHint, sink]);
+
+  useEffect(() => {
+    const timer = setInterval(() => { if (!seeking.current) detect(now()); }, 1000);
+    return () => clearInterval(timer);
+  }, [detect, now]);
+
+  useEffect(() => {
+    if (!autoHint) return;
+    const timers = Object.values(state.stuckMarks).filter((mark) => mark.kind === "pause").map((mark) => {
+      const appeared = markVisibleSince.current.get(mark) ?? performance.now();
+      markVisibleSince.current.set(mark, appeared);
+      return setTimeout(() => {
+        if (current.current.stuckMarks[mark.problemId] === mark) {
+          onHintRequested(mark.problemId, { rowId: mark.rowId, rung: 1, trigger: "pause" });
+        }
+      }, Math.max(0, 1500 - (performance.now() - appeared)));
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [autoHint, state.stuckMarks, onHintRequested]);
   const clear = useCallback((rowId: string) => {
     const at = Math.max(current.current.durationMs, performance.now() - getSessionStart());
     const event = clearRow(current.current, rowId, at);
@@ -105,12 +152,24 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       durationMs: rec.durationMs, ...(rec.notes === undefined ? {} : { notes: rec.notes }) });
     reset();
     origin.current = performance.now() - rec.durationMs;
+    replayClock.current = { started: performance.now(), speed: playbackSpeed === "4" ? 4 : 1,
+      duration: rec.durationMs, instant: playbackSpeed === "instant" };
     const next = new Replayer(rec, sink, { speed: playbackSpeed === "4" ? 4 : 1, reset });
     player.current = next;
-    const done = () => { if (player.current === next) setReplayDone(true); };
-    if (playbackSpeed === "instant") { next.seek(rec.durationMs); done(); }
+    const done = () => {
+      if (player.current !== next) return;
+      origin.current = performance.now() - rec.durationMs;
+      replayClock.current = null;
+      detect(rec.durationMs); // Include the recording's trailing pause without waiting in wall time.
+      setReplayDone(true);
+    };
+    if (playbackSpeed === "instant") {
+      seeking.current = true;
+      try { next.seek(rec.durationMs); } finally { seeking.current = false; }
+      done();
+    }
     else void next.play().then(done, () => { if (player.current === next) setError("Could not replay recording."); });
-  }, [replace, sink]);
+  }, [replace, sink, detect]);
 
   useEffect(() => {
     if (!devBuild || !fixture) return;
@@ -179,6 +238,9 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
         strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
         hintText={hintTarget?.problemId === problem.id ? hintText : undefined}
         hintRowId={hintTarget?.problemId === problem.id ? hintTarget.rowId : undefined}
+        stuckMark={state.stuckMarks[problem.id]}
+        hintDisabled={hint.status === "streaming" || isProblemSolved(state.events, problem.id)}
+        onHintRequested={(request) => onHintRequested(problem.id, request)}
         getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear} layout={state.layout}
         devOverlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))}
           lines={state.layout === "free" ? rows : undefined} /> : undefined} />;

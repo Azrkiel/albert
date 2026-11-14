@@ -75,7 +75,7 @@ test("Ctrl/Cmd+Z and shifted redo retain IDs; shortcuts leave text inputs alone"
   for (const modifier of ["Control", "Meta"]) {
     await page.keyboard.press(`${modifier}+z`);
     await expect(paths(page)).toHaveCount(0);
-    expect((await state(page)).events.at(-1)).toEqual({ type: "undo", at: expect.any(Number), strokeIds: [stroke.id], rowId: stroke.rowId });
+    expect((await state(page)).events.findLast((event) => event.type === "undo")).toEqual({ type: "undo", at: expect.any(Number), strokeIds: [stroke.id], rowId: stroke.rowId });
     await page.keyboard.press(`${modifier}+Shift+z`);
     await expect(paths(page)).toHaveCount(1);
     expect((await state(page)).strokes[0]).toEqual(stroke);

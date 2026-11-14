@@ -1,7 +1,8 @@
-import type { CanvasLayout, Cluster, Row, SessionEvent, SessionRecording, Stroke } from "../contracts";
+import type { CanvasLayout, Cluster, Row, SessionEvent, SessionRecording, Stroke, StuckSignal } from "../contracts";
 import { clusterRow } from "./clusters";
 import { assignLine, lineRows } from "./lines";
 import { assignRow, createRows, ensureRows } from "./rows";
+import { crossOutClusterIds } from "./stuck";
 
 type Edit = { kind: "draw" | "erase"; strokeIds: string[]; rowId: string };
 
@@ -14,6 +15,10 @@ export type SessionState = {
   strokes: Stroke[];
   /** Clusters per row id, recomputed only for rows whose strokes changed. Derived, never exported. */
   clusters: Record<string, Cluster[]>;
+  /** Derived once per stroke against earlier clusters; replay reconstructs the same tags. */
+  crossOuts: Record<string, string[]>;
+  /** One visible, untapped offer per problem. Recorded stuck events remain after dismissal. */
+  stuckMarks: Record<string, StuckSignal>;
   events: SessionEvent[];
   durationMs: number;
   undoStack: Edit[];
@@ -27,7 +32,7 @@ export function createSessionState(problems: string[] | SessionRecording["proble
     ? { id: problem, label: problem, statementLatex: "" } : { ...problem });
   const initial = layout === "free" ? [] : rows ? structuredClone(rows) : metadata.flatMap(({ id }) => createRows(id));
   return { worksheetId, layout, problems: metadata, rows: initial,
-    strokes: [], clusters: {}, events: [], durationMs: 0, undoStack: [], redoStack: [] };
+    strokes: [], clusters: {}, crossOuts: {}, stuckMarks: {}, events: [], durationMs: 0, undoStack: [], redoStack: [] };
 }
 
 /** Every row's clusters in row order, for detectStuck and renderSnapshot. */
@@ -57,7 +62,8 @@ export function reclusterChanged(before: SessionState, after: SessionState): Ses
   const rows = changedRows(before.strokes, after.strokes);
   if (!rows.size) return after;
   const clusters = { ...after.clusters };
-  for (const rowId of rows) clusters[rowId] = clusterRow(after.strokes, rowId);
+  const symbols = after.strokes.filter((stroke) => !after.crossOuts[stroke.id]);
+  for (const rowId of rows) clusters[rowId] = clusterRow(symbols, rowId);
   return { ...after, clusters };
 }
 
@@ -67,6 +73,8 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
   let rows = state.rows;
   let undoStack = state.undoStack;
   let redoStack = state.redoStack;
+  let crossOuts = state.crossOuts;
+  const stuckMarks = { ...state.stuckMarks };
   if (event.type === "stroke_end") {
     const stroke = structuredClone(event.stroke);
     if (strokes.some((existing) => existing.id === stroke.id)) return state;
@@ -77,9 +85,12 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     } else stroke.rowId ??= assignRow(stroke, rows);
     if (!rows.some((row) => row.id === stroke.rowId && row.problemId === stroke.problemId)) throw new Error("Unknown row");
     event = { ...event, stroke };
+    const crossed = crossOutClusterIds(stroke, state.clusters[stroke.rowId] ?? []);
+    if (crossed.length) crossOuts = { ...crossOuts, [stroke.id]: crossed };
     strokes = [...strokes, stroke];
     if (state.layout === "ruled") rows = ensureRows(rows, strokes);
     if (stroke.tool === "pen" && stroke.erasedAt === undefined) {
+      delete stuckMarks[stroke.problemId];
       undoStack = [...undoStack, { kind: "draw", strokeIds: [stroke.id], rowId: stroke.rowId }];
       redoStack = [];
     }
@@ -115,8 +126,16 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
       delete restored.erasedAt;
       return restored;
     });
-  }
-  return { ...state, strokes, rows, undoStack, redoStack, events: [...state.events, structuredClone(event)],
+  } else if (event.type === "stuck") {
+    const signal = event.signal;
+    if (!rows.some((row) => row.id === signal.rowId && row.problemId === signal.problemId)) throw new Error("Unknown stuck row");
+    stuckMarks[signal.problemId] = structuredClone(signal);
+  } else if (event.type === "hint_requested") {
+    const rowId = event.rowId;
+    const problemId = rows.find((row) => row.id === rowId)?.problemId;
+    if (problemId) delete stuckMarks[problemId];
+  } else if (event.type === "check_result" && event.verdict === "correct") delete stuckMarks[event.problemId];
+  return { ...state, strokes, rows, undoStack, redoStack, crossOuts, stuckMarks, events: [...state.events, structuredClone(event)],
     durationMs: Math.max(state.durationMs, event.at) };
 }
 
