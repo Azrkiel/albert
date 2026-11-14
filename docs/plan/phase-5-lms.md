@@ -150,7 +150,7 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 
 **Acceptance**
 - [x] **P5.5-AC1** — Source failure stays on the import screen with a useful message (mocked route e2e).
-- [ ] **P5.5-AC2** — Successful import lists the actual course (recorded e2e and live by hand).
+- [x] **P5.5-AC2** — Successful import lists the actual course (recorded e2e and live by hand).
 - [x] **P5.5-AC3** — No token appears in responses or page source (e2e).
 
 ---
