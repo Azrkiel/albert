@@ -62,7 +62,7 @@ for (const layout of ["free", "ruled"]) {
     await mark.click();
     expect((await sent).postDataJSON()).toMatchObject({ problemId: "calc2-ws3/p1", rung: 1, trigger: "pause" });
     await expect(mark).toHaveCount(0);
-    await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?");
+    await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?", { timeout: 15000 }); // mocked stream ~2 s + cold route compile on CI
     await expect(block.locator("[data-albert-column]")).toHaveCSS("color", "rgb(200, 50, 30)");
     await page.clock.runFor(30000);
     await expect(mark).toHaveCount(0);
@@ -77,7 +77,7 @@ test("I'm stuck requests a manual hint in its problem, including before ruled in
   const sent = page.waitForRequest((req) => req.url().endsWith("/api/hint") && req.method() === "POST");
   await manual.click();
   expect((await sent).postDataJSON()).toMatchObject({ rowId: "calc2-ws3/p1/r1", trigger: "manual", rung: 1 });
-  await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?");
+  await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?", { timeout: 15000 }); // mocked stream ~2 s + cold route compile on CI
   expect(await page.evaluate(() => window.__albert!.state.events.some((e) => e.type === "stuck" && e.signal.kind === "manual"))).toBe(true);
 });
 
@@ -110,7 +110,7 @@ test("?auto=1 waits 1.5 seconds with the pause mark visible, and new ink cancels
   await page.clock.runFor(501);
   await expect.poll(() => sent.length).toBe(1);
   expect(sent[0]!.postDataJSON()).toMatchObject({ trigger: "pause", rung: 1 });
-  await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?");
+  await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?", { timeout: 15000 }); // mocked stream ~2 s + cold route compile on CI
 });
 
 test("instant replay uses recording duration including trailing pause", async ({ page }) => {
@@ -145,7 +145,7 @@ test("production: stuck controls work without recording or inspection hooks", as
   const mark = block.getByRole("button", { name: "Need a hint?", exact: true });
   await expect(mark).toBeVisible();
   await mark.click();
-  await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?");
+  await expect(block.locator("[data-albert-column]")).toContainText("What does dx become?", { timeout: 15000 }); // mocked stream ~2 s + cold route compile on CI
   await expect(block.getByRole("button", { name: "I'm stuck", exact: true })).toBeVisible();
   expect(await page.evaluate(() => "__albert" in window)).toBe(false);
 });
