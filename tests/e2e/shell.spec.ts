@@ -31,7 +31,7 @@ test("health returns exactly the five documented keys", async ({ request }) => {
   const response = await request.get("/api/health");
   expect(response.status()).toBe(200);
   expect(await response.json()).toEqual({
-    db: false,
+    db: true, // STORE=memory is always reachable (P1.5-AC4)
     llm: false,
     courseSource: null,
     provider: "bedrock",

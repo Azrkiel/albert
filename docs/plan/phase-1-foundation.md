@@ -95,7 +95,7 @@ Read first: [`00-main-plan.md`](./00-main-plan.md) §2 and §6, [`contracts.md`]
    - Do **not** pass `temperature`, `top_p` or `top_k`. Claude 5 models on Bedrock reject them.
 3. Get Bedrock working first:
    - In the AWS console, open Bedrock in `us-east-1` and confirm the Claude models are enabled for the account. If the event hands out AWS credits or workshop accounts, use those.
-   - Starting ids, as listed in AWS documentation on Nov 13, 2026 (confirm in the console): `us.anthropic.claude-sonnet-5` for `agent` and `reader`, and either `us.anthropic.claude-sonnet-5` or `us.anthropic.claude-haiku-5-5` for `hint`. P3.5 makes the final choice for `hint`.
+   - Starting ids, as listed in AWS documentation on Nov 13, 2026 (confirm in the console): `us.anthropic.claude-sonnet-5` for `agent` and `reader`, and either `us.anthropic.claude-sonnet-5` or `us.anthropic.claude-haiku-5-5` for `hint`. P3.5 makes the final choice for `hint`. *(Nov 14: this account gets `not available for this account` for all Claude 5.x ids; Sonnet 4.6 `us.anthropic.claude-sonnet-4-6` runs every role until 5.x access is granted. See status.md Log.)*
 4. `pingVision` sends `fixtures/eval/ping.png` (a typed image of `2 + 2 = 5`, checked into the repo) with the question "What equation is written? Reply with the equation only." and passes if the reply contains `2`, `+` and `5`.
 5. `scripts/smoke.ts` calls `pingModel` and `pingVision` and prints one line each: `model  ok  842ms  us.anthropic.claude-sonnet-5`.
 6. Wire `llm` in `/api/health` to a cached `pingModel` result (cache for 60 seconds so the status dot costs nothing).
