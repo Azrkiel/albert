@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "course": {
+    "id": "calc2",
+    "title": "Calculus II",
+    "shortName": "CALC2"
+  },
+  "units": [
+    {
+      "order": 1,
+      "title": "Integration by Parts"
+    },
+    {
+      "order": 2,
+      "title": "Trigonometric Integrals"
+    },
+    {
+      "order": 3,
+      "title": "Trigonometric Substitution"
+    },
+    {
+      "order": 4,
+      "title": "Partial Fractions"
+    },
+    {
+      "order": 5,
+      "title": "Improper Integrals"
+    }
+  ],
+  "files": [
+    {
+      "path": "pdf/syllabus.pdf",
+      "title": "Syllabus",
+      "mime": "application/pdf",
+      "kind": "syllabus"
+    },
+    {
+      "path": "pdf/unit-1/lecture-05.pdf",
+      "title": "Lecture 5 - Integration by Parts I",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 1,
+      "lectureLabel": "Lecture 5"
+    },
+    {
+      "path": "pdf/unit-1/lecture-06.pdf",
+      "title": "Lecture 6 - Integration by Parts II",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 1,
+      "lectureLabel": "Lecture 6"
+    },
+    {
+      "path": "pdf/unit-2/lecture-07.pdf",
+      "title": "Lecture 7 - Trigonometric Integrals I",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 2,
+      "lectureLabel": "Lecture 7"
+    },
+    {
+      "path": "pdf/unit-2/lecture-08.pdf",
+      "title": "Lecture 8 - Trigonometric Integrals II",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 2,
+      "lectureLabel": "Lecture 8"
+    },
+    {
+      "path": "pdf/unit-3/lecture-09.pdf",
+      "title": "Lecture 9 - Trigonometric Substitution I",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 3,
+      "lectureLabel": "Lecture 9"
+    },
+    {
+      "path": "pdf/unit-3/lecture-10.pdf",
+      "title": "Lecture 10 - Trigonometric Substitution II",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 3,
+      "lectureLabel": "Lecture 10"
+    },
+    {
+      "path": "pdf/unit-1/worksheet-1.pdf",
+      "title": "Worksheet 1",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 1
+    },
+    {
+      "path": "pdf/unit-2/worksheet-2.pdf",
+      "title": "Worksheet 2",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 2
+    },
+    {
+      "path": "pdf/unit-3/worksheet-3.pdf",
+      "title": "Worksheet 3",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 3
+    },
+    {
+      "path": "pdf/unit-4/worksheet-4.pdf",
+      "title": "Worksheet 4",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 4
+    }
+  ],
+  "assignments": [
+    {
+      "id": "ws1",
+      "title": "Worksheet 1",
+      "unitOrder": 1,
+      "filePaths": [
+        "pdf/unit-1/worksheet-1.pdf"
+      ]
+    },
+    {
+      "id": "ws2",
+      "title": "Worksheet 2",
+      "unitOrder": 2,
+      "filePaths": [
+        "pdf/unit-2/worksheet-2.pdf"
+      ]
+    },
+    {
+      "id": "ws3",
+      "title": "Worksheet 3",
+      "unitOrder": 3,
+      "filePaths": [
+        "pdf/unit-3/worksheet-3.pdf"
+      ],
+      "dueOffsetDays": 4
+    },
+    {
+      "id": "ws4",
+      "title": "Worksheet 4",
+      "unitOrder": 4,
+      "filePaths": [
+        "pdf/unit-4/worksheet-4.pdf"
+      ],
+      "dueOffsetDays": 11
+    }
+  ]
+}

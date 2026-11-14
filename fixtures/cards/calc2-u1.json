@@ -1,0 +1,146 @@
+{
+  "unitId": "calc2/u1",
+  "courseId": "calc2",
+  "order": 1,
+  "title": "Integration by Parts",
+  "taught": true,
+  "lectures": [
+    {
+      "label": "Lecture 5",
+      "fileId": "calc2-lecture-05"
+    },
+    {
+      "label": "Lecture 6",
+      "fileId": "calc2-lecture-06"
+    }
+  ],
+  "methods": [
+    {
+      "id": "u1.ibp",
+      "name": "Integration by parts",
+      "lecture": "Lecture 5",
+      "summary": "Trade a product for a simpler integral using \\int u\\,dv = uv - \\int v\\,du.",
+      "steps": [
+        "Choose u with LIATE; everything else in the integrand, including dx, is dv.",
+        "Differentiate: du = \\frac{du}{dx}\\,dx. Integrate: v = \\int dv.",
+        "Write \\int u\\,dv = uv - \\int v\\,du.",
+        "Evaluate the new integral and add + C."
+      ]
+    },
+    {
+      "id": "u1.liate",
+      "name": "LIATE choice of u",
+      "lecture": "Lecture 5",
+      "summary": "Pick u as the first type present in the order Logarithmic, Inverse trig, Algebraic, Trigonometric, Exponential.",
+      "steps": [
+        "List the types of function in the integrand.",
+        "Take u as the one that comes first in LIATE.",
+        "Check that du is simpler than u."
+      ]
+    }
+  ],
+  "notation": [
+    {
+      "concept": "integration by parts rule",
+      "teacherWrites": "\\int u\\,dv = uv - \\int v\\,du",
+      "avoid": [
+        "\\int f g' = fg - \\int f' g",
+        "tabular method"
+      ]
+    },
+    {
+      "concept": "derivative",
+      "teacherWrites": "\\frac{dy}{dx}",
+      "avoid": [
+        "f'(x)",
+        "y'"
+      ]
+    },
+    {
+      "concept": "differential",
+      "teacherWrites": "du = \\frac{du}{dx}\\,dx",
+      "avoid": [],
+      "note": "Write the differential with its dx; never drop it."
+    },
+    {
+      "concept": "new variable",
+      "teacherWrites": "u, chosen by LIATE",
+      "avoid": [
+        "\\theta"
+      ]
+    }
+  ],
+  "workedExamples": [
+    {
+      "label": "Lecture 5, Example 1",
+      "problemLatex": "\\int x e^x\\,dx",
+      "fileId": "calc2-lecture-05",
+      "page": 2,
+      "methodIds": [
+        "u1.ibp",
+        "u1.liate"
+      ],
+      "stepsLatex": [
+        "u = x,\\ dv = e^x\\,dx",
+        "du = dx,\\ v = e^x",
+        "\\int x e^x\\,dx = x e^x - \\int e^x\\,dx",
+        "= x e^x - e^x + C"
+      ]
+    },
+    {
+      "label": "Lecture 5, Example 2",
+      "problemLatex": "\\int \\ln x\\,dx",
+      "fileId": "calc2-lecture-05",
+      "page": 3,
+      "methodIds": [
+        "u1.ibp",
+        "u1.liate"
+      ],
+      "stepsLatex": [
+        "u = \\ln x,\\ dv = dx",
+        "du = \\frac{1}{x}\\,dx,\\ v = x",
+        "\\int \\ln x\\,dx = x\\ln x - \\int 1\\,dx",
+        "= x\\ln x - x + C"
+      ]
+    }
+  ],
+  "conventions": [
+    "Choose u with the word LIATE and say so on the page.",
+    "Derivatives are written in Leibniz form, dy/dx; the course never uses f'(x).",
+    "Always write the rule as \\int u\\,dv = uv - \\int v\\,du before substituting."
+  ],
+  "pitfalls": [
+    {
+      "description": "Choosing u = e^x (or another low-LIATE term) so that \\int v\\,du is harder than \\int u\\,dv.",
+      "subskillId": "u1.choose_u",
+      "errorType": "bad_u_choice"
+    },
+    {
+      "description": "Dropping the minus sign in front of \\int v\\,du.",
+      "subskillId": "u1.apply_rule",
+      "errorType": "sign_error"
+    }
+  ],
+  "subskills": [
+    {
+      "id": "u1.choose_u",
+      "name": "Choose u with LIATE",
+      "description": "Pick u so that du is simpler and dv is integrable."
+    },
+    {
+      "id": "u1.apply_rule",
+      "name": "Apply the parts rule",
+      "description": "Compute du and v, then assemble uv minus the integral of v du."
+    },
+    {
+      "id": "u1.repeat_parts",
+      "name": "Repeat parts",
+      "description": "Apply integration by parts a second time when the new integral is still a product."
+    }
+  ],
+  "sourceFileIds": [
+    "calc2-lecture-05",
+    "calc2-lecture-06"
+  ],
+  "builtBy": "hand"
+}

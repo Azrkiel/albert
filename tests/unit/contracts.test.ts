@@ -30,7 +30,7 @@ function schemaFor(name: string): z.ZodType {
 // Exact table from contracts.md §14. Unknown JSON must not silently escape validation.
 function fixtureSchema(path: string): string | null {
   if (path === "github/commit.json" || path.startsWith("github/files/")) return null;
-  if (path === "github/manifest.json") return "CourseManifest";
+  if ((path === "github/manifest.json" || path === "github/live-manifest.json")) return "CourseManifest";
   const folders: Record<string, string> = {
     sessions: "SessionRecording", llm: "MockHint", "eval/requests": "HintRequest",
     "eval/cases": "EvalCase", cards: "TeachingCard", worksheets: "Worksheet",
@@ -67,11 +67,13 @@ function validateFixtures(root: string): number {
 }
 
 describe("contract completeness", () => {
+  // These checks start six Node processes / a TypeScript compiler; allow
+  // cold Windows starts without changing any contract assertions.
   it("initializes contract modules regardless of entry point", () => {
     for (const name of ["hints", "check", "events", "course", "storage", "lms"]) {
       execFileSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `import './src/lib/contracts/${name}.ts'`], { cwd: resolve("."), stdio: "pipe" });
     }
-  });
+  }, 30000);
   it("tracks every named data type in contracts.md and exports a Zod schema", () => {
     const doc = readFileSync(resolve("docs/plan/contracts.md"), "utf8");
     const names = [...doc.matchAll(/^type (\w+)\s*=/gm)].map((match) => match[1]);
@@ -97,7 +99,7 @@ describe("contract completeness", () => {
     } finally { rmSync(dir, { recursive: true, force: true }); }
     expect(runtime.Repo).toBeUndefined();
     expect(runtime.CourseSourceAdapter).toBeUndefined();
-  });
+  }, 30000);
 });
 
 describe("manifest validation", () => {
