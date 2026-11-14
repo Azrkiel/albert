@@ -10,6 +10,9 @@ const byId = (a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id);
 const skillKey = (s: SkillState) => JSON.stringify([s.studentId, s.courseId, s.subskillId]);
 
 export class MemoryRepo implements Repo {
+  private texts = new Map<string, string>();
+  async putText(id: string, text: string): Promise<void> { this.texts.set(id, text); }
+  async getText(id: string): Promise<string | null> { return this.texts.get(id) ?? null; }
   private connections = new Map<string, CourseConnection>();
   private outlines = new Map<string, CourseOutline>();
   private courses = new Map<string, Course>();

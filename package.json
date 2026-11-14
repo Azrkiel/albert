@@ -16,7 +16,7 @@
     "eval:hints": "node -e \"console.log('not built yet (Phase 3)')\" --",
     "agent:ingest": "node -e \"console.log('not built yet (Phase 6)')\" --",
     "agent:replan": "node -e \"console.log('not built yet (Phase 6)')\" --",
-    "ingest:flat": "node -e \"console.log('not built yet (Phase 6)')\" --",
+    "ingest:flat": "tsx scripts/ingest-flat.ts",
     "seed:pdf": "tsx scripts/seed-pdf.ts",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "check:tracks": "node -e \"console.log('not built yet (Phase 8)')\" --"
@@ -27,9 +27,12 @@
     "@langchain/core": "^1.4.1",
     "@langchain/xai": "^1.5.6",
     "@mathjax/src": "4.1.3",
+    "@napi-rs/canvas": "^1.1.1",
     "mongodb": "^7.9.0",
     "nanoid": "^6.0.2",
     "next": "16.4.6",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.5.438",
     "perfect-freehand": "^1.2.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -45,7 +48,6 @@
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.0",
-    "marked": "^18.2.0",
-    "pdf-lib": "^1.17.1"
+    "marked": "^18.2.0"
   }
 }

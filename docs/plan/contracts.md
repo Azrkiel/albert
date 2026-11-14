@@ -489,6 +489,8 @@ interface Repo {
   getWorksheet(id: string): Promise<Worksheet | null>;
   putFile(meta: CourseFile, bytes: Uint8Array): Promise<void>;
   getFile(id: string): Promise<{ meta: CourseFile; bytes: Uint8Array } | null>;
+  putText(id: string, text: string): Promise<void>;
+  getText(id: string): Promise<string | null>;
   // sessions
   getSession(id: string): Promise<Session | null>;
   createSession(s: Session): Promise<void>;         appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
@@ -517,7 +519,9 @@ type StoredHint = { id: string; sessionId: string; courseId: string; problemId: 
                     snapshotFileId?: string; ms: { firstEvent: number; total: number }; at: ISO };
 ```
 
-**MongoDB collections** (database `albert`): `connections`, `courses`, `cards`, `worksheets`, `files` (metadata) with a GridFS bucket `filedata`, `sessions`, `session_events`, `hints`, `evidence`, `skills`, `plans`, `agent_runs`. The LangGraph checkpointer and store create their own collections; leave their names at the package defaults.
+**Text cache:** `putText` upserts a transcription by id; `getText` returns it or `null`. `CourseFile.textCacheId` points to that text. PDF page counts come from the original cached bytes. Text is stored separately from binary files.
+
+**MongoDB collections** (database `albert`): `connections`, `courses`, `cards`, `worksheets`, `files` (metadata) with a GridFS bucket `filedata`, `texts` (transcriptions keyed by `_id`), `sessions`, `session_events`, `hints`, `evidence`, `skills`, `plans`, `agent_runs`. The LangGraph checkpointer and store create their own collections; leave their names at the package defaults.
 
 **Indexes:** `cards {courseId, order}`, `worksheets {courseId}`, `session_events {sessionId, at}`, `evidence {studentId, courseId, subskillId, at}`, `plans {studentId, courseId, generatedAt: -1}`, `hints {courseId, at}`.
 
