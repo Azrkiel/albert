@@ -8,7 +8,9 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
-    command: "pnpm dev --hostname localhost --port 3000",
+    command: process.env.ALBERT_E2E_PRODUCTION === "1"
+      ? "pnpm start --hostname localhost --port 3000"
+      : "pnpm dev --hostname localhost --port 3000",
     url: "http://localhost:3000",
     reuseExistingServer: false,
     env: { MOCK_LLM: "1", STORE: "memory", LLM_PROVIDER: "bedrock" },
