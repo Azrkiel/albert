@@ -129,7 +129,7 @@ Record the real values as they are decided. Later phases and the write-up read t
 
 | Done | Subphase | Criteria | Owner | Evidence |
 |---|---|---|---|---|
-| [ ] | P5.1 The seed course | 4 | | |
+| [ ] | P5.1 The seed course | 4 | Codex | this commit (P5.1: controlled synthetic CALC2 seed course), based on origin/main e55ad38. AC1: pnpm seed:pdf exits 0; 11 PDFs, 21 pages total, 1-3 pages each, 31,334-78,675 bytes; shared manifest parses and paths resolve, only student PDFs listed. AC2: 12 seed tests cover M1-M8, notation, exact WS3 problems, structure and artifact/source hashes. AC3: Codex automated CAS check, SymPy 1.14.0 + ANTLR 4.11.1, strict parsing of actual Markdown integrals/answers; all 14 answers pass exact differentiation across 21 domain intervals; repeatable script and source-bound results in seed/calc2. AC4: agent rasterized all 21 pages with Poppler and inspected them, enlarged Lecture 9/10 examples; no clipping, missing glyphs or unreadable math seen; needs human: P5.1-AC4. pnpm verify: typecheck/lint pass, 431 passed / 16 live Mongo skipped. P3.2 labels/page citations checked read-only at 30f65fe; handoff on PR #22. Only seed:pdf and needed dev dependencies added to package.json; seed:demo/fixtures/DB/import adapter untouched. User redirected unavailable Windows plan access to GitHub; unpublished plan revisions remain unreviewed (see seed README). |
 | [ ] | P5.2 The Moodle site | 4 | | |
 | [ ] | P5.3 The Moodle adapter | 5 | | |
 | [ ] | P5.4 The upload path | 3 | | |
