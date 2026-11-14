@@ -15,7 +15,7 @@ Read first: [`contracts.md`](./contracts.md) §4 to §6, [`decisions.md`](./deci
 
 ```
 src/lib/tutor/
-  prompt.ts        # buildSystemPrompt, buildUserMessage
+  prompt.ts        # buildMessages: two stable system blocks, then image-first user content
   tools.ts         # the albert_reply tool (zod → model tool) and the verify tool for checks
   ladder.ts        # rung rules and the server-side checks from contracts §4.4
   hint.ts          # runHint: one model call → HintEvent stream
@@ -111,6 +111,10 @@ scripts/eval-hints.ts
    6. Translate row indexes and cluster labels to ids. Drop unknown labels; if none remain for a mark, target the whole row.
    7. Emit `started`, `reading`, `diagnosis`, each `mark`, `hint`, `done`.
    8. Save a `StoredHint` through the `Repo`, including `privateNote`.
+
+   Implementation: `runHint(request, deps?)` accepts an already-bound model, Repo, scope loader and clock for offline tests. Its model deadline includes scope loading and the one repair attempt, and aborts at `HINT_TIMEOUT_MS` (default 12000). The validated reply is emitted in the order above; persistence completes before `done`. For an active matching session, pass the complete stored diagnosis through `recordHintEvidence` to preserve P7.1. The route's existing stream-to-storage reconstruction remains mock-only, so it cannot duplicate a live hint or lose its private note. The `MOCK_LLM=1` fixture branch is unchanged.
+
+   Before P3.4 exists, `pnpm exec tsx scripts/build-eval-request.ts` runs the offline dev page headlessly and saves `fixtures/eval/requests/missing-dx-r1-snapshot.json` through the real request builder. Keep the original placeholder request intact. Decode and inspect the snapshot before any live call, then use `scripts/hint-once.ts <request.json>` to print public results, timing and repair count. This one-off check seeds a memory Repo and uses only the live model; it does not write demo data into MongoDB.
 
 5. `ladder.ts` — implement the checks as pure functions over `WriteHint` and `Diagnose`, each returning a list of violations with messages written so they can be fed straight back to the model.
 

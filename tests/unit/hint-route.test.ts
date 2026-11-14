@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HintEventSchema, HintRequestSchema, type HintEvent } from "../../src/lib/contracts";
 import { POST } from "../../src/app/api/hint/route";
 import * as mock from "../../src/lib/tutor/mock";
+import * as live from "../../src/lib/tutor/hint";
 
 const input = HintRequestSchema.parse(JSON.parse(await readFile("fixtures/eval/requests/missing-dx-r1.json", "utf8")));
 const request = (body?: string) => new Request("http://localhost/api/hint", { method: "POST", body });
@@ -34,11 +35,16 @@ it("P3.1-AC1 route streams every validated mock event in order and ends in done"
   expect(events.at(-1)?.type).toBe("done");
 });
 
-it("returns the P3.3 model_unavailable placeholder when MOCK_LLM is off", async () => {
+it("delegates to runHint when MOCK_LLM is off, without reconstructing live storage", async () => {
   vi.stubEnv("MOCK_LLM", "0");
-  expect(await lines(await POST(request(JSON.stringify(input))))).toEqual([
-    { type: "error", code: "model_unavailable", message: "Live hints are not available yet." },
-  ]);
+  vi.stubEnv("STORE", "not-used-by-the-route");
+  const expected: HintEvent[] = [
+    { type: "started", hintId: "live", at: 0 },
+    { type: "done", hintId: "live", ms: { firstEvent: 10, total: 20 } },
+  ];
+  const run = vi.spyOn(live, "runHint").mockImplementation(async function* () { yield* expected; });
+  expect(await lines(await POST(request(JSON.stringify(input))))).toEqual(expected);
+  expect(run).toHaveBeenCalledExactlyOnceWith(input);
 });
 
 it("reports fixture loading failure as an error event", async () => {

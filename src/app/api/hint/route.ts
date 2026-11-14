@@ -5,6 +5,7 @@ import { StoredHintSchema } from "../../../lib/contracts";
 import { setTimeout as sleep } from "node:timers/promises";
 import { HintEventSchema, HintRequestSchema, type HintEvent, type HintRequest } from "../../../lib/contracts";
 import { loadMockHint, streamMockHint } from "../../../lib/tutor/mock";
+import { runHint } from "../../../lib/tutor/hint";
 
 // POST handlers are dynamic and use Node by default. cacheComponents forbids
 // explicit runtime/dynamic route config in this app.
@@ -15,8 +16,7 @@ async function* hintEvents(request: HintRequest, signal: AbortSignal): AsyncIter
   if (process.env.MOCK_LLM === "1") {
     yield* streamMockHint(await loadMockHint(request), (ms) => sleep(ms, undefined, { signal }));
   } else {
-    // P3.3 replaces this branch with yield* runHint(request).
-    yield { type: "error", code: "model_unavailable", message: "Live hints are not available yet." };
+    yield* runHint(request);
   }
 }
 
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         if (next.done) { output.close(); cleanup(); return; }
         if (next.value.type === "started") hintId = next.value.hintId;
         collected.push(next.value);
-        if (next.value.type === "done") {
+        if (next.value.type === "done" && process.env.MOCK_LLM === "1") {
           // P2.8 creates persisted sessions. Until then the dev canvas has none.
           const repo = process.env.STORE === "memory" || process.env.MONGODB_URI ? getRepo() : undefined;
           const session = await repo?.getSession(input.sessionId);
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
                 id: JSON.stringify([input.sessionId, hintId, randomUUID()]), sessionId: session.id, courseId: session.courseId,
                 problemId: input.problemId, rowId: input.rowId, rung: input.rung,
                 reading: { rows: reading.rows.map(row => ({ index: input.rows.find(r => r.rowId === row.rowId)?.index ?? 1, latex: row.latex, confidence: row.confidence })) },
-                // Public mock streams omit the private note. P3.3 should pass its full reply to recordHintEvidence.
+                // Public mock streams omit the private note. runHint stores its full live reply itself.
                 diagnose: { status: diagnosis.status, subskillId: diagnosis.subskillId, errorType: diagnosis.errorType, privateNote: "" },
                 marks: collected.flatMap(e => e.type === "mark" ? [e.mark] : []), hint,
                 ms: next.value.ms, at: new Date().toISOString(),
