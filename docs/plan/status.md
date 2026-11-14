@@ -87,7 +87,7 @@ Record the real values as they are decided. Later phases and the write-up read t
 
 | Done | Subphase | Criteria | Owner | Evidence |
 |---|---|---|---|---|
-| [ ] | P2.1 Work surface and stroke capture | 4 | | |
+| [ ] | P2.1 Work surface and stroke capture | 4 | Codex | this commit (P2.1: capture timed strokes on the work surface) · P1.2 contracts/P1.3 shell available; broader G0 still pending. Test-first: missing capture module and missing browser surface failed as expected; hover-palm regression failed before its fix. P2.1-AC1: 25 capture/path unit tests pass. pnpm verify run: typecheck/lint pass, inherited 5s contract-test timeouts reproduced before source changes; pnpm verify --testTimeout=15000: all 166 tests pass. pnpm e2e: 13 Chromium tests pass (5 capture, 8 existing shell), including rendered clipping pixels, outside capture, cancel/lost-capture termination, and resize geometry. Local code/security/cleanup review and git diff --check pass. Added only perfect-freehand 1.2.3; additive work-page mount preserves heading/description/shell; shared upstream files rechecked, no Phase 5 task/loader visible. No PDFs accessed. needs human: P2.1-AC2, P2.1-AC3, P2.1-AC4. |
 | [ ] | P2.2 Problems and rows | 3 | | |
 | [ ] | P2.3 Record and replay | 4 | | |
 | [ ] | P2.4 Erase and undo | 3 | | |

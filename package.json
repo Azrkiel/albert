@@ -24,6 +24,7 @@
   "dependencies": {
     "nanoid": "^6.0.2",
     "next": "16.4.6",
+    "perfect-freehand": "^1.2.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "zod": "^4.6.7"
