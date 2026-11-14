@@ -99,6 +99,8 @@ const WRITE = {
    Duration for text is `chars / charsPerSec`; for math it is `glyphs × mathGlyphMs`.
 5. If MathJax fails on a formula, render the LaTeX source as plain text. Never drop the hint.
 
+**As built (Nov 14).** Font: Kalam Regular (OFL) as `"Albert Hand"`, `@font-face` in `src/lib/ink/ink.css`; font loading and text measuring live in `font.ts` so `math.ts` can fall back to text without an import cycle. MathJax is `@mathjax/src` 4.1.3 imported on demand, and needs `linebreaks: { inline: false }`: v4 otherwise splits inline math into several `<svg>`s. `mathToSvg` also returns `fallback` and `baseline` (px from the top); `renderSegment` returns `baseline` too. Layout places items by their top edge, so P4.4 should align a line's math and text on their baselines. `prepareMeasure(segments)` typesets the math first so `layoutHint` stays synchronous. Formulas that need a MathJax font extension loaded at run time (rare symbols outside the base font) fall back to text, because no `asyncLoad` is configured for the browser.
+
 **Acceptance**
 - [ ] **P4.2-AC1** — Math renders as paths inside the page's SVG. *Verify:* `tests/e2e/ink-math.spec.ts` calls `mathToSvg("\\frac{dx}{d\\theta} = 4\\cos\\theta", 26)` through `window.__albert` and asserts at least 8 `path` elements and a width between 60 and 400.
 - [ ] **P4.2-AC2** — Text is in the handwriting font, in red. *Verify:* the e2e test checks computed `font-family` and `fill`.
