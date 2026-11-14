@@ -35,7 +35,7 @@ test("P2.5 overlay is absent without ?dev=1", async ({ page }) => {
   await expect(page.locator("[data-cluster-box]")).toHaveCount(0);
 });
 
-test("P2.5 overlay updates live as ink is written and does not block drawing", async ({ page }) => {
+test("P2.5 overlay updates live as ink is written and erased, and does not block drawing", async ({ page }) => {
   await page.goto("/work/demo-worksheet?dev=1");
   const surface = page.locator("svg[data-capture-ready=true]").first();
   await expect(surface).toBeVisible();
@@ -64,4 +64,10 @@ test("P2.5 overlay updates live as ink is written and does not block drawing", a
   await expect(surface.locator("path[data-stroke-id]")).toHaveCount(3);
   await expect(boxes).toHaveCount(2);
   await expect(surface.locator("text[data-cluster-label]")).toHaveText(["1", "2"]);
+  // Erasing the far stroke drops its cluster; undo brings it back (P2.4 tools).
+  await page.getByRole("button", { name: "Eraser", exact: true }).click();
+  await draw(430, 432);
+  await expect(boxes).toHaveCount(1);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(boxes).toHaveCount(2);
 });

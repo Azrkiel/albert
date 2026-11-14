@@ -21,7 +21,7 @@ export type StuckSignal = z.infer<typeof StuckSignalSchema>;
 export const SessionEventSchema = z.lazy(() => z.discriminatedUnion("type", [
   z.object({ type: z.literal("stroke_end"), at: z.number().nonnegative(), stroke: StrokeSchema }),
   z.object({ type: z.literal("erase"), at: z.number().nonnegative(), strokeIds: z.array(z.string()), rowId: z.string() }),
-  z.object({ type: z.literal("undo"), at: z.number().nonnegative(), strokeIds: z.array(z.string()), rowId: z.string() }),
+  z.object({ type: z.literal("undo"), at: z.number().nonnegative(), strokeIds: z.array(z.string()), rowId: z.string(), redo: z.literal(true).optional() }),
   z.object({ type: z.literal("stuck"), at: z.number().nonnegative(), signal: StuckSignalSchema }),
   z.object({ type: z.literal("hint_requested"), at: z.number().nonnegative(), hintId: z.string(), rowId: z.string(), rung: RungSchema }),
   z.object({ type: z.literal("hint_shown"), at: z.number().nonnegative(), hintId: z.string(), marks: z.array(AlbertMarkSchema) }),

@@ -21,7 +21,8 @@ type CaptureOptions = {
   problemId: string;
   sessionStart: number;
   now?: () => number;
-  onPreview: (points: readonly Point[]) => void;
+  getTool?: () => Stroke["tool"];
+  onPreview: (points: readonly Point[], tool?: Stroke["tool"]) => void;
   onStroke: (stroke: Stroke) => void;
 };
 
@@ -30,7 +31,7 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
   const now = options.now ?? (() => performance.now());
   let penSeen = false;
   let disposed = false;
-  let active: { pointerId: number; pointerType: Stroke["pointerType"]; points: Point[] } | null = null;
+  let active: { pointerId: number; pointerType: Stroke["pointerType"]; tool: Stroke["tool"]; points: Point[] } | null = null;
 
   function convert(event: PointerSample): Point | null {
     try {
@@ -57,9 +58,10 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
     const point = convert(event);
     if (!point || point.x >= PAGE.albertCol.x) return;
     try { surface.setPointerCapture(event.pointerId); } catch { return; }
-    active = { pointerId: event.pointerId, pointerType: event.pointerType, points: [point] };
+    const tool = event.pointerType === "pen" && (event.buttons & 32) !== 0 ? "eraser" : options.getTool?.() ?? "pen";
+    active = { pointerId: event.pointerId, pointerType: event.pointerType, tool, points: [point] };
     event.preventDefault();
-    options.onPreview(active.points);
+    options.onPreview(active.points, active.tool);
   }
 
   function append(event: PointerEvent) {
@@ -74,7 +76,7 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
     event.preventDefault();
     const coalesced = event.getCoalescedEvents?.();
     for (const sample of coalesced?.length ? coalesced : [event]) append(sample);
-    options.onPreview(active.points);
+    options.onPreview(active.points, active.tool);
   }
 
   function finish(event: PointerEvent) {
@@ -91,7 +93,7 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
     }
     options.onStroke({
       id: `st_${nanoid()}`, problemId: options.problemId, rowId: null,
-      pointerType: draft.pointerType, tool: "pen", points: draft.points,
+      pointerType: draft.pointerType, tool: draft.tool, points: draft.points,
       t0: draft.points[0]!.t, t1: draft.points[draft.points.length - 1]!.t,
       bbox: { x: left, y: top, w: right - left, h: bottom - top },
     });

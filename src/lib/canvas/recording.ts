@@ -1,5 +1,5 @@
 import { SessionRecordingSchema, type SessionEvent, type SessionRecording } from "../contracts";
-import type { SessionState } from "./store";
+import { createSessionState, reduceSessionEvent, type SessionState } from "./store";
 
 /** Schema validation plus relationships/order required to replay without dropping data. No IO. */
 export function parseRecording(input: unknown): SessionRecording {
@@ -12,9 +12,11 @@ export function parseRecording(input: unknown): SessionRecording {
   for (const id of problems) if (!rec.rows.some((row) => row.problemId === id)) invalid();
   const strokes = new Set<string>();
   let previous = 0;
+  let state = createSessionState(rec.problems, rec.worksheetId, rec.rows);
   for (const event of rec.events) {
     if (event.at < previous || event.at > rec.durationMs) invalid();
     previous = event.at;
+    state = reduceSessionEvent(state, event);
     if (event.type !== "stroke_end") continue;
     const stroke = event.stroke;
     if (strokes.has(stroke.id) || !problems.has(stroke.problemId)

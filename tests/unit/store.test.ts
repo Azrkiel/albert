@@ -40,35 +40,37 @@ describe("session store clusters (P2.5)", () => {
     expect(after.clusters["p1/r2"]!.map((c) => c.strokeIds)).toEqual([["c", "d"]]);
   });
 
-  it.each(["erase", "undo"] as const)("%s stamps erasedAt and recomputes only that row's clusters", (type) => {
+  it("erase stamps erasedAt and recomputes only that row's clusters", () => {
     const before = session();
-    const after = reduceSessionEvent(before, { type, at: 5000, strokeIds: ["a"], rowId: "p1/r1" });
+    const after = reduceSessionEvent(before, { type: "erase", at: 5000, strokeIds: ["a"], rowId: "p1/r1" });
     expect(after.strokes.find((s) => s.id === "a")!.erasedAt).toBe(5000);
     expect(after.strokes).toHaveLength(3);
     expect(after.clusters["p1/r1"]!.map((c) => [c.id, c.strokeIds])).toEqual([["p1/r1/c1", ["b"]]]);
     expect(after.clusters["p1/r2"]).toBe(before.clusters["p1/r2"]);
-    expect(after.events.at(-1)!.type).toBe(type);
   });
 
-  it("erasing an already erased or unknown stroke leaves clusters untouched", () => {
+  it("undo and redo (P2.4 semantics) recompute only the undone stroke's row", () => {
+    const before = session(); // the last draw is "c" in row 2
+    const undone = reduceSessionEvent(before, { type: "undo", at: 5000, strokeIds: ["c"], rowId: "p1/r2" });
+    expect(undone.clusters["p1/r2"]).toEqual([]);
+    expect(undone.clusters["p1/r1"]).toBe(before.clusters["p1/r1"]);
+    const redone = reduceSessionEvent(undone, { type: "undo", redo: true, at: 6000, strokeIds: ["c"], rowId: "p1/r2" });
+    expect(redone.clusters["p1/r2"]).toEqual(before.clusters["p1/r2"]);
+    expect(redone.clusters["p1/r1"]).toBe(before.clusters["p1/r1"]);
+  });
+
+  it("reclusterChanged follows any stroke change, independent of the event that caused it", () => {
     const erased = reduceSessionEvent(session(), { type: "erase", at: 5000, strokeIds: ["a"], rowId: "p1/r1" });
-    const again = reduceSessionEvent(erased, { type: "undo", at: 6000, strokeIds: ["a", "zz"], rowId: "p1/r1" });
-    expect(again.clusters).toBe(erased.clusters);
-    expect(again.strokes.find((s) => s.id === "a")!.erasedAt).toBe(5000);
-  });
-
-  it("reclusters only rows whose strokes changed, whatever the event semantics (e.g. a P2.4 redo)", () => {
-    const erased = reduceSessionEvent(session(), { type: "undo", at: 5000, strokeIds: ["a"], rowId: "p1/r1" });
-    // Simulate a redo restoring "a": the reducer's stroke change alone must drive reclustering.
     const restoredStrokes = erased.strokes.map((s) => {
       if (s.id !== "a") return s;
       const copy = { ...s };
       delete copy.erasedAt;
       return copy;
     });
-    const redone = reclusterChanged(erased, { ...erased, strokes: restoredStrokes });
-    expect(redone.clusters["p1/r1"]!.map((c) => c.strokeIds)).toEqual([["a"], ["b"]]);
-    expect(redone.clusters["p1/r2"]).toBe(erased.clusters["p1/r2"]);
+    const restored = reclusterChanged(erased, { ...erased, strokes: restoredStrokes });
+    expect(restored.clusters["p1/r1"]!.map((c) => c.strokeIds)).toEqual([["a"], ["b"]]);
+    expect(restored.clusters["p1/r2"]).toBe(erased.clusters["p1/r2"]);
+    expect(reclusterChanged(erased, { ...erased })).toEqual(erased);
   });
 
   it("replaying the same events rebuilds the same clusters", () => {

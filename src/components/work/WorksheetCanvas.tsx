@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useSearchParams } from "next/navigation";
-import type { SessionEvent, SessionRecording, Stroke } from "@/lib/contracts";
-import { createSessionState, exportRecording, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
+import type { Rung, SessionEvent, SessionRecording, Stroke } from "@/lib/contracts";
+import { useHint } from "@/lib/tutor/client";
+import { clearRow, createSessionState, eraseGesture, exportRecording, historyEvent, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock } from "./ProblemBlock";
@@ -14,7 +15,9 @@ declare global {
 
 const devBuild = process.env.NODE_ENV !== "production";
 
-export function WorksheetCanvas({ worksheetId, problems }: { worksheetId: string; problems: SessionRecording["problems"] }) {
+export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: string, rung: Rung) => Promise<void> };
+
+export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: string; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
   const devTools = devBuild && params.get("dev") === "1";
@@ -22,6 +25,7 @@ export function WorksheetCanvas({ worksheetId, problems }: { worksheetId: string
   const initialSpeed = urlSpeed === "instant" || urlSpeed === "4" ? urlSpeed : "1";
   const [speed, setSpeed] = useState<PlaybackSpeed>(initialSpeed);
   const [state, setState] = useState(() => createSessionState(problems, worksheetId));
+  const [tool, setTool] = useState<Stroke["tool"]>("pen");
   const current = useRef(state);
   const origin = useRef<number | null>(null);
   const player = useRef<Replayer | null>(null);
@@ -31,16 +35,61 @@ export function WorksheetCanvas({ worksheetId, problems }: { worksheetId: string
   const [replayDone, setReplayDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const sessionId = useId();
+  const hint = useHint();
+  const [hintTarget, setHintTarget] = useState<{ problemId: string; rowId: string } | null>(null);
+  const sendHint = hint.requestHint;
+  // P2.6 can call this same entry point through the canvas ref. P2.7 will
+  // replace the placeholder PNG and empty cluster lists with a real snapshot.
+  const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung) => {
+    setHintTarget({ problemId, rowId });
+    await sendHint({ sessionId, worksheetId: current.current.worksheetId, problemId, rowId, rung, trigger: "manual",
+      image: { marked: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC", width: 1, height: 1 },
+      rows: current.current.rows.filter((row) => row.problemId === problemId).map((row) => ({ rowId: row.id, index: row.index, clusterLabels: [] })), history: [] });
+  }, [sendHint, sessionId]);
+  useImperativeHandle(ref, () => ({ requestHint }), [requestHint]);
+  const hintText = hint.events.filter((event) => event.type === "hint" || event.type === "error").map((event) =>
+    event.type === "error" ? event.message : event.segments.map((segment) =>
+      segment.type === "text" ? segment.text : segment.type === "math" ? segment.latex : "\n").join("")).join("\n");
   const getSessionStart = useCallback(() => origin.current ??= performance.now(), []);
   const replace = useCallback((next: SessionState) => { current.current = next; setState(next); }, []);
   const sink = useCallback((event: SessionEvent) => replace(reduceSessionEvent(current.current, event)), [replace]);
-  const capture = useCallback((stroke: Stroke) => {
+  const liveEvents = useCallback((events: SessionEvent[]) => {
+    if (!events.length) return;
     // New live input takes ownership of the timeline; a pending replay cannot add old ink.
     player.current?.cancel();
     player.current = null;
     loaded.current = null;
-    sink({ type: "stroke_end", at: stroke.t1, stroke });
+    loadId.current++;
+    setLoading(false);
+    for (const event of events) sink(event);
   }, [sink]);
+  const capture = useCallback((stroke: Stroke) => {
+    liveEvents(stroke.tool === "eraser" ? eraseGesture(current.current, stroke.problemId, stroke.points, stroke.t1)
+      : [{ type: "stroke_end", at: stroke.t1, stroke }]);
+  }, [liveEvents]);
+  const history = useCallback((direction: "undo" | "redo") => {
+    const at = Math.max(current.current.durationMs, performance.now() - getSessionStart());
+    const event = historyEvent(current.current, direction, at);
+    if (event) liveEvents([event]);
+  }, [getSessionStart, liveEvents]);
+  const clear = useCallback((rowId: string) => {
+    const at = Math.max(current.current.durationMs, performance.now() - getSessionStart());
+    const event = clearRow(current.current, rowId, at);
+    if (event) liveEvents([event]);
+  }, [getSessionStart, liveEvents]);
+
+  useEffect(() => {
+    const keydown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.key.toLowerCase() !== "z") return;
+      const target = event.target;
+      if (target instanceof Element && target.closest("input, textarea, select, [contenteditable]:not([contenteditable=false])")) return;
+      event.preventDefault();
+      history(event.shiftKey ? "redo" : "undo");
+    };
+    window.addEventListener("keydown", keydown);
+    return () => window.removeEventListener("keydown", keydown);
+  }, [history]);
 
   const start = useCallback((rec: SessionRecording, playbackSpeed: PlaybackSpeed) => {
     player.current?.cancel();
@@ -105,15 +154,29 @@ export function WorksheetCanvas({ worksheetId, problems }: { worksheetId: string
   }
 
   return <>
+    <div role="group" aria-label="Ink tools" style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+      <button type="button" aria-pressed={tool === "pen"} onClick={() => setTool("pen")}>Pen</button>
+      <button type="button" aria-pressed={tool === "eraser"} onClick={() => setTool("eraser")}>Eraser</button>
+      <button type="button" disabled={!state.undoStack.length} onClick={() => history("undo")}>Undo</button>
+      <button type="button" disabled={!state.redoStack.length} onClick={() => history("redo")}>Redo</button>
+    </div>
     {devTools && <DevToolbar speed={speed} onSpeed={setSpeed}
       onLoad={(file) => void load(file)} onExport={download} onPlay={() => start(loaded.current ?? snapshot(), speed)} />}
+    {devTools && state.problems[0] && <button type="button"
+      disabled={hint.status === "streaming"}
+      onClick={() => {
+        const problem = state.problems[0];
+        if (problem) void requestHint(problem.id, `${problem.id}/r3`, 1);
+      }}>Request mock hint</button>}
     {error && <p role="alert">{error}</p>}
     {state.problems.map((problem) => {
       const rows = state.rows.filter((row) => row.problemId === problem.id);
       return <ProblemBlock key={`${revision}/${problem.id}`} problem={problem} rows={rows}
         strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
-        overlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))} /> : undefined}
-        getSessionStart={getSessionStart} onStroke={capture} />;
+        hintText={hintTarget?.problemId === problem.id ? hintText : undefined}
+        hintRowId={hintTarget?.problemId === problem.id ? hintTarget.rowId : undefined}
+        getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear}
+        devOverlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))} /> : undefined} />;
     })}
   </>;
 }

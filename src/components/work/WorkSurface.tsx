@@ -9,28 +9,32 @@ const FinishedStroke = memo(function FinishedStroke({ stroke }: { stroke: Stroke
     data-stroke-problem-id={stroke.problemId} d={strokePath(stroke.points)} fill={INK.student} />;
 });
 
-export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children, overlay, getSessionStart }: {
+export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay }: {
   problemId: string;
   height?: number;
   onStroke?: (stroke: Stroke) => void;
   strokes?: Stroke[];
   children?: ReactNode;
-  /** Drawn above finished ink; must not take pointer events. */
-  overlay?: ReactNode;
+  /** SVG drawn above finished ink (dev cluster overlay); must not take pointer events. */
+  svgOverlay?: ReactNode;
   getSessionStart?: () => number;
+  tool?: Stroke["tool"];
+  overlay?: ReactNode;
 }) {
   const surface = useRef<SVGSVGElement>(null);
   const livePath = useRef<SVGPathElement>(null);
   const sessionStart = useRef<number | null>(null);
   const onStrokeRef = useRef(onStroke);
+  const toolRef = useRef(tool);
   const controlled = useRef(completedStrokes !== undefined);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const clipId = useId();
 
   useEffect(() => {
     onStrokeRef.current = onStroke;
+    toolRef.current = tool;
     controlled.current = completedStrokes !== undefined;
-  }, [onStroke, completedStrokes]);
+  }, [onStroke, completedStrokes, tool]);
 
   useEffect(() => {
     const svg = surface.current!;
@@ -42,10 +46,10 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
       frame = null;
     };
     const detach = attachCapture(svg, {
-      problemId, sessionStart: sessionStart.current,
-      onPreview(points) {
-        pending = points;
-        if (!points.length) {
+      problemId, sessionStart: sessionStart.current, getTool: () => toolRef.current,
+      onPreview(points, previewTool) {
+        pending = previewTool === "eraser" ? [] : points;
+        if (!pending.length) {
           cancelFrame();
           livePath.current?.setAttribute("d", "");
         } else if (frame === null) {
@@ -69,20 +73,24 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
   }, [problemId, getSessionStart]);
 
   return (
-    <svg ref={surface} role="img" aria-label="Worksheet work surface"
-      viewBox={`0 0 ${PAGE.width} ${height}`}
-      style={{ display: "block", width: "100%", height: "auto", marginTop: 24, background: "#fff", touchAction: "none", userSelect: "none" }}>
-      <defs>
-        <clipPath id={clipId}>
-          <rect x={PAGE.studentCol.x} y={0} width={PAGE.studentCol.w} height={height} />
-        </clipPath>
-      </defs>
-      {children}
-      <g clipPath={`url(#${clipId})`}>
-        {(completedStrokes ?? strokes).map((stroke) => <FinishedStroke key={stroke.id} stroke={stroke} />)}
-      </g>
+    <div style={{ position: "relative", marginTop: 24 }}>
+      <svg ref={surface} role="img" aria-label="Worksheet work surface"
+        viewBox={`0 0 ${PAGE.width} ${height}`}
+        style={{ display: "block", width: "100%", height: "auto", background: "#fff", touchAction: "none", userSelect: "none", cursor: tool === "eraser" ? "cell" : "crosshair" }}>
+        <defs>
+          <clipPath id={clipId}>
+            <rect x={PAGE.studentCol.x} y={0} width={PAGE.studentCol.w} height={height} />
+          </clipPath>
+        </defs>
+        {children}
+        <g clipPath={`url(#${clipId})`}>
+          {(completedStrokes ?? strokes).filter((stroke) => stroke.tool === "pen" && stroke.erasedAt === undefined)
+            .map((stroke) => <FinishedStroke key={stroke.id} stroke={stroke} />)}
+        </g>
+        {svgOverlay}
+        <path ref={livePath} data-live-stroke="" d="" fill={INK.student} />
+      </svg>
       {overlay}
-      <path ref={livePath} data-live-stroke="" d="" fill={INK.student} />
-    </svg>
+    </div>
   );
 }

@@ -178,6 +178,18 @@ describe("contract examples", () => {
 
 describe("fixture validation", () => {
   it("validates all recorded JSON fixtures", () => { validateFixtures(resolve("fixtures")); });
+  it("P3.1-AC1: every mock has one delay per event and ends in done; requests parse as HintRequest", () => {
+    const mocks = readdirSync(resolve("fixtures/llm")).filter((file) => file.endsWith(".json"));
+    expect(mocks.length).toBeGreaterThanOrEqual(6);
+    for (const file of mocks) {
+      const mock = contracts.MockHintSchema.parse(JSON.parse(readFileSync(resolve("fixtures/llm", file), "utf8")));
+      expect(mock.delaysMs, file).toHaveLength(mock.events.length);
+      expect(mock.events.at(-1)?.type, file).toBe("done");
+    }
+    const requests = readdirSync(resolve("fixtures/eval/requests")).filter((file) => file.endsWith(".json"));
+    expect(requests).toContain("missing-dx-r1.json");
+    for (const file of requests) contracts.HintRequestSchema.parse(JSON.parse(readFileSync(resolve("fixtures/eval/requests", file), "utf8")));
+  });
   function withFixtures(run: (root: string, put: (path: string, content: string) => void) => void) {
     const root = mkdtempSync(join(tmpdir(), "albert-contracts-"));
     try {
