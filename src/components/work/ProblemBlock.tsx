@@ -37,7 +37,7 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
         overlay={onClearRow && numbered.map((row) => <button key={row.id} type="button" data-row-number=""
           aria-label={`Clear row ${row.index} of problem ${problem.label}`}
           title={`Clear row ${row.index}`} onClick={() => onClearRow(row.id)}
-          style={{ position: "absolute", left: "0.5%", top: `${(row.bbox.y + 2) / height * 100}%`,
+          style={{ position: "absolute", left: `${row.bbox.x / PAGE.width * 100 + 0.5}%`, top: `${(row.bbox.y + 2) / height * 100}%`,
             width: 32, height: 32, padding: 0, background: "transparent", border: 0, color: "#76726b", cursor: "pointer" }}>
           {row.index}
         </button>)}>
