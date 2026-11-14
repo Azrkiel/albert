@@ -21,6 +21,7 @@ test("dev hint button is opt-in and displays rung 1 in red in the correct column
   await page.goto("/work/calc2-ws3");
   await expect(page.getByRole("button", { name: "Request mock hint" })).toHaveCount(0);
   await page.goto("/work/calc2-ws3?dev=1");
+  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
   const button = page.getByRole("button", { name: "Request mock hint" });
   await expect(button).toBeVisible();
   const sent = page.waitForRequest((request) => request.url().endsWith("/api/hint") && request.method() === "POST");
@@ -44,6 +45,8 @@ for (const scenario of ["non-2xx", "invalid line", "truncated stream"] as const)
       body: scenario === "invalid line" ? "bad JSON\n" : '{"type":"started","hintId":"partial","at":0}\n',
     }));
     await page.goto("/work/calc2-ws3?dev=1");
+    // Wait for hydration: a click on server-rendered markup before React attaches is lost (Nov 14 CI flake).
+    await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
     const button = page.getByRole("button", { name: "Request mock hint" });
     await button.click();
     const column = page.locator(missingDx).locator("[data-albert-column]");
