@@ -41,6 +41,7 @@ export class MemoryRepo implements Repo {
     this.files.set(meta.id, { meta: copy(meta), bytes: new Uint8Array(bytes) });
   }
   async getFile(id: string): Promise<{ meta: CourseFile; bytes: Uint8Array } | null> { return copy(this.files.get(id) ?? null); }
+  async getSession(id: string): Promise<Session | null> { return copy(this.sessions.get(id) ?? null); }
   async createSession(s: Session): Promise<void> {
     if (this.sessions.has(s.id)) throw new Error(`Session already exists: ${s.id}`);
     this.sessions.set(s.id, copy(s));

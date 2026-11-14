@@ -393,6 +393,8 @@ type SkillState = {
 | 5 | Awarded only by drill mode (stretch) |
 | −1 step | If the two most recent events are both `error_made` or `abandoned`, lower the result by one, never below 1 |
 
+`computeLevel` accepts optional `StoredHint[]` history in addition to evidence. Production recomputation supplies it, including hints with no error evidence; otherwise no-hint timing can only be inferred from `error_made` and assisted-correct events. A cold solve has no hint for that subskill within the preceding 20 minutes (inclusive), or a positive event occurred earlier in a different session. Equal timestamps are ordered by event ID for deterministic demotion; time comparisons use parsed instants so offset timestamps work. `computeSkills` takes optional explicit `at`; without it `updatedAt` is the latest evidence time, or the Unix epoch for empty history. The impure recomputation wrapper supplies the current time.
+
 The rule follows the Socratic tutor skill: levels are earned on two or more independent checks, at least one of them unprompted, and a failed review lowers the level.
 
 **Tutor report.** Built by plain code from hints, evidence, skills and sessions (Phase 7, P7.4).
@@ -488,6 +490,7 @@ interface Repo {
   putFile(meta: CourseFile, bytes: Uint8Array): Promise<void>;
   getFile(id: string): Promise<{ meta: CourseFile; bytes: Uint8Array } | null>;
   // sessions
+  getSession(id: string): Promise<Session | null>;
   createSession(s: Session): Promise<void>;         appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
   endSession(sessionId: string, at: ISO): Promise<void>;
   saveHint(h: StoredHint): Promise<void>;           listHints(filter: { sessionId?: string; courseId?: string }): Promise<StoredHint[]>;

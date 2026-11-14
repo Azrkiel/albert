@@ -100,6 +100,7 @@ export class MongoRepo implements Repo {
     return { meta: withoutId<CourseFile>(meta), bytes: new Uint8Array(Buffer.concat(chunks)) };
   }
 
+  async getSession(id: string): Promise<Session | null> { return this.one("sessions", id); }
   async createSession(s: Session): Promise<void> { await (await this.collection("sessions")).insertOne({ ...s, _id: s.id }); }
   async appendEvents(sessionId: string, events: SessionEvent[]): Promise<void> {
     if (!await this.one<Session>("sessions", sessionId)) throw new Error(`Session not found: ${sessionId}`);

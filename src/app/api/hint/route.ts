@@ -1,3 +1,7 @@
+import { randomUUID } from "node:crypto";
+import { getRepo } from "../../../lib/db";
+import { recordHintEvidence } from "../../../lib/tutor/record-evidence";
+import { StoredHintSchema } from "../../../lib/contracts";
 import { setTimeout as sleep } from "node:timers/promises";
 import { HintEventSchema, HintRequestSchema, type HintEvent, type HintRequest } from "../../../lib/contracts";
 import { loadMockHint, streamMockHint } from "../../../lib/tutor/mock";
@@ -31,6 +35,7 @@ export async function POST(request: Request) {
   const events = hintEvents(input, controller.signal)[Symbol.asyncIterator]();
   const encoder = new TextEncoder();
   let hintId: string | undefined;
+  const collected: HintEvent[] = [];
   let cancelled = false;
   const cleanup = () => request.signal.removeEventListener("abort", abort);
   const stream = new ReadableStream<Uint8Array>({
@@ -40,6 +45,30 @@ export async function POST(request: Request) {
         if (controller.signal.aborted) { output.close(); cleanup(); return; }
         if (next.done) { output.close(); cleanup(); return; }
         if (next.value.type === "started") hintId = next.value.hintId;
+        collected.push(next.value);
+        if (next.value.type === "done") {
+          // P2.8 creates persisted sessions. Until then the dev canvas has none.
+          const repo = process.env.STORE === "memory" || process.env.MONGODB_URI ? getRepo() : undefined;
+          const session = await repo?.getSession(input.sessionId);
+          const worksheet = session ? await repo?.getWorksheet(session.worksheetId) : undefined;
+          if (repo && session && !session.endedAt && session.worksheetId === input.worksheetId && worksheet?.courseId === session.courseId && worksheet.problems.some(p => p.id === input.problemId)) {
+            const diagnosis = collected.find(e => e.type === "diagnosis");
+            const reading = collected.find(e => e.type === "reading");
+            const hint = collected.find(e => e.type === "hint");
+            if (diagnosis && reading && hint) {
+              const stored = StoredHintSchema.parse({
+                id: JSON.stringify([input.sessionId, hintId, randomUUID()]), sessionId: session.id, courseId: session.courseId,
+                problemId: input.problemId, rowId: input.rowId, rung: input.rung,
+                reading: { rows: reading.rows.map(row => ({ index: input.rows.find(r => r.rowId === row.rowId)?.index ?? 1, latex: row.latex, confidence: row.confidence })) },
+                // Public mock streams omit the private note. P3.3 should pass its full reply to recordHintEvidence.
+                diagnose: { status: diagnosis.status, subskillId: diagnosis.subskillId, errorType: diagnosis.errorType, privateNote: "" },
+                marks: collected.flatMap(e => e.type === "mark" ? [e.mark] : []), hint,
+                ms: next.value.ms, at: new Date().toISOString(),
+              });
+              await recordHintEvidence(repo, stored, session);
+            }
+          }
+        }
         output.enqueue(encoder.encode(line(next.value)));
       } catch {
         if (!controller.signal.aborted) {

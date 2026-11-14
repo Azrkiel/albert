@@ -9,4 +9,6 @@ test("production disables recording toolbar, fixture access and inspection hook"
   expect(await page.evaluate(() => "__albert" in window)).toBe(false);
   await expect(page.locator("path[data-stroke-id]")).toHaveCount(0);
   expect((await request.get("/api/dev/recording?name=sample")).status()).toBe(404);
+  expect((await request.get("/api/dev/evidence?courseId=course1")).status()).toBe(404);
+  expect((await request.post("/api/dev/evidence", { data: {} })).status()).toBe(404);
 });

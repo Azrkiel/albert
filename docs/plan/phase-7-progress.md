@@ -41,12 +41,16 @@ src/components/progress/SkillMap.tsx  PlanList.tsx  HowYoureDoing.tsx
 3. `evidenceFromSessionEnd(session, hints, checks): EvidenceEvent[]`
    - For each problem that had at least one `error` hint and no `correct` check: one `abandoned` event for each diagnosed subskill.
 
+Initial implementation against main 837a476: pure functions accept an `EvidenceContext` (Session plus course subskill IDs, existing evidence and explicit ISO time). Storage adapters validate course membership and log unknown IDs. `recordCheckEvidence` and `recordSessionEndEvidence` are integration points for P3.7/P7.5; these routes do not exist yet. `Repo.getSession` is required to resolve hint ownership without trusting request metadata. The existing mock stream is persisted only for an existing, active session. Its public events omit private notes, so P3.3 must pass the full validated reply to `recordHintEvidence`.
+
+Integration with main 5a61abd uses the existing handwriting recording, P2.8 server-created UI session and P3.2 demo cards. P7.1-AC2 replays the original handwriting, taps the real hint mark, then requests the remaining mock rungs and verifies one deduplicated missing_dx event for u3.find_dx. The test does not replace demo cards or worksheets. P3.1-AC4 remains enabled; check evidence and session-end evidence wiring remain with P3.7/P7.5.
+
 Wire them in: `/api/hint` adds hint evidence after saving the `StoredHint`; `/api/check` adds check evidence; `/api/session/[id]/end` adds end-of-session evidence (P7.5). All through `repo.addEvidence`.
 
 **Acceptance**
-- [ ] **P7.1-AC1** — Each function produces the right events. *Verify:* `tests/unit/evidence.test.ts`: an error hint → one `error_made`; the same error at rungs 1, 2, 3 → still one; a `stalled` hint → none; a correct check with no hints → `unaided_correct` for every subskill; with hints up to rung 2 → `correct_after_r2`; a session ending with an unfinished, hinted problem → `abandoned`.
-- [ ] **P7.1-AC2** — Evidence is written from the live routes. *Verify:* `tests/e2e/evidence.spec.ts` (mock model, memory store): replay `missing-dx.json`, request a hint, then read evidence through a dev route: one `error_made` with `errorType: "missing_dx"`.
-- [ ] **P7.1-AC3** — A hint whose `subskillId` is not in the course produces no evidence and logs a warning. *Verify:* unit test.
+- [x] **P7.1-AC1** — Each function produces the right events. *Verify:* `tests/unit/evidence.test.ts`: an error hint → one `error_made`; the same error at rungs 1, 2, 3 → still one; a `stalled` hint → none; a correct check with no hints → `unaided_correct` for every subskill; with hints up to rung 2 → `correct_after_r2`; a session ending with an unfinished, hinted problem → `abandoned`.
+- [x] **P7.1-AC2** — Evidence is written from the live routes. *Verify:* `tests/e2e/evidence.spec.ts` (mock model, memory store): replay `missing-dx.json`, request a hint, then read evidence through a dev route: one `error_made` with `errorType: "missing_dx"`.
+- [x] **P7.1-AC3** — A hint whose `subskillId` is not in the course produces no evidence and logs a warning. *Verify:* unit test.
 
 ---
 
@@ -62,12 +66,13 @@ Wire them in: `/api/hint` adds hint evidence after saving the `StoredHint`; `/ap
                                   studentId: string; courseId: string }): SkillState[]
    ```
    Implement the table in `contracts.md` §7 exactly. `evidenceIds` are the events that satisfied the condition for the level reached, so the page can say why.
+   Implementation detail: `computeLevel` also accepts optional stored hint history; `computeSkills` accepts optional `hints` and explicit `at`. Evidence alone cannot represent a non-error hint, so recomputation supplies all the student's stored hints to implement the cold rule exactly. For timing only, hints without a diagnosed subskill use their worksheet problem's skill tags; stored diagnoses stay unchanged. When no explicit time is supplied, `updatedAt` uses the latest evidence timestamp (epoch for empty history) to keep pure output deterministic. The rule's later-session exception means a different session with an earlier positive event, not lexicographic session-ID order.
 2. A unit counts as covered on the course page when its card is `taught` (it was built from posted lecture notes). For the seed course that is units 1 to 3; units 4 and 5 are in the syllabus only and show as "Not covered yet".
 3. `recomputeSkills(studentId, courseId)` reads cards and all evidence, calls `computeSkills`, and saves. Call it after any evidence is added. It is cheap; do not try to update incrementally.
 4. `GET /api/progress/[courseId]` returns the skills and the recent errors.
 
 **Acceptance**
-- [ ] **P7.2-AC1** — Every row of the level table is tested. *Verify:* `tests/unit/levels.test.ts`, one test per row:
+- [x] **P7.2-AC1** — Every row of the level table is tested. *Verify:* `tests/unit/levels.test.ts`, one test per row:
   - not covered → 0
   - covered, no events → 1
   - one `correct_after_r3` → 2
@@ -78,9 +83,9 @@ Wire them in: `/api/hint` adds hint evidence after saving the `StoredHint`; `/ap
   - level 4 history followed by two `error_made` → 3
   - a single `error_made` after level 3 → 3 (one slip does not demote)
   - never below 1 for a covered unit
-- [ ] **P7.2-AC2** — The function is deterministic and order-independent. *Verify:* unit test shuffles the events and gets the same result.
-- [ ] **P7.2-AC3** — `evidenceIds` name real events that justify the level. *Verify:* unit test for levels 3 and 4.
-- [ ] **P7.2-AC4** — The model cannot set a level. *Verify:* `grep -R "level" src/lib/tutor src/lib/agent/tools.ts` shows no code path that writes `SkillState`; only `src/lib/progress` calls `repo.saveSkills`.
+- [x] **P7.2-AC2** — The function is deterministic and order-independent. *Verify:* unit test shuffles the events and gets the same result.
+- [x] **P7.2-AC3** — `evidenceIds` name real events that justify the level. *Verify:* unit test for levels 3 and 4.
+- [x] **P7.2-AC4** — The model cannot set a level. *Verify:* `grep -R "level" src/lib/tutor src/lib/agent/tools.ts` shows no code path that writes `SkillState`; only `src/lib/progress` calls `repo.saveSkills`.
 
 ---
 

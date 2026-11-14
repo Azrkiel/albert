@@ -88,3 +88,29 @@ it("closes a pending read when the request is aborted between events", async () 
   controller.abort();
   expect((await next).done).toBe(true);
 });
+
+it("preserves repeated mock hint timestamps while deduplicating evidence and recomputing levels", async () => {
+  vi.stubEnv("STORE", "memory");
+  const { getRepo } = await import("../../src/lib/db");
+  const { TeachingCardSchema, SessionSchema, WorksheetSchema } = await import("../../src/lib/contracts");
+  const { examples } = await import("./contracts.examples");
+  const repo = getRepo();
+  const card = TeachingCardSchema.parse(examples.TeachingCard.valid);
+  card.subskills[0]!.id = "u3.find_dx";
+  const session = { ...SessionSchema.parse(examples.Session.valid), id: "persisted-hint-test", worksheetId: input.worksheetId };
+  const worksheet = { ...WorksheetSchema.parse(examples.Worksheet.valid), id: input.worksheetId, problems: [{ ...WorksheetSchema.parse(examples.Worksheet.valid).problems[0]!, id: input.problemId, subskillIds: [card.subskills[0]!.id] }] };
+  await repo.upsertCard(card);
+  await repo.upsertWorksheet(worksheet);
+  await repo.createSession(session);
+  const stream = mock.streamMockHint;
+  vi.spyOn(mock, "streamMockHint").mockImplementation(fixture => stream(fixture, async () => {}));
+  for (let n = 0; n < 2; n++) {
+    const events = await lines(await POST(request(JSON.stringify({ ...input, sessionId: session.id }))));
+    expect(events.at(-1)?.type).toBe("done");
+  }
+  const hints = await repo.listHints({ sessionId: session.id });
+  expect(hints).toHaveLength(2);
+  expect(hints[0]!.id).not.toBe(hints[1]!.id);
+  expect(await repo.listEvidence(session.studentId, session.courseId)).toHaveLength(1);
+  expect((await repo.listSkills(session.studentId, session.courseId)).find(s => s.subskillId === card.subskills[0]!.id)).toMatchObject({ level: 1, recentErrorTypes: ["missing_dx"] });
+});
