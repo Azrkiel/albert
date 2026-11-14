@@ -210,6 +210,8 @@ scripts/eval-hints.ts
 
 ### P3.6 — Streaming
 
+**Deferred (user, Nov 14).** Kept, but built after the other key features (G2 ink, G3 ingest, G4 plan). Until then `runHint` sends one reply and the page draws it when it arrives.
+
 **Goal.** The first mark reaches the page before the hint text has been written.
 
 **Build.**
