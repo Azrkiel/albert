@@ -29,7 +29,10 @@ Read first: [`tracks.md`](./tracks.md) in full, [`00-main-plan.md`](./00-main-pl
    7. Problem 4 → replay `partial-fractions-urge.json` → **I'm stuck** → the deferral note names Unit 4 and the hint does not contain partial-fraction steps.
    8. **End session** → course page shows a moved skill and (with a fake re-plan) a new plan item.
    9. Open the tutor report → one stuck point with "What was wrong".
-2. `scripts/journey-live.md`: the same nine steps as a manual checklist against the real model, database, agent and Moodle site, with a box to tick and a place to note the time of each hint.
+   10. Canvas integration (P2.5a/P2.5b with P2.7 and P4). Replay a free-layout recording with side work beside a divider and ask for a hint on a side line. Check two things:
+       - the snapshot tags every line at its own left edge (`row.bbox.x`), so side lines are tagged beside the side work;
+       - Albert's margin notes for two lines at the same height stack without overlapping.
+2. `scripts/journey-live.md`: the same ten steps as a manual checklist against the real model, database, agent and Moodle site, with a box to tick and a place to note the time of each hint.
 
 **Acceptance**
 - [ ] **P8.1-AC1** — The offline journey passes. *Verify:* `pnpm e2e -- journey`.
@@ -135,7 +138,7 @@ Evidence: img/peri-1.jpg   (or a quoted message)
 3. **Warm-up.** A `scripts/warm.ts` that sends one hint request for the demo problem so that the prompt cache and connections are warm. Run it two minutes before presenting.
 4. **Offline kit.** Confirm `STORE=memory MOCK_LLM=1 pnpm start` runs the journey with no network, using recorded replies for the two demo problems. This is for a dead network only. If it is ever used in front of judges, say so: "the venue network is down, so these two replies are recordings of the real model from an hour ago".
 5. **Pre-flight list** in `scripts/preflight.md`: charger; device paired and charged; browser zoom; do-not-disturb on; `pnpm smoke` green; warm-up run; Moodle demo login typed once to confirm; the course already ingested; the recorded agent run loaded; the backup video open in a tab; a phone hotspot ready.
-6. **Known-bad handwriting.** Find out what breaks it (tiny writing, writing across rows, cursive) and simply do not do that on stage.
+6. **Known-bad handwriting.** Find out what breaks it and simply do not do that on stage. Candidates: tiny writing, cursive, side work without a divider (it shares lines with the main work), and strokes written out of order (going back to an earlier line). Writing across rows and tall fractions are handled by the free layout (P2.5a).
 
 **Acceptance**
 - [ ] **P8.4-AC1** — **Reset demo** returns to an identical start. *Verify:* e2e test: draw, reset, state equals the seeded state.

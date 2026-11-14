@@ -352,3 +352,12 @@ pnpm e2e         # replay, stuck mark, snapshot, session sync
 - [ ] All seven recordings exist and pass the contract test.
 - [ ] By hand: solve the demo problem start to finish with the demo device. Stall once and see the mark. Export, reload the page, load the export, and see the same page.
 - [ ] `status.md` records the final `CLUSTER_GAP` and `PAUSE_MIN_MS` values.
+- [ ] **Handwriting sign-off (P2.5-AC3, P2.5a-AC4, P2.5b-AC3 together).** By hand, on the demo device, with `?layout=free&dev=1`, in one session:
+  - write the demo problem anywhere on the page, including a stacked fraction about two old rows tall;
+  - do one piece of side work beside a hand-drawn divider;
+  - continue the main work below the divider.
+
+  Check that each symbol a tutor would circle is a cluster or a run of adjacent clusters, each step is one line band, and the side work has its own bands. Export the session to `fixtures/sessions/` if anything needs tuning. Tick P2.5, P2.5a and P2.5b when it passes.
+- [ ] **Default layout.** Once the sign-off passes, make `free` the default: the `envLayout` fallback in `WorksheetCanvas`, `.env.example`, and `contracts.md` §12. Otherwise record in `status.md` why `ruled` stays.
+- [ ] **Stroke order.** During the sign-off, note whether any line splits because strokes were written out of order: going back to an earlier line, or writing right to left. Lines are assigned incrementally and never merge (P2.5a known limit). If it happens in normal writing, add a line-merge step before Gate G2.
+- [ ] **No flaky e2e.** `pnpm e2e` passes three runs in a row locally and CI is green on `main` without re-runs. The known flake is P3.1's `hint-mock` error-state tests (failed CI three times on Nov 14): they click **Request mock hint** before the page has hydrated. Make them wait for `svg[data-capture-ready=true]` before clicking.

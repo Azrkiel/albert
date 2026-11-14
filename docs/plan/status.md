@@ -184,6 +184,7 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 14 | Claude | P2.5 loose ends moved into the final checks, at the user's request. Phase 2 exit now holds the joint handwriting sign-off (P2.5-AC3, P2.5a-AC4, P2.5b-AC3), the switch to `free` as the default layout, a stroke-order check, and a no-flaky-e2e check with the `hint-mock` fix. P8.1 journey step 10 covers side-work snapshot tags and stacked margin notes. P8.4 known-bad handwriting list updated. Plan text only. |
 | Nov 14 | Claude | P2.5b tuned on the user's side-work session: divider height 256 px → relative (≥ 120 px and ≥ 3 × earlier median letter height, `LINE.DIVIDER_MIN_GLYPHS`); fraction bars get sideways tolerance so an opening "(" before the bar stays on the fraction's line. |
 | Nov 14 | Claude | Added and built P2.5b (user request): a long vertical stroke splits the free layout into a main column and side work. New `LINE.DIVIDER_*` constants; Row boxes in the free layout now span their column. Known limits recorded: only strokes after the divider are split; side work without a divider still shares lines by height. |
 | Nov 14 | Claude | P2.5a tuned on the user's free-layout session: `LINE.REACH` added (tails and subscripts just outside a line join it). `LINE.GAP` 16, `GAP_PER_HEIGHT` 0.5, `MIN_OVERLAP` 0.3 unchanged. Order-dependence of incremental assignment recorded as a known limit. User approved merging #11 and #14 after tuning. |
