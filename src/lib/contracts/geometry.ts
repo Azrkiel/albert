@@ -11,7 +11,7 @@ export const PAGE = {
 } as const;
 
 /** Line inference for the free layout (contracts.md §2, Line assignment). Logical px except MIN_OVERLAP. */
-export const LINE = { GAP: 16, GAP_PER_HEIGHT: 0.5, MIN_OVERLAP: 0.3, PAD: 8 } as const;
+export const LINE = { GAP: 16, GAP_PER_HEIGHT: 0.5, MIN_OVERLAP: 0.3, REACH: 0.5, PAD: 8 } as const;
 
 export const INK = { student: "#1b1b1f", albert: "#c8321e", clusterLabel: "#2f6fdb" } as const;
 

@@ -44,6 +44,12 @@ function overlapShare(box: BBox, band: Band): number {
   return shorter <= 0 ? 1 : overlap / shorter;
 }
 
+/** Median height of a line's glyphs, ignoring flat strokes (bars, minus signs); the band height if none. */
+function glyphHeight(line: Band): number {
+  const heights = line.strokes.filter((s) => !isFlat(s.bbox)).map((s) => s.bbox.h).sort((a, b) => a - b);
+  return heights.length ? heights[Math.floor(heights.length / 2)]! : line.bottom - line.top;
+}
+
 /** A finished pen stroke's line: an existing line's id, or a new one. Decided once; never revisited. */
 export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
   const lines = bands(strokes.filter((s) => s.id !== stroke.id), stroke.problemId, true);
@@ -52,9 +58,14 @@ export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
   const nearer = (a: Band, b: Band) =>
     Math.abs((a.top + a.bottom) / 2 - middle) - Math.abs((b.top + b.bottom) / 2 - middle) || a.n - b.n;
 
-  // 1. Most vertical overlap.
+  // 1. Most vertical overlap; or the stroke's centre within LINE.REACH glyph heights of the line's ink
+  //    (descenders, subscripts, tails hanging just below or above).
+  const reaches = (line: Band) => {
+    const reach = LINE.REACH * glyphHeight(line);
+    return middle >= line.top - reach && middle <= line.bottom + reach;
+  };
   const overlapping = lines.map((line) => ({ line, share: overlapShare(box, line) }))
-    .filter(({ share }) => share >= LINE.MIN_OVERLAP)
+    .filter(({ line, share }) => share >= LINE.MIN_OVERLAP || reaches(line))
     .sort((a, b) => b.share - a.share || nearer(a.line, b.line));
   if (overlapping[0]) return overlapping[0].line.rowId;
 

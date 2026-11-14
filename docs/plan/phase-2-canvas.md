@@ -160,7 +160,7 @@ src/lib/canvas/
    - **Index** is top-to-bottom order by band top, recomputed on every change. Ids are stable; indexes can shift when a line is written between two others. History and hints refer to ids, so only the labels drawn on the next snapshot change.
    - A line whose strokes are all erased keeps its row, so P2.4's undo can restore it, but it is numbered after the lines with ink and shows no number.
    - `Row.bbox` is the student column's x and width, by the band ± `LINE.PAD`.
-2. Constants in `src/lib/contracts/geometry.ts`: `LINE = { GAP: 16, GAP_PER_HEIGHT: 0.5, MIN_OVERLAP: 0.3, PAD: 8 }` (logical px; the fraction gap is the larger of `GAP` and `GAP_PER_HEIGHT` × the part's height, so big writing still joins). `GAP` is a first guess, tuned at AC4 the way `CLUSTER_GAP` was.
+2. Constants in `src/lib/contracts/geometry.ts`: `LINE = { GAP: 16, GAP_PER_HEIGHT: 0.5, MIN_OVERLAP: 0.3, REACH: 0.5, PAD: 8 }` (logical px; the fraction gap is the larger of `GAP` and `GAP_PER_HEIGHT` × the part's height, so big writing still joins). `GAP` is a first guess, tuned at AC4 the way `CLUSTER_GAP` was.
 3. **Layout switch.** The default is `ruled` until P2.5a-AC4 passes, then `free` (user decision, Nov 14).
    - `NEXT_PUBLIC_CANVAS_LAYOUT=free|ruled`, overridden per page load by `?layout=free|ruled`.
    - `SessionRecording.layout?: "ruled" | "free"`. Absent means `ruled`, so `sample.json` and `ac3-handwriting.json` replay unchanged.

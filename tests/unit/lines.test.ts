@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LINE, PAGE, type BBox, type Stroke } from "../../src/lib/contracts";
 import { assignLine, createSessionState, exportRecording, freeSurfaceHeight, lineRows, parseRecording, reduceSessionEvent, type SessionState } from "../../src/lib/canvas";
@@ -51,6 +52,14 @@ describe("assignLine (P2.5a-AC1)", () => {
     const small = pen({ x: 150, y: 400, w: 20, h: 20 });
     const farBar = pen({ x: 120, y: 420 + LINE.GAP + 1, w: 120, h: 4 }); // small writing: the fixed gap applies
     expect(write([small, farBar]).rows).toHaveLength(2);
+  });
+
+  it("a small tail hanging below a line's ink joins it (LINE.REACH), a line below does not", () => {
+    const glyphs = [pen({ x: 100, y: 150, w: 25, h: 30 }), pen({ x: 130, y: 152, w: 25, h: 28 }), pen({ x: 160, y: 150, w: 25, h: 30 })];
+    const tail = pen({ x: 190, y: 179, w: 10, h: 15 }); // overlaps the band by 1 px, centre 6.5 px below it
+    expect(rowOf(write([...glyphs, tail]), tail.id)).toBe("p1/r1");
+    const below = pen({ x: 100, y: 190, w: 25, h: 30 }); // a tight next line, 10 px gap: centre 25 px below the band
+    expect(rowOf(write([...glyphs, below]), below.id)).toBe("p1/r2");
   });
 
   it("a tall integral, a superscript and a subscript join their line", () => {
@@ -130,5 +139,34 @@ describe("free-layout recordings (P2.5a-AC2)", () => {
     expect(() => exportRecording(state, "free")).not.toThrow();
     const ruled = { ...exportRecording(state, "free"), layout: undefined };
     expect(() => parseRecording(ruled)).toThrow();
+  });
+});
+
+describe("free layout on real handwriting (P2.5a-AC4 samples)", () => {
+  const load = (name: string) => parseRecording(JSON.parse(readFileSync(`fixtures/sessions/${name}.json`, "utf8")));
+  const strokesOf = (name: string) => load(name).events.flatMap((e) => e.type === "stroke_end" ? [e.stroke] : []);
+  /** Re-run line assignment from scratch, in writing order, and return the stroke count per line. */
+  function lines(name: string, keep: (s: Stroke) => boolean = () => true): number[] {
+    const rec = load(name);
+    const state = strokesOf(name).filter(keep).sort((a, b) => a.t0 - b.t0)
+      .reduce((s, stroke) => reduceSessionEvent(s, { type: "stroke_end", at: stroke.t1, stroke: { ...stroke, rowId: null } }),
+        createSessionState(rec.problems, rec.worksheetId, undefined, "free"));
+    return state.rows.map((row) => state.strokes.filter((s) => s.rowId === row.id).length);
+  }
+  const notTall = (s: Stroke) => s.bbox.h <= 90;
+
+  it("two integrals with stacked fractions at two sizes are two lines, with or without the tall ∫", () => {
+    expect(lines("ac4-handwriting")).toEqual([16, 16]);
+    expect(lines("ac4-handwriting", notTall)).toEqual([15, 15]);
+  });
+
+  it("the P2.5 sample is its two expressions plus the stray tap", () => {
+    expect(lines("ac3-handwriting")).toEqual([1, 18, 11]);
+  });
+
+  it("the recorded free session replays to its recorded rows", () => {
+    const rec = load("ac4-handwriting");
+    const state = rec.events.reduce(reduceSessionEvent, createSessionState(rec.problems, rec.worksheetId, rec.rows, "free"));
+    expect(state.rows).toEqual(rec.rows);
   });
 });
