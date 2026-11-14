@@ -22,6 +22,7 @@
     "check:tracks": "node -e \"console.log('not built yet (Phase 8)')\" --"
   },
   "dependencies": {
+    "mongodb": "^7.9.0",
     "nanoid": "^6.0.2",
     "next": "16.4.6",
     "perfect-freehand": "^1.2.3",
