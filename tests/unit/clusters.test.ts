@@ -56,8 +56,9 @@ describe("clusterRow (P2.5-AC1)", () => {
     expect(clusterRow([dot, stem], ROW)).toHaveLength(1);
   });
 
-  it("AC1e: two symbols 10 px apart give one cluster", () => {
-    expect(clusterRow(symbols([10]), ROW)).toHaveLength(1);
+  it("AC1e: two symbols closer than CLUSTER_GAP give one cluster", () => {
+    expect(clusterRow(symbols([STUCK.CLUSTER_GAP / 2]), ROW)).toHaveLength(1);
+    expect(clusterRow(symbols([0]), ROW)).toHaveLength(1);
   });
 
   it("AC1f: two symbols 40 px apart give two clusters", () => {
@@ -87,7 +88,7 @@ describe("clusterRow edges", () => {
   it("joins a later small stroke to a wide early stroke by the running max right edge", () => {
     const integral = stroke({ x: 100, w: 120, y: 100, h: 60 }); // right edge 220
     const lowerLimit = stroke({ x: 105, w: 10 }); // right edge 115, sorted second
-    const body = stroke({ x: 230, w: 20 }); // 10 px past the integral, 115 px past the limit
+    const body = stroke({ x: 220 + STUCK.CLUSTER_GAP, w: 20 }); // within the gap of the integral, far past the limit
     const clusters = clusterRow([body, lowerLimit, integral], ROW);
     expect(clusters).toHaveLength(1);
     expect(clusters[0]!.strokeIds).toEqual([integral.id, lowerLimit.id, body.id]);
@@ -99,7 +100,7 @@ describe("clusterRow edges", () => {
   });
 
   it("every returned cluster parses with the contracts Cluster schema", () => {
-    const clusters = clusterRow(symbols([60, 5, 40, 22, 23]), ROW);
+    const clusters = clusterRow(symbols([60, 1, 40, STUCK.CLUSTER_GAP, STUCK.CLUSTER_GAP + 1]), ROW);
     expect(clusters.length).toBeGreaterThan(1);
     for (const cluster of clusters) expect(ClusterSchema.parse(cluster)).toEqual(cluster);
   });
@@ -108,7 +109,7 @@ describe("clusterRow edges", () => {
 describe("clusterRow labels (P2.5-AC2)", () => {
   it("AC2a: shuffled input gives the same labels, ids and boxes every time", () => {
     // Includes equal bbox.x (tie-broken by t0) and equal bbox.x and t0 (tie-broken by id).
-    const base = [...symbols([60, 5, 40]), stroke({ x: 100, w: 20 }, { t0: 1 }), stroke({ x: 100, w: 20 }, { t0: 1 })];
+    const base = [...symbols([60, STUCK.CLUSTER_GAP - 1, 40]), stroke({ x: 100, w: 20 }, { t0: 1 }), stroke({ x: 100, w: 20 }, { t0: 1 })];
     const expected = clusterRow(base, ROW);
     expect(expected.map((c) => c.label)).toEqual([1, 2, 3]);
     let seed = 7;

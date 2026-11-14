@@ -127,7 +127,7 @@ src/lib/canvas/
 3. Dev overlay (only with `?dev=1`): draw each cluster's box and number on screen. This overlay is how you tune `STUCK.CLUSTER_GAP` against real handwriting.
 
 **Acceptance**
-- [ ] **P2.5-AC1** — Known layouts cluster as expected. *Verify:* `tests/unit/clusters.test.ts` with synthetic boxes: three well-separated symbols give three clusters; a fraction (bar with ink above and below) gives one; an equals sign (two parallel short strokes) gives one; an `i` with its dot gives one; two symbols 10 px apart give one and 40 px apart give two.
+- [ ] **P2.5-AC1** — Known layouts cluster as expected. *Verify:* `tests/unit/clusters.test.ts` with synthetic boxes: three well-separated symbols give three clusters; a fraction (bar with ink above and below) gives one; an equals sign (two parallel short strokes) gives one; an `i` with its dot gives one; two symbols closer than `CLUSTER_GAP` give one and 40 px apart give two. (Was "10 px apart give one", written for the starting gap of 22; real handwriting in P2.5-AC3 had 4–15 px between separate symbols, so the gap is now 4.)
 - [ ] **P2.5-AC2** — Labels are stable left to right and restart per row. *Verify:* unit test.
 - [ ] **P2.5-AC3** — On real handwriting the clusters are usable. *Verify by hand:* with the dev overlay on, write `∫ dx / (x²√(16 − x²))` and `x = 4 sin θ` on separate rows. Each term a tutor might want to circle (the integral sign, `dx`, the denominator, `4 sin θ`) is one cluster or a run of adjacent clusters. Adjust `CLUSTER_GAP` if not, and record the final value in `contracts.md`.
 

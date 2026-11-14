@@ -35,7 +35,7 @@ describe("session store clusters (P2.5)", () => {
 
   it("a new stroke recomputes only its own row", () => {
     const before = session();
-    const after = write(before, pen("d", 2, 130, 300));
+    const after = write(before, pen("d", 2, 115, 300)); // overlaps "c"
     expect(after.clusters["p1/r1"]).toBe(before.clusters["p1/r1"]);
     expect(after.clusters["p1/r2"]!.map((c) => c.strokeIds)).toEqual([["c", "d"]]);
   });

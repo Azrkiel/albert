@@ -111,7 +111,7 @@ const STUCK = {
   CROSS_OUT_COVERAGE: 0.6,     // a stroke covering this share of existing ink in a row
   CROSS_OUT_MIN_LENGTH_RATIO: 1.2, // path length ÷ bbox diagonal
   REARM_ON: "new_ink",         // one signal per row until the student writes again
-  CLUSTER_GAP: 22,             // logical px
+  CLUSTER_GAP: 4,              // logical px; tuned in P2.5-AC3 (real gaps between symbols were 4–15 px)
 } as const;
 ```
 
