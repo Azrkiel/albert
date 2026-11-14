@@ -43,11 +43,13 @@ src/components/progress/SkillMap.tsx  PlanList.tsx  HowYoureDoing.tsx
 
 Implementation on main 837a476: pure functions accept an `EvidenceContext` (Session plus course subskill IDs, existing evidence and explicit ISO time). Storage adapters validate course membership and log unknown IDs. `recordCheckEvidence` and `recordSessionEndEvidence` are integration points for P3.7/P7.5; these routes do not exist yet. `Repo.getSession` is required to resolve hint ownership without trusting request metadata. The existing mock stream is persisted only for an existing, active session. Its public events omit private notes, so P3.3 must pass the full validated reply to `recordHintEvidence`.
 
+The user-provided `fixtures/sessions/missing-dx.json` now supplies the handwriting replay. P7.1-AC2 replays its original events in the browser, verifies the three ink rows, seeds a persisted test session and calls the live mock hint route at each rung before reading evidence/progress. This is independent of P3.1-AC4, which still requires P2.6 hint-mark UI wiring on this branch.
+
 Wire them in: `/api/hint` adds hint evidence after saving the `StoredHint`; `/api/check` adds check evidence; `/api/session/[id]/end` adds end-of-session evidence (P7.5). All through `repo.addEvidence`.
 
 **Acceptance**
 - [x] **P7.1-AC1** — Each function produces the right events. *Verify:* `tests/unit/evidence.test.ts`: an error hint → one `error_made`; the same error at rungs 1, 2, 3 → still one; a `stalled` hint → none; a correct check with no hints → `unaided_correct` for every subskill; with hints up to rung 2 → `correct_after_r2`; a session ending with an unfinished, hinted problem → `abandoned`.
-- [ ] **P7.1-AC2** — Evidence is written from the live routes. *Verify:* `tests/e2e/evidence.spec.ts` (mock model, memory store): replay `missing-dx.json`, request a hint, then read evidence through a dev route: one `error_made` with `errorType: "missing_dx"`.
+- [x] **P7.1-AC2** — Evidence is written from the live routes. *Verify:* `tests/e2e/evidence.spec.ts` (mock model, memory store): replay `missing-dx.json`, request a hint, then read evidence through a dev route: one `error_made` with `errorType: "missing_dx"`.
 - [x] **P7.1-AC3** — A hint whose `subskillId` is not in the course produces no evidence and logs a warning. *Verify:* unit test.
 
 ---

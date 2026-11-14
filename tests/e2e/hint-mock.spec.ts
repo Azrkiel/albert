@@ -1,10 +1,9 @@
-import { existsSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 const missingDx = 'section[data-problem-id="calc2-ws3/p1"]';
 
 test("P3.1-AC4: replay missing dx, tap the hint mark, see Albert's question", async ({ page }) => {
-  test.fixme(!existsSync("fixtures/sessions/missing-dx.json"), "needs P2.6 hint mark and fixtures/sessions/missing-dx.json");
+  test.fixme(true, "needs P2.6 hint-mark wiring on this branch; missing-dx.json is now recorded");
   await page.goto("/work/calc2-ws3?replay=missing-dx&speed=instant");
   await page.waitForFunction(() => window.__albert?.replayDone === true);
   const problem = page.locator(missingDx);
