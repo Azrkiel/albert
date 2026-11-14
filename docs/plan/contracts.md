@@ -78,7 +78,9 @@ type Cluster = {
 
 **Row assignment.** A stroke belongs to the row that contains the largest share of its points. Ties go to the row containing the stroke's first point.
 
-**Clustering.** Within a row, sort live pen strokes by `bbox.x`. Start a new cluster when the horizontal gap between a stroke's left edge and the current cluster's right edge exceeds `CLUSTER_GAP`. Strokes that overlap horizontally always join (this keeps a fraction bar with its numerator and denominator, and an integral sign with its limits).
+**Clustering.** Within a row, sort live pen strokes by `bbox.x` (ties by `t0`, then `id`). Start a new cluster when the horizontal gap between a stroke's left edge and the current cluster's right edge (the running maximum) exceeds `CLUSTER_GAP`. Strokes that overlap horizontally join (this keeps an integral sign with its limits, an `=` and an `i` together).
+
+**Fractions.** A stroke at least 3× wider than tall, with ink centred above it and below it within its x-range, is a fraction bar. Its clusters are the numerator's, then the bar, then the denominator's, so Albert can circle the numerator or the denominator as a run of adjacent labels. Ink just past the bar's ends that lies wholly above or below its centre line, within `CLUSTER_GAP` of that side's ink (an exponent on the denominator), joins that side. The widest bar splits first; numerators and denominators are clustered by the same rules, so nested fractions work. A flat stroke with ink on one side only (a minus sign, an overline) follows the gap rule. Labels run left to right, with a fraction placed by its left edge.
 
 ## 3. Session events and stuck signals
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { ClusterSchema, STUCK, type BBox, type Stroke } from "../../src/lib/contracts";
-import { clusterRow } from "../../src/lib/canvas";
+import { clusterRow, parseRecording } from "../../src/lib/canvas";
 
 const ROW = "p1/r1";
 let seq = 0;
@@ -35,13 +36,13 @@ describe("clusterRow (P2.5-AC1)", () => {
     expect(clusters.map((c) => c.strokeIds.length)).toEqual([1, 1, 1]);
   });
 
-  it("AC1b: a fraction bar with numerator and denominator inside its x-range gives one cluster", () => {
+  it("AC1b: a fraction gives numerator, bar, denominator as three adjacent clusters in that order", () => {
     const bar = stroke({ x: 100, w: 80, y: 140, h: 3 });
     const numerator = stroke({ x: 125, w: 30, y: 105, h: 28 });
     const denominator = stroke({ x: 120, w: 40, y: 150, h: 28 });
-    const clusters = clusterRow([numerator, bar, denominator], ROW);
-    expect(clusters).toHaveLength(1);
-    expect(clusters[0]!.bbox).toEqual({ x: 100, y: 105, w: 80, h: 73 });
+    const clusters = clusterRow([denominator, bar, numerator], ROW);
+    expect(clusters.map((c) => c.strokeIds)).toEqual([[numerator.id], [bar.id], [denominator.id]]);
+    expect(clusters.map((c) => c.label)).toEqual([1, 2, 3]);
   });
 
   it("AC1c: an equals sign (two short parallel strokes, same x-range) gives one cluster", () => {
@@ -132,5 +133,91 @@ describe("clusterRow labels (P2.5-AC2)", () => {
       .toEqual([[1, "p1/r1/c1", ROW], [2, "p1/r1/c2", ROW], [3, "p1/r1/c3", ROW]]);
     expect(clusterRow(all, "p1/r2").map((c) => [c.label, c.id, c.rowId]))
       .toEqual([[1, "p1/r2/c1", "p1/r2"], [2, "p1/r2/c2", "p1/r2"]]);
+  });
+});
+
+describe("clusterRow fractions", () => {
+  // A bar 100..220 at y 140..143 (centre 141.5); numerator ink above it, denominator ink below.
+  const fraction = (extra: Stroke[] = []) => {
+    const bar = stroke({ x: 100, w: 120, y: 140, h: 3 });
+    const num = stroke({ x: 150, w: 20, y: 105, h: 28 });
+    const denA = stroke({ x: 110, w: 20, y: 150, h: 28 });
+    const denB = stroke({ x: 180, w: 20, y: 150, h: 28 }); // 50 px from denA: its own cluster
+    return { bar, num, denA, denB, all: [denB, ...extra, bar, denA, num] };
+  };
+
+  it("keeps a multi-symbol denominator as a run of adjacent clusters right after the bar", () => {
+    const { bar, num, denA, denB, all } = fraction();
+    expect(clusterRow(all, ROW).map((c) => c.strokeIds)).toEqual([[num.id], [bar.id], [denA.id], [denB.id]]);
+  });
+
+  it("places the fraction among the row's other symbols by its left edge", () => {
+    const before = stroke({ x: 40, w: 30, y: 100, h: 60 }); // an integral sign
+    const after = stroke({ x: 260, w: 20 });
+    const { bar, num, denA, denB, all } = fraction([after, before]);
+    expect(clusterRow(all, ROW).map((c) => c.strokeIds))
+      .toEqual([[before.id], [num.id], [bar.id], [denA.id], [denB.id], [after.id]]);
+  });
+
+  it("absorbs an exponent just past the bar's end into the denominator", () => {
+    const { bar, num, denA, denB, all } = fraction();
+    const exponent = stroke({ x: 200 + STUCK.CLUSTER_GAP + 18, w: 8, y: 146, h: 10 }); // past the bar, wholly below its centre
+    const clusters = clusterRow([...all, exponent], ROW);
+    expect(clusters.map((c) => c.strokeIds)).toEqual([[num.id], [bar.id], [denA.id], [denB.id], [exponent.id]]);
+    expect(clusterRow([...all, { ...exponent, bbox: { ...exponent.bbox, x: 200 + STUCK.CLUSTER_GAP - 1 } }], ROW)
+      .map((c) => c.strokeIds)).toEqual([[num.id], [bar.id], [denA.id], [denB.id, exponent.id]]);
+  });
+
+  it("does not absorb a symbol after the fraction that straddles the bar's centre line", () => {
+    const { bar, num, denA, denB, all } = fraction();
+    const d = stroke({ x: 222, w: 20, y: 120, h: 40 });
+    expect(clusterRow([...all, d], ROW).map((c) => c.strokeIds)).toEqual([[num.id], [bar.id], [denA.id], [denB.id], [d.id]]);
+  });
+
+  it("keeps a retraced bar together", () => {
+    const { bar, num, denA, denB, all } = fraction();
+    const retrace = stroke({ x: 104, w: 110, y: 139, h: 4 });
+    expect(clusterRow([...all, retrace], ROW).map((c) => c.strokeIds))
+      .toEqual([[num.id], [bar.id, retrace.id], [denA.id], [denB.id]]);
+  });
+
+  it("splits a nested fraction in the numerator into its own numerator, bar and denominator", () => {
+    const bar = stroke({ x: 100, w: 120, y: 160, h: 3 });
+    const den = stroke({ x: 150, w: 20, y: 170, h: 10 });
+    const innerBar = stroke({ x: 140, w: 40, y: 130, h: 2 });
+    const innerNum = stroke({ x: 150, w: 15, y: 110, h: 15 });
+    const innerDen = stroke({ x: 150, w: 15, y: 136, h: 15 });
+    expect(clusterRow([den, innerDen, bar, innerNum, innerBar], ROW).map((c) => c.strokeIds))
+      .toEqual([[innerNum.id], [innerBar.id], [innerDen.id], [bar.id], [den.id]]);
+  });
+
+  it("treats a flat stroke with ink on only one side (overline, minus) by the gap rule", () => {
+    const overline = stroke({ x: 100, w: 40, y: 105, h: 2 });
+    const letter = stroke({ x: 105, w: 25, y: 115, h: 25 });
+    expect(clusterRow([letter, overline], ROW)).toHaveLength(1);
+    const minus = stroke({ x: 150, w: 14, y: 125, h: 3 }); // between symbols at 100..120 and 180..200
+    expect(clusterRow([minus, ...symbols([60])], ROW)).toHaveLength(3);
+  });
+
+  it("is order independent with fractions present", () => {
+    const { all } = fraction([stroke({ x: 40, w: 30, y: 100, h: 60 }), stroke({ x: 260, w: 20 })]);
+    const expected = clusterRow(all, ROW);
+    expect(clusterRow([...all].reverse(), ROW)).toEqual(expected);
+    expect(clusterRow([all[3]!, ...all.slice(4), ...all.slice(0, 3)], ROW)).toEqual(expected);
+  });
+});
+
+describe("clusterRow on real handwriting (P2.5-AC3 sample, CLUSTER_GAP 4)", () => {
+  const rec = parseRecording(JSON.parse(readFileSync("fixtures/sessions/ac3-handwriting.json", "utf8")));
+  const strokes = rec.events.flatMap((event) => event.type === "stroke_end" ? [event.stroke] : []);
+  const widths = (rowId: string) => clusterRow(strokes, rowId).map((c) => [Math.round(c.bbox.x), Math.round(c.bbox.x + c.bbox.w)]);
+
+  it("splits ∫ x/(x²√(16−x²)) dx into ∫ | x | bar | whole denominator | d | x", () => {
+    // [224, 224] is a stray tap in the statement area that row assignment put in row 1's numerator.
+    expect(widths("demo-worksheet/p1/r1")).toEqual([[84, 122], [185, 206], [224, 224], [139, 259], [137, 281], [291, 310], [314, 336]]);
+  });
+
+  it("splits x = 4 sin θ into x | = | 4 | s | i | n | θ", () => {
+    expect(widths("demo-worksheet/p1/r2")).toEqual([[120, 162], [177, 209], [215, 252], [261, 294], [300, 303], [308, 333], [345, 374]]);
   });
 });
