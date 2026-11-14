@@ -57,8 +57,8 @@ async function isolated<T>(input: T, write: (value: T) => Promise<void>, read: (
   expect(await read()).toEqual(expected);
 }
 
-export function repoBehaviour(name: string, create: () => Promise<RepoHarness>, enabled = true): void {
-  describe.skipIf(!enabled)(name, () => {
+export function repoBehaviour(name: string, create: () => Promise<RepoHarness>, enabled = true, timeout = 5000): void {
+  describe.skipIf(!enabled)(name, { timeout }, () => {
     let harness: RepoHarness;
     let repo: Repo;
     let f: ReturnType<typeof fixtures>;

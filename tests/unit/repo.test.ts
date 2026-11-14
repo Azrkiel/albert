@@ -34,7 +34,7 @@ repoBehaviour("MongoRepo (live, throwaway database)", async () => {
     readEvents: async sessionId => (await db.collection("session_events").find({ sessionId }).sort({ _id: 1 }).toArray()).map(doc => SessionEventSchema.parse(doc)),
     dispose: async () => { try { await db.dropDatabase(); } finally { await client.close(); } },
   };
-}, mongoEnabled);
+}, mongoEnabled, 30000);
 
 describe("getRepo", () => {
   afterEach(() => { vi.unstubAllEnvs(); });
