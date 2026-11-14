@@ -1,16 +1,18 @@
 "use client";
 
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { PAGE, type Row, type Stroke, type Worksheet } from "@/lib/contracts";
 import { WorkSurface } from "./WorkSurface";
 
 // Phase 5 owns loading/typesetting. Accept its existing contract metadata directly.
 type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLatex">;
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart }: {
+export function ProblemBlock({ problem, rows, strokes, overlay, onStroke, getSessionStart }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
+  /** Drawn above the ink (the dev cluster overlay); omitted in normal use. */
+  overlay?: ReactNode;
   onStroke: (stroke: Stroke) => void;
   getSessionStart: () => number;
 }) {
@@ -20,7 +22,7 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   return (
     <section data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }}>
       <WorkSurface problemId={problem.id} height={height} strokes={strokes}
-        onStroke={onStroke} getSessionStart={getSessionStart}>
+        onStroke={onStroke} getSessionStart={getSessionStart} overlay={overlay}>
         <g data-problem-decoration="" pointerEvents="none">
           <rect data-albert-margin="" x={PAGE.albertCol.x} y={0}
             width={PAGE.albertCol.w} height={height} fill="#faf7f2" />

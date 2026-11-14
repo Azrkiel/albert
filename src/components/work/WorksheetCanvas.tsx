@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { SessionEvent, SessionRecording, Stroke } from "@/lib/contracts";
-import { createSessionState, exportRecording, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
+import { createSessionState, exportRecording, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
+import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock } from "./ProblemBlock";
 
@@ -16,6 +17,7 @@ const devBuild = process.env.NODE_ENV !== "production";
 export function WorksheetCanvas({ worksheetId, problems }: { worksheetId: string; problems: SessionRecording["problems"] }) {
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
+  const devTools = devBuild && params.get("dev") === "1";
   const urlSpeed = params.get("speed");
   const initialSpeed = urlSpeed === "instant" || urlSpeed === "4" ? urlSpeed : "1";
   const [speed, setSpeed] = useState<PlaybackSpeed>(initialSpeed);
@@ -103,12 +105,15 @@ export function WorksheetCanvas({ worksheetId, problems }: { worksheetId: string
   }
 
   return <>
-    {devBuild && params.get("dev") === "1" && <DevToolbar speed={speed} onSpeed={setSpeed}
+    {devTools && <DevToolbar speed={speed} onSpeed={setSpeed}
       onLoad={(file) => void load(file)} onExport={download} onPlay={() => start(loaded.current ?? snapshot(), speed)} />}
     {error && <p role="alert">{error}</p>}
-    {state.problems.map((problem) => <ProblemBlock key={`${revision}/${problem.id}`} problem={problem}
-      rows={state.rows.filter((row) => row.problemId === problem.id)}
-      strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
-      getSessionStart={getSessionStart} onStroke={capture} />)}
+    {state.problems.map((problem) => {
+      const rows = state.rows.filter((row) => row.problemId === problem.id);
+      return <ProblemBlock key={`${revision}/${problem.id}`} problem={problem} rows={rows}
+        strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
+        overlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))} /> : undefined}
+        getSessionStart={getSessionStart} onStroke={capture} />;
+    })}
   </>;
 }
