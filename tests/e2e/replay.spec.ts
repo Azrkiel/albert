@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { PAGE } from "../../src/lib/contracts";
 
 async function replayDone(page: Page) {
   await page.waitForFunction(() => window.__albert?.replayDone === true);
@@ -79,13 +80,15 @@ test("live capture keeps both problems in one export and one session timeline", 
   for (const index of [1, 0]) {
     const surface = surfaces.nth(index);
     await surface.scrollIntoViewIfNeeded();
-    const points = await surface.evaluate((svg) => {
+    // Inside the fourth (last) row, so each problem grows a fifth.
+    const y = PAGE.statementMinHeight + 3 * PAGE.rowHeight + 32;
+    const points = await surface.evaluate((svg, y) => {
       const matrix = (svg as SVGSVGElement).getScreenCTM()!;
-      return [new DOMPoint(100, 380), new DOMPoint(200, 390)].map((point) => {
+      return [new DOMPoint(100, y), new DOMPoint(200, y + 10)].map((point) => {
         const client = point.matrixTransform(matrix);
         return { x: client.x, y: client.y };
       });
-    });
+    }, y);
     await page.mouse.move(points[0]!.x, points[0]!.y);
     await page.mouse.down();
     await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 5 });

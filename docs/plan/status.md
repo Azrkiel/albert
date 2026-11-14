@@ -182,6 +182,7 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 14 | Claude | `PAGE.rowHeight` 84 → 128 (user decision). At P2.5-AC3 a hand-written stacked fraction was about 125 logical px tall, so its denominator fell into the next row and was split between two rows. Chosen over changing row assignment, since a write-anywhere canvas (lines inferred from ink) is planned next. Recorded sessions keep their own row boxes; replay.spec now derives its last-row y from `PAGE`. verify 304 passed, 16 skipped; e2e 24 passed, 1 skipped. |
 | Nov 14 | Claude | Clustering rule changed: stacked fractions split into numerator, bar and denominator clusters instead of one cluster, because at AC3 the denominator of `∫ x/(x²√(16−x²)) dx` could not be circled on its own. contracts.md §2 and P2.5-AC1b updated; no schema change. |
 | Nov 14 | Claude | P2.5 built (clusters, per-row store recompute, `?dev=1` overlay); AC1/AC2 pass, AC3 needs a person with real handwriting. Plan vs code: main's reducer ignored `erase`/`undo` events (P2.4 not started), so P2.5 adds a minimal erasedAt stamp for P2.4 to replace; cluster recompute is semantics-agnostic. Human AC3 sample then failed at 22 (each row one cluster); CLUSTER_GAP set to 4 from measured gaps, and P2.5-AC1e changed from "10 px apart give one" to "closer than CLUSTER_GAP give one". |
 | Nov 14 | Claude | P1.6-AC2 passed: a team member ran `pnpm e2e` with Wi-Fi off on main 7f0af54, 21 passed, 1 opt-in skipped (28.0s). P1.6 ticked. Still open: P1.7 people tasks.

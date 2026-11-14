@@ -25,7 +25,7 @@ const PAGE = {
   studentCol: { x: 0,   w: 760 },   // the student writes here
   gutter:     { x: 760, w: 30 },
   albertCol:  { x: 790, w: 410 },   // Albert writes here
-  rowHeight: 84,
+  rowHeight: 128,              // was 84; raised after P2.5-AC3: a hand-written stacked fraction was ~125 px tall
   rowPaddingTop: 10,
   statementMinHeight: 96,      // space above the rows for the problem statement
 } as const;
