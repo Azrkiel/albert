@@ -1,6 +1,10 @@
-export function GET() {
+import { getRepo } from "../../../lib/db";
+
+export async function GET() {
+  let db = false;
+  try { db = await getRepo().ping(); } catch { /* Missing or invalid database configuration. */ }
   return Response.json({
-    db: false,
+    db,
     llm: false,
     courseSource: null,
     provider: process.env.LLM_PROVIDER || "bedrock",
