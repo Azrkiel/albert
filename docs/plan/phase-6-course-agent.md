@@ -58,16 +58,54 @@ scripts/agent-ingest.ts  scripts/agent-replan.ts  scripts/ingest-flat.ts  script
 3. `validateCard(card, sources): string[]` returns a list of problems, empty when the card is good:
    - Taught units: at least one method with two or more steps; a non-empty notation table; at least one worked example; three to eight subskills; every pitfall's `subskillId` exists.
    - Every worked example's label (for example "Lecture 9, Example 2") is supported by the source: the lecture label and the example label both occur in that file's transcribed text, and `page` is within the file's page count. This is the check that stops an invented example from being cited to a student.
-   - Every `teacherWrites` notation string occurs in the unit's text.
+   - Every `teacherWrites` notation string occurs in the unit's text (compared ignoring whitespace TeX ignores, keeping the space after a control word, and treating `\dfrac`/`\tfrac` as `\frac`; the syllabus is not a notation source).
    - Units that are not taught: every method has zero steps, and there are no worked examples.
 4. `extractWorksheet(args: { file, text, unit, coveredCards, dueAt }): Promise<Worksheet>` and `validateWorksheet(ws, cards): string[]`: at least one problem; unique labels; non-empty statements; every problem has at least one subskill, all from the worksheet's own unit or an earlier one.
 5. `scripts/ingest-flat.ts` (`pnpm ingest:flat`): fetch the outline, loop over units and worksheets, call the functions, retry once on validation problems with the problems appended to the prompt, save through the `Repo`. Cards it saves are marked `builtBy: "flat_script"`.
 
 **Acceptance**
-- [ ] **P6.1-AC1** — The validators catch what they should. *Verify:* `tests/unit/validate-card.test.ts` and `validate-worksheet.test.ts` start from the hand-written fixture cards (which pass) and break one thing at a time: an example labelled "Lecture 12, Example 9" that is not in the text; one-step methods; nine subskills; a pitfall with an unknown subskill; an upcoming card with steps; a problem mapped to an upcoming subskill.
-- [ ] **P6.1-AC2** — A lecture transcribes with its labels intact. *Verify:* `pnpm tsx scripts/read-file.ts seed/calc2/pdf/lecture-09.pdf` prints text containing "five-step recipe", "Step 2", "Example 2" and `\theta`.
-- [ ] **P6.1-AC3** — The second read is free. *Verify:* unit test with a counting fake model: two calls to `readCourseFile`, one model call.
-- [ ] **P6.1-AC4** — The flat script builds valid cards for the seed course. *Verify:* `pnpm ingest:flat -- --course <id>` then `pnpm tsx scripts/check-ingest.ts --course <id>` (the golden checks from P6.5) passes.
+- [x] **P6.1-AC1** — The validators catch what they should. *Verify:* `tests/unit/validate-card.test.ts` and `validate-worksheet.test.ts` start from the hand-written fixture cards (which pass) and break one thing at a time: an example labelled "Lecture 12, Example 9" that is not in the text; one-step methods; nine subskills; a pitfall with an unknown subskill; an upcoming card with steps; a problem mapped to an upcoming subskill.
+- [x] **P6.1-AC2** — A lecture transcribes with its labels intact. *Verify:* `pnpm tsx scripts/read-file.ts fixtures/github/files/synthetic/pdf/unit-3/lecture-09.pdf` prints text containing "five-step recipe", "Step 2", "Example 2" and `\theta`.
+- [x] **P6.1-AC3** — The second read is free. *Verify:* unit test with a counting fake model: two calls to `readCourseFile`, one model call.
+- [x] **P6.1-AC4** — The flat script builds valid cards for the seed course. *Verify:* `pnpm ingest:flat -- --course <id>` then `pnpm tsx scripts/check-ingest.ts --course <id>` (golden checks 1–11 from P6.5) passes. Checks 12–13 print `skipped (agent run, P6.5)` until the P6.2+ agent run exists.
+
+
+**P6.1 implementation / reproducible CLI.** These are plain functions and a flat loop only; P6.2+ is unchanged. The controlled five-unit synthetic course is the AC2/AC4 source; the separate real four-unit course is optional and does not carry the golden markers.
+
+- AC2's old `seed/calc2/pdf/lecture-09.pdf` path was wrong. The recorded PDF is `fixtures/github/files/synthetic/pdf/unit-3/lecture-09.pdf`.
+- P6.1 implements golden checks 1–11; 12–13 require an agent run and plan, so they explicitly print `skipped (agent run, P6.5)`. P6.5 extends the checker.
+- `readCourseFile` reads Repo bytes only. The CLI imports an explicitly supplied local path first; a recorded synthetic path imports the recorded course offline. Missing Repo bytes request reimport.
+- The installed `@langchain/aws` converter accepts `{ type: "document", document: { name, format: "pdf", source: { bytes }, citations: { enabled: true } } }`; a neutral name avoids interpreting a filename as instructions. Citations enable Bedrock's visual PDF processing. Anthropic's direct fallback receives its native base64 document block. No sampling parameters are set.
+- [Bedrock Converse limits](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Message.html): five documents, 4.5 MB each; twenty images, 3.75 MB / 8000 px each. This reader sends one PDF and applies a conservative local ceiling of 100 pages (actual count from `pdf-lib`), requesting a split/reimport above that ceiling. Provider/model limits may be lower. An explicit PDF/document rejection triggers local PNG rendering with `pdfjs-dist` and `@napi-rs/canvas`, then one page per reader call, at most 3000 px on its longest side. Auth/rate-limit/network failures do not trigger image calls. These dependencies make the fallback portable to Windows; `pdf-lib` is now a runtime dependency for page counts.
+- `Repo.putText`/`getText` (contracts §9) store transcription strings separately from files, in memory or Mongo `texts`; `textCacheId` points to a versioned content-hash key. Page counts come from cached PDF bytes. A second read needs no model configuration or call. Empty/truncated output is never cached.
+- Extraction uses one structured-output call per candidate and code-owned stable ids. The loop retries a validation/schema/index error once with problems in the prompt; after a second failure it reports the problems and saves no teaching artifacts from that run. All candidates validate before upserts. Cards have `builtBy: "flat_script"`; `ingestedAt` is set only after successful writes. Worksheet scope is its own unit plus earlier units: Worksheet 4 may map its own names-only Unit 4 subskills, while Worksheet 3 cannot use them.
+
+For a persistent Repo already populated through the source API:
+
+```sh
+pnpm ingest:flat -- --course <snapshot-qualified-id>
+pnpm tsx scripts/check-ingest.ts --course <snapshot-qualified-id>
+```
+
+For `STORE=memory`, reuse the P5.3 importer with a pinned **local recorded transport** (`--source synthetic`); GitHub is never contacted. `--course synthetic` is a CLI alias for that recorded snapshot id, which is printed. Explicit `--state` stores only this course's outline, original PDF bytes, text caches, cards and worksheets, parsed with the existing contracts. It stores no credentials or connection. The default for synthetic memory runs is `work/p6.1-synthetic.json`; this process-local store needs that state file across CLI invocations. Keep generated state out of commits. `--twice` verifies stable artifact ids/counts after the second ingestion. `--check` prints the golden checks after each run. The checker itself never calls a model.
+
+```sh
+STORE=memory pnpm ingest:flat -- --source synthetic --course synthetic --state work/p6.1-synthetic.json --check --twice
+STORE=memory pnpm tsx scripts/check-ingest.ts --source synthetic --course synthetic --state work/p6.1-synthetic.json
+```
+
+**NEEDS HUMAN: P6.1-AC2 and AC4 when cloud credentials are absent.** After checking out this branch and installing dependencies, run the following in PowerShell from the repo root, with the existing reader/provider configuration in the sibling env file. Existing process environment takes precedence over `--env-file`, so the memory store is retained. No secrets need to be copied into this checkout. These are live model commands even though the course source import is offline:
+
+```powershell
+$env:STORE = "memory"
+node --env-file=../albert-p1.4/.env.local --import tsx scripts/read-file.ts fixtures/github/files/synthetic/pdf/unit-3/lecture-09.pdf --state work/p6.1-synthetic.json
+node --env-file=../albert-p1.4/.env.local --import tsx scripts/ingest-flat.ts --source synthetic --course synthetic --state work/p6.1-synthetic.json --check --twice
+node --env-file=../albert-p1.4/.env.local --import tsx scripts/check-ingest.ts --source synthetic --course synthetic --state work/p6.1-synthetic.json
+```
+
+Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\theta`; AC4 needs eleven passes, the two explicit skips, and the second-run no-duplicates line. A fresh native-PDF run plus a second ingest needs 29 logical calls including the shared AC2 read/cache, before repairs or provider retries; stop if live attempts would exceed the 30-call budget. The cloud implementation run used **zero** live calls. Do not tick P6.1 until live AC2/AC4 are observed.
+
+**Live result (Windows, Nov 14).** AC2 and AC4 passed live; P6.1 is ticked. Evidence and the 42-attempt count are in `status.md`. The first live runs showed that exact-substring notation checks reject TeX spacing and `\dfrac` variants, so the comparison above was added. They also showed that the card prompt must say: avoid lists name standard alternative forms (for example `f'(x)` where the teacher writes Leibniz form); add a notation row for a variable letter that the unit's own files fix; pitfall `errorType` names the symbol; never take notation from the syllabus. Golden check 9 matches the singular "partial fraction" as well, per its "named like" wording.
 
 ---
 

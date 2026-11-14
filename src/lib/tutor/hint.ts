@@ -12,6 +12,7 @@ import { getHintModel } from "./tools";
 /** The injected model is already bound to albert_reply, just like getHintModel(). */
 export type HintModel = {
   invoke(messages: BaseMessage[], options: { signal: AbortSignal }): Promise<unknown>;
+  dispose?: () => void;
 };
 /** Server-only telemetry: never include request content or provider/model details. */
 export type HintLogLine = {
@@ -41,6 +42,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
   const start = clock();
   const hintId = randomUUID();
   const controller = new AbortController();
+  let model = deps.model;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let status: HintLogLine["status"] = "model_unavailable";
   let retryCount: 0 | 1 = 0;
@@ -66,7 +68,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
       yield { type: "done", hintId, ms: completedMs };
       return;
     }
-    const model = deps.model ?? getHintModel();
+    model ??= getHintModel();
     const messages = buildMessages(request, scope);
     let reply: AlbertReply | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -139,6 +141,8 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
       : { type: "error", hintId, code: "model_unavailable", message: "Albert could not finish this hint. Try again." };
   } finally {
     clearTimeout(timer);
+    controller.abort();
+    model?.dispose?.();
     const elapsed = Math.max(completedMs?.total ?? 0, clock() - start, 0);
     const line: HintLogLine = {
       hintId,

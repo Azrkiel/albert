@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ChatBedrockConverse } from "@langchain/aws";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import {
   AlbertReplySchema, DiagnoseSchema, InkSegmentSchema, MarkSchema, ReadWorkSchema, WriteHintSchema,
@@ -74,5 +75,14 @@ export function getHintModel(model: BaseChatModel = getChatModel("hint")) {
   if (!model.bindTools) throw new Error("The hint model must support tools.");
   // @langchain/aws 1.5.2 ChatBedrockConverseCallOptions and core 1.4.1
   // both accept a tool-name string. Bedrock converts it to { tool: { name } }.
-  return model.bindTools([albertReplyTool], { tool_choice: albertReplyTool.name });
+  const bound = model.bindTools([albertReplyTool], { tool_choice: albertReplyTool.name, maxRetries: 0 });
+  let disposed = false;
+  return Object.assign(bound, {
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      // Each hint owns its model. Abort alone need not release SDK connection pools.
+      if (model instanceof ChatBedrockConverse) model.client.destroy();
+    },
+  });
 }

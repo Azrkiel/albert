@@ -76,6 +76,8 @@ export class MongoRepo implements Repo {
   async upsertWorksheet(w: Worksheet): Promise<void> { await this.put("worksheets", w.id, w); }
   async listWorksheets(courseId: string): Promise<Worksheet[]> { return this.list("worksheets", { courseId }, { id: 1 }); }
   async getWorksheet(id: string): Promise<Worksheet | null> { return this.one("worksheets", id); }
+  async putText(id: string, text: string): Promise<void> { await this.put("texts", id, { text }); }
+  async getText(id: string): Promise<string | null> { return (await this.one<{ text: string }>("texts", id))?.text ?? null; }
 
   async putFile(meta: CourseFile, bytes: Uint8Array): Promise<void> {
     const files = await this.collection("files");
