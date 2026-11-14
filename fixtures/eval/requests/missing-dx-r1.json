@@ -1,0 +1,40 @@
+{
+  "sessionId": "mock-missing-dx",
+  "worksheetId": "calc2-ws3",
+  "problemId": "calc2-ws3/p1",
+  "rowId": "calc2-ws3/p1/r3",
+  "rung": 1,
+  "trigger": "pause",
+  "image": {
+    "marked": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC",
+    "width": 1,
+    "height": 1
+  },
+  "rows": [
+    {
+      "rowId": "calc2-ws3/p1/r1",
+      "index": 1,
+      "clusterLabels": [
+        1,
+        2
+      ]
+    },
+    {
+      "rowId": "calc2-ws3/p1/r2",
+      "index": 2,
+      "clusterLabels": [
+        1,
+        2
+      ]
+    },
+    {
+      "rowId": "calc2-ws3/p1/r3",
+      "index": 3,
+      "clusterLabels": [
+        1,
+        2
+      ]
+    }
+  ],
+  "history": []
+}

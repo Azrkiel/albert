@@ -1,13 +1,13 @@
 "use client";
 
 import { useId } from "react";
-import { PAGE, type Row, type Stroke, type Worksheet } from "@/lib/contracts";
+import { INK, PAGE, type Row, type Stroke, type Worksheet } from "@/lib/contracts";
 import { WorkSurface } from "./WorkSurface";
 
 // Phase 5 owns loading/typesetting. Accept its existing contract metadata directly.
 type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLatex">;
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow }: {
+export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
@@ -15,6 +15,8 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   getSessionStart: () => number;
   tool?: Stroke["tool"];
   onClearRow?: (rowId: string) => void;
+  hintText?: string;
+  hintRowId?: string;
 }) {
   const headingId = useId();
   const height = Math.max(...rows.map((row) => row.bbox.y + row.bbox.h));
@@ -36,6 +38,14 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
             width={PAGE.albertCol.w} height={height} fill="#faf7f2" />
           <line data-margin-rule="" x1={PAGE.albertCol.x} x2={PAGE.albertCol.x}
             y1={0} y2={height} stroke="#ded8cf" strokeWidth={1} />
+          <foreignObject x={PAGE.albertCol.x + 16}
+            y={rows.find((row) => row.id === hintRowId)?.bbox.y ?? PAGE.statementMinHeight}
+            width={PAGE.albertCol.w - 32} height={PAGE.rowHeight * 2}>
+            <div data-albert-column="" role="note" aria-live="polite" aria-label={`Albert's hints for problem ${problem.label}`}
+              style={{ color: INK.albert, fontSize: 20, whiteSpace: "pre-wrap", paddingTop: PAGE.rowPaddingTop }}>
+              {hintText}
+            </div>
+          </foreignObject>
           <foreignObject x={PAGE.studentCol.x + 16} y={0} width={PAGE.studentCol.w - 32} height={PAGE.statementMinHeight}>
             <div style={{ paddingTop: PAGE.rowPaddingTop, height: "100%", overflow: "auto" }}>
               <h2 id={headingId} style={{ fontSize: 20, margin: "0 0 8px" }}>Problem {problem.label}</h2>

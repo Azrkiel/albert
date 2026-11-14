@@ -1,0 +1,94 @@
+{
+  "fixtureId": "calc2-ws3_p1-r2",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-missing-dx-r2",
+      "at": 0
+    },
+    {
+      "type": "reading",
+      "rows": [
+        {
+          "rowId": "calc2-ws3/p1/r1",
+          "latex": "\\int \\frac{dx}{x^2\\sqrt{16-x^2}}",
+          "confidence": "high"
+        },
+        {
+          "rowId": "calc2-ws3/p1/r2",
+          "latex": "x=4\\sin\\theta",
+          "confidence": "high"
+        },
+        {
+          "rowId": "calc2-ws3/p1/r3",
+          "latex": "\\int \\frac{1}{16\\sin^2\\theta\\cdot4\\cos\\theta}",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "type": "diagnosis",
+      "status": "error",
+      "rowId": "calc2-ws3/p1/r3",
+      "clusterIds": [
+        "calc2-ws3/p1/r3/c1",
+        "calc2-ws3/p1/r3/c2"
+      ],
+      "errorType": "missing_dx",
+      "inScope": true
+    },
+    {
+      "type": "mark",
+      "mark": {
+        "type": "circle",
+        "rowId": "calc2-ws3/p1/r3",
+        "clusterIds": [
+          "calc2-ws3/p1/r3/c1",
+          "calc2-ws3/p1/r3/c2"
+        ]
+      }
+    },
+    {
+      "type": "mark",
+      "mark": {
+        "type": "arrow",
+        "toRowId": "calc2-ws3/p1/r3",
+        "toClusterIds": [
+          "calc2-ws3/p1/r3/c1",
+          "calc2-ws3/p1/r3/c2"
+        ]
+      }
+    },
+    {
+      "type": "hint",
+      "kind": "next_step",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Differentiate your substitution to express dx in terms of theta, then include that differential in the integral."
+        }
+      ],
+      "citation": {
+        "unitId": "calc2/u3",
+        "label": "Lecture 9, Step 2"
+      }
+    },
+    {
+      "type": "done",
+      "hintId": "mock-missing-dx-r2",
+      "ms": {
+        "firstEvent": 1100,
+        "total": 2050
+      }
+    }
+  ],
+  "delaysMs": [
+    150,
+    400,
+    350,
+    200,
+    150,
+    600,
+    200
+  ]
+}
