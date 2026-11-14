@@ -86,7 +86,7 @@ type Cluster = {
 type SessionEvent =
   | { type: "stroke_end"; at: number; stroke: Stroke }
   | { type: "erase"; at: number; strokeIds: string[]; rowId: string }
-  | { type: "undo"; at: number; strokeIds: string[]; rowId: string }
+  | { type: "undo"; at: number; strokeIds: string[]; rowId: string; redo?: true }
   | { type: "stuck"; at: number; signal: StuckSignal }
   | { type: "hint_requested"; at: number; hintId: string; rowId: string; rung: Rung }
   | { type: "hint_shown"; at: number; hintId: string; marks: AlbertMark[] }
@@ -114,6 +114,8 @@ const STUCK = {
   CLUSTER_GAP: 22,             // logical px
 } as const;
 ```
+
+**Undo/redo (P2.4).** An ordinary `undo` event reverses the most recent drawing or row erase action; `undo` with `redo: true` reapplies the most recently undone action. Both name exactly that action's stroke IDs and row. Drawing/erasing starts a new edit and clears the redo stack. An empty action emits no event. Undo of drawing sets `erasedAt` to the event time; undo of erasing removes `erasedAt`. Redo of drawing removes it; redo of erasing stamps the redo time. IDs, original points and stroke timing never change, and `stroke_end` is never duplicated. The common reducer derives both stacks during live use and replay. The optional flag disambiguates history direction without introducing a new event type; existing recordings and canonical undo payloads remain valid. Eraser gestures emit one `erase` event per affected row, at the supplied gesture completion time, containing only that row's intersected live pen strokes. Clear row uses the same event with all live pen strokes in the row. Stylus `buttons & 32` selects the eraser for that gesture.
 
 The detector is a pure function: `detectStuck(events: SessionEvent[], now: number, rows: Row[], clusters: Cluster[]) => StuckSignal | null`. It holds no timers. The page calls it on each event and on a one-second tick.
 

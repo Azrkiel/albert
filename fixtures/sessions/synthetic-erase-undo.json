@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "name": "synthetic-erase-undo",
+  "worksheetId": "synthetic",
+  "problems": [
+    {
+      "id": "synthetic/p1",
+      "label": "1",
+      "statementLatex": "Synthetic erase/undo/redo geometry"
+    }
+  ],
+  "rows": [
+    {
+      "id": "synthetic/p1/r1",
+      "problemId": "synthetic/p1",
+      "index": 1,
+      "bbox": {
+        "x": 0,
+        "y": 96,
+        "w": 760,
+        "h": 84
+      }
+    },
+    {
+      "id": "synthetic/p1/r2",
+      "problemId": "synthetic/p1",
+      "index": 2,
+      "bbox": {
+        "x": 0,
+        "y": 180,
+        "w": 760,
+        "h": 84
+      }
+    },
+    {
+      "id": "synthetic/p1/r3",
+      "problemId": "synthetic/p1",
+      "index": 3,
+      "bbox": {
+        "x": 0,
+        "y": 264,
+        "w": 760,
+        "h": 84
+      }
+    },
+    {
+      "id": "synthetic/p1/r4",
+      "problemId": "synthetic/p1",
+      "index": 4,
+      "bbox": {
+        "x": 0,
+        "y": 348,
+        "w": 760,
+        "h": 84
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "stroke_end",
+      "at": 20,
+      "stroke": {
+        "id": "synthetic_0",
+        "problemId": "synthetic/p1",
+        "rowId": "synthetic/p1/r1",
+        "tool": "pen",
+        "pointerType": "mouse",
+        "points": [
+          {
+            "x": 100,
+            "y": 126,
+            "t": 10,
+            "p": 0.5
+          },
+          {
+            "x": 200,
+            "y": 126,
+            "t": 20,
+            "p": 0.5
+          }
+        ],
+        "t0": 10,
+        "t1": 20,
+        "bbox": {
+          "x": 100,
+          "y": 126,
+          "w": 100,
+          "h": 0
+        }
+      }
+    },
+    {
+      "type": "stroke_end",
+      "at": 40,
+      "stroke": {
+        "id": "synthetic_1",
+        "problemId": "synthetic/p1",
+        "rowId": "synthetic/p1/r2",
+        "tool": "pen",
+        "pointerType": "mouse",
+        "points": [
+          {
+            "x": 100,
+            "y": 210,
+            "t": 30,
+            "p": 0.5
+          },
+          {
+            "x": 200,
+            "y": 210,
+            "t": 40,
+            "p": 0.5
+          }
+        ],
+        "t0": 30,
+        "t1": 40,
+        "bbox": {
+          "x": 100,
+          "y": 210,
+          "w": 100,
+          "h": 0
+        }
+      }
+    },
+    {
+      "type": "erase",
+      "at": 50,
+      "strokeIds": [
+        "synthetic_0"
+      ],
+      "rowId": "synthetic/p1/r1"
+    },
+    {
+      "type": "undo",
+      "at": 60,
+      "strokeIds": [
+        "synthetic_0"
+      ],
+      "rowId": "synthetic/p1/r1"
+    },
+    {
+      "type": "undo",
+      "at": 70,
+      "strokeIds": [
+        "synthetic_0"
+      ],
+      "rowId": "synthetic/p1/r1",
+      "redo": true
+    }
+  ],
+  "durationMs": 70,
+  "notes": "Synthetic automated geometry, not human handwriting or a worked solution. Exercises erase, canonical undo and undo with redo:true. One retained stroke remains erased."
+}
