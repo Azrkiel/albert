@@ -1,8 +1,8 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { CourseManifestSchema } from "../../src/lib/contracts";
 
-export const fixtureManifest = (live = false) => CourseManifestSchema.parse(JSON.parse(readFileSync(`fixtures/github/${live ? "live-" : ""}manifest.json`, "utf8")));
+import { fixtureManifest } from "./github-fixtures";
 
 describe("P5.2 recorded manifests", () => {
   it("validates synthetic transport and live course separately", () => {
@@ -12,7 +12,7 @@ describe("P5.2 recorded manifests", () => {
     expect(synthetic.files.filter(f => f.kind === "lecture_notes")).toHaveLength(6);
     expect(synthetic.assignments).toHaveLength(4);
     expect(synthetic.files.filter(f => f.kind === "syllabus")).toHaveLength(1);
-    expect(synthetic.course.title).toContain("transport fixture");
+    expect(synthetic.course.title).toBe("Calculus II");
     expect(live.units.map(u => u.title)).toEqual(["Integration by Parts", "Trigonometric Integrals", "Trigonometric Substitution", "Partial Fractions"]);
     expect(live.files.filter(f => f.kind === "lecture_notes").map(f => f.lectureLabel)).toEqual(["Section 7.1", "Section 7.2", "Section 7.3", "Section 7.4"]);
     expect(live.files.some(f => f.kind === "syllabus")).toBe(false);
@@ -32,4 +32,15 @@ describe("P5.2 recorded manifests", () => {
       expect(file?.unitOrder).toBe(assignment.unitOrder);
     }
   });
+});
+
+
+it("consumes the P5.1 owner artifacts byte-for-byte with their published build evidence", () => {
+  const build = JSON.parse(readFileSync("fixtures/github/files/synthetic-build.json", "utf8")) as { files: Array<{ path: string; pdfSha256: string; bytes: number }> };
+  expect(build.files).toHaveLength(11);
+  for (const evidence of build.files) {
+    const bytes = readFileSync(`fixtures/github/files/synthetic/${evidence.path}`);
+    expect(bytes.length).toBe(evidence.bytes);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(evidence.pdfSha256);
+  }
 });
