@@ -73,7 +73,7 @@ Record the real values as they are decided. Later phases and the write-up read t
 
 | Done | Subphase | Criteria | Owner | Evidence |
 |---|---|---|---|---|
-| [ ] | P1.1 Scaffold and tooling | 4 | | |
+| [x] | P1.1 Scaffold and tooling | 4 | Codex | 16e8f3d · pnpm verify (AC2); pnpm dev + Chromium: HTTP 200, page rendered, zero console/page errors (AC1); pnpm run: all 11 commands (AC3); git check-ignore .env.local (AC4); env/folder/placeholder audit; pnpm install --frozen-lockfile --offline. |
 | [ ] | P1.2 Contracts in code | 3 | | |
 | [ ] | P1.3 App shell and brand | 2 | | |
 | [ ] | P1.4 Model access | 5 | | |
