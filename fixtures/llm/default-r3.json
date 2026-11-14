@@ -1,0 +1,44 @@
+{
+  "fixtureId": "default-r3",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-default-r3",
+      "at": 0
+    },
+    {
+      "type": "reading",
+      "rows": []
+    },
+    {
+      "type": "diagnosis",
+      "status": "stalled",
+      "inScope": true
+    },
+    {
+      "type": "hint",
+      "kind": "worked_step",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Write the rule you used beside this step, then apply it to one term."
+        }
+      ]
+    },
+    {
+      "type": "done",
+      "hintId": "mock-default-r3",
+      "ms": {
+        "firstEvent": 1350,
+        "total": 1500
+      }
+    }
+  ],
+  "delaysMs": [
+    150,
+    300,
+    300,
+    600,
+    150
+  ]
+}
