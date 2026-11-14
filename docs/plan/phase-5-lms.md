@@ -90,10 +90,10 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 4. Persist demo day (`YYYY-MM-DD`) for reproducible due offsets; dates are 23:59:59 UTC.
 
 **Acceptance**
-- [ ] **P5.2-AC1** — Synthetic and live manifests validate separately. Synthetic counts: five units, six lectures, four worksheet assignments, one syllabus. P5.1 verified artifact integration remains required.
+- [x] **P5.2-AC1** — Synthetic and live manifests validate separately. Synthetic counts: five units, six lectures, four worksheet assignments, one syllabus. P5.1 verified artifact integration remains required.
 - [x] **P5.2-AC2** — Every selected live PDF downloads at the pinned SHA, including paths with spaces.
-- [ ] **P5.2-AC3** — Identical SHA/demo-day imports produce identical outlines and dates.
-- [ ] **P5.2-AC4** — Recorded imports run without networking or credentials and exclude answer files.
+- [x] **P5.2-AC3** — Identical SHA/demo-day imports produce identical outlines and dates.
+- [x] **P5.2-AC4** — Recorded imports run without networking or credentials and exclude answer files.
 
 **Fallback.** Continue adapter/tests on clearly identified synthetic transport fixtures while mapping, publication or P5.1 artifacts are pending. Keep those dependencies unticked.
 
@@ -107,15 +107,15 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 1. `adapter.ts`: `CourseSourceError` codes `not_found`, `forbidden`, `rate_limited`, `unavailable`, `bad_reply`. Sanitize errors; never expose tokens, upstream bodies or URLs containing credentials.
 2. `github.ts`: resolve configured ref once through GitHub's commits endpoint. Read manifest and listed PDFs through contents endpoints at that exact SHA. Validate schema, paths and references; encode each path segment. Require PDF MIME and `%PDF-` bytes; reject answer files and non-PDFs. Never follow temporary download URLs.
 3. Save snapshot, original manifest, normalized outline and original PDF bytes through the existing Repo. Snapshot-qualified stable course/file/assignment/unit ids and idempotent upserts; preserve ingestion state on reimport. Import is not P6 ingestion. Convert due offsets at 23:59:59 UTC from persisted demo day. Preserve empty units, course-wide files and lecture labels.
-4. `getAdapter(courseId)` reads stored source; `getOutline` and `downloadFile` use Repo only. Tutoring never fetches GitHub. `classify.ts` implements the documented filename/MIME helper.
+4. `getAdapter(courseId)` reads stored source; `getOutline` and `downloadFile` use Repo only. Tutoring never fetches GitHub. `classify.ts`: `guessKind(title, mime)` checks lecture/notes, worksheet/problem set/homework/HW/assignment, syllabus, then slides/presentation MIME, otherwise other.
 5. `POST /api/source/connect` explicitly imports configured source; `GET /api/source/courses` reads saved connection/course and ingestion status; `GET /api/files/[fileId]` serves only cached bytes. Tokens stay server-side. Do not build P5.4/P5.5 UI or P6 ingestion.
 6. `scripts/smoke.ts` preserves database, model, vision and snapshot checks and adds source smoke when configured; `--no-source` skips it. Report actual title and unit count, SHA and persisted demo day.
 
 **Acceptance**
-- [ ] **P5.3-AC1** — Recorded data maps to correct units, labels, assignments and exact dates.
-- [ ] **P5.3-AC2** — Moving branches cannot mix revisions; repeated imports create no duplicates.
-- [ ] **P5.3-AC3** — Cached outline/PDF reads and a mocked hint work with transport disabled and zero GitHub calls.
-- [ ] **P5.3-AC4** — Invalid paths/references, non-PDF content, 404, quota and network failures yield specified errors; no ingestion-complete flag or token leakage.
+- [x] **P5.3-AC1** — Recorded data maps to correct units, labels, assignments and exact dates.
+- [x] **P5.3-AC2** — Moving branches cannot mix revisions; repeated imports create no duplicates.
+- [x] **P5.3-AC3** — Cached outline/PDF reads and a mocked hint work with transport disabled and zero GitHub calls.
+- [x] **P5.3-AC4** — Invalid paths/references, non-PDF content, 404, quota and network failures yield specified errors; no ingestion-complete flag or token leakage.
 - [ ] **P5.3-AC5** — After confirmed manifest publication, live smoke prints `source ok` with actual title/unit count; snapshot records SHA/demo day.
 
 **Verify.** `pnpm verify`, offline `pnpm e2e`, recorded import tests and confirmed published-manifest live smoke. Fake transport tests alone do not complete this subphase.
@@ -185,3 +185,5 @@ Moodle/Canvas integration and automatic refresh are deferred. No LMS credential 
 - [ ] By hand: import the real configured source and open an original PDF from cache.
 - [ ] By hand: upload fallback works (P5.4 owner).
 - [ ] Status records source SHA/demo day and distinguishes synthetic golden evidence from real-course evidence.
+
+Review-branch evidence (Nov 14): owner confirmed mapping; manifest commit `ce2196c8417b4fe751923b7969744b3d4ec41968` on `Azrkiel/albert-files:codex/p5-course-manifest`; real `pnpm smoke --no-llm` printed `source ok Calculus II — Integration Techniques 4 units` plus SHA and demo day `2026-11-14`. AC5 remains conservatively open for publication/smoke of the default configured `main` ref; neither repository main was merged. P5.2-AC1 now uses the owner's manifest and all 11 PDFs from 7ce9cd74d940e24b49b1814e0cbedc2cd6470098, with build hashes verified and offline imports tested. The initial transport placeholders were replaced. P5.1's own human readability check remains with that owner.

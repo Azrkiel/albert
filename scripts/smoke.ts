@@ -4,6 +4,20 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { getMongoClient, getRepo } from "../src/lib/db";
 import { pingModel, pingVision } from "../src/lib/llm";
+import { configuredGitHubSource, importGitHubCourse, CourseSourceError } from "../src/lib/lms";
+
+/** Explicit live import; it verifies all manifest-listed PDFs and records the snapshot. */
+export async function runSourceCheck(): Promise<boolean> {
+  if (!process.env.COURSE_GITHUB_REPO) return true;
+  try {
+    const course = await importGitHubCourse(getRepo(), configuredGitHubSource());
+    console.log("source", "ok", course.title, `${course.unitIds.length} units`, course.snapshot!.commitSha, course.snapshot!.demoDay);
+    return true;
+  } catch (error) {
+    console.log("source", "fail", error instanceof CourseSourceError ? error.code : "unavailable");
+    return false;
+  }
+}
 
 export async function runDbCheck(): Promise<boolean> {
   const start = performance.now();
@@ -61,8 +75,7 @@ export async function runSnapshotCheck(pngPath: string): Promise<boolean> {
 
 /**
  * Runs every check the flags allow and returns false if any attempted check failed.
- * `--no-llm` skips the model and vision checks. `--no-source` is accepted now so scripts
- * and the bot can pass it; the course-source check itself arrives with the GitHub adapter (P5.3).
+ * `--no-llm` skips the model and vision checks. `--no-source` skips the configured GitHub source check.
  * `--snapshot <png>` runs only the snapshot question (P2.7-AC4); without it nothing changes.
  */
 export async function runSmoke(argv: readonly string[]): Promise<boolean> {
@@ -74,6 +87,7 @@ export async function runSmoke(argv: readonly string[]): Promise<boolean> {
   }
   let ok = await runDbCheck();
   if (!argv.includes("--no-llm")) ok = (await runModelChecks()) && ok;
+  if (!argv.includes("--no-source")) ok = (await runSourceCheck()) && ok;
   return ok;
 }
 

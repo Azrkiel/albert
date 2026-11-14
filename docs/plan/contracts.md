@@ -292,7 +292,7 @@ A check never reveals the answer or the wrong step's fix. On `not_yet` the page 
 
 ```ts
 type Course = {
-  id: string;                  // "github:<owner>/<repo>:<manifestId>:<sha>:<demoDay>" | "upload:<uuid>"
+  id: string;                  // "github:<owner>/<repo>:<manifestPath>~<manifestId>:<sha>:<demoDay>" | "upload:<uuid>"
   source: "github" | "upload";
   snapshot?: GitHubSnapshot;   // required when source is github; pins files and dates
   title: string; shortName?: string;
