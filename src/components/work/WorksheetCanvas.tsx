@@ -4,7 +4,8 @@ import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, t
 import { useSearchParams } from "next/navigation";
 import type { Rung, SessionEvent, SessionRecording, Stroke } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
-import { clearRow, createSessionState, eraseGesture, exportRecording, historyEvent, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
+import { clearRow, createSessionState, eraseGesture, exportRecording, historyEvent, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
+import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock } from "./ProblemBlock";
 
@@ -19,6 +20,7 @@ export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: st
 export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: string; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
+  const devTools = devBuild && params.get("dev") === "1";
   const urlSpeed = params.get("speed");
   const initialSpeed = urlSpeed === "instant" || urlSpeed === "4" ? urlSpeed : "1";
   const [speed, setSpeed] = useState<PlaybackSpeed>(initialSpeed);
@@ -158,20 +160,23 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       <button type="button" disabled={!state.undoStack.length} onClick={() => history("undo")}>Undo</button>
       <button type="button" disabled={!state.redoStack.length} onClick={() => history("redo")}>Redo</button>
     </div>
-    {devBuild && params.get("dev") === "1" && <DevToolbar speed={speed} onSpeed={setSpeed}
+    {devTools && <DevToolbar speed={speed} onSpeed={setSpeed}
       onLoad={(file) => void load(file)} onExport={download} onPlay={() => start(loaded.current ?? snapshot(), speed)} />}
-    {devBuild && params.get("dev") === "1" && state.problems[0] && <button type="button"
+    {devTools && state.problems[0] && <button type="button"
       disabled={hint.status === "streaming"}
       onClick={() => {
         const problem = state.problems[0];
         if (problem) void requestHint(problem.id, `${problem.id}/r3`, 1);
       }}>Request mock hint</button>}
     {error && <p role="alert">{error}</p>}
-    {state.problems.map((problem) => <ProblemBlock key={`${revision}/${problem.id}`} problem={problem}
-      rows={state.rows.filter((row) => row.problemId === problem.id)}
-      strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
-      hintText={hintTarget?.problemId === problem.id ? hintText : undefined}
-      hintRowId={hintTarget?.problemId === problem.id ? hintTarget.rowId : undefined}
-      getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear} />)}
+    {state.problems.map((problem) => {
+      const rows = state.rows.filter((row) => row.problemId === problem.id);
+      return <ProblemBlock key={`${revision}/${problem.id}`} problem={problem} rows={rows}
+        strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
+        hintText={hintTarget?.problemId === problem.id ? hintText : undefined}
+        hintRowId={hintTarget?.problemId === problem.id ? hintTarget.rowId : undefined}
+        getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear}
+        devOverlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))} /> : undefined} />;
+    })}
   </>;
 }

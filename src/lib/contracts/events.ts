@@ -7,7 +7,7 @@ export const STUCK = {
   PAUSE_MIN_MS: 8000, PAUSE_MAX_MS: 20000, PAUSE_FACTOR: 2.5,
   ERASE_LOOP_COUNT: 2, ERASE_LOOP_WINDOW_MS: 45000,
   CROSS_OUT_COVERAGE: 0.6, CROSS_OUT_MIN_LENGTH_RATIO: 1.2,
-  REARM_ON: "new_ink", CLUSTER_GAP: 22,
+  REARM_ON: "new_ink", CLUSTER_GAP: 4,
 } as const;
 
 export const StuckSignalSchema = z.object({

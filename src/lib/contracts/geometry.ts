@@ -5,7 +5,7 @@ export const PAGE = {
   studentCol: { x: 0, w: 760 },
   gutter: { x: 760, w: 30 },
   albertCol: { x: 790, w: 410 },
-  rowHeight: 84,
+  rowHeight: 128,
   rowPaddingTop: 10,
   statementMinHeight: 96,
 } as const;

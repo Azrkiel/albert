@@ -1,4 +1,5 @@
-import type { Row, SessionEvent, SessionRecording, Stroke } from "../contracts";
+import type { Cluster, Row, SessionEvent, SessionRecording, Stroke } from "../contracts";
+import { clusterRow } from "./clusters";
 import { assignRow, createRows, ensureRows } from "./rows";
 
 type Edit = { kind: "draw" | "erase"; strokeIds: string[]; rowId: string };
@@ -8,6 +9,8 @@ export type SessionState = {
   problems: SessionRecording["problems"];
   rows: Row[];
   strokes: Stroke[];
+  /** Clusters per row id, recomputed only for rows whose strokes changed. Derived, never exported. */
+  clusters: Record<string, Cluster[]>;
   events: SessionEvent[];
   durationMs: number;
   undoStack: Edit[];
@@ -19,11 +22,42 @@ export function createSessionState(problems: string[] | SessionRecording["proble
   const metadata = problems.map((problem) => typeof problem === "string"
     ? { id: problem, label: problem, statementLatex: "" } : { ...problem });
   return { worksheetId, problems: metadata, rows: rows ? structuredClone(rows) : metadata.flatMap(({ id }) => createRows(id)),
-    strokes: [], events: [], durationMs: 0, undoStack: [], redoStack: [] };
+    strokes: [], clusters: {}, events: [], durationMs: 0, undoStack: [], redoStack: [] };
 }
 
-/** Both live completion and replay enter here. Recorded associations stay authoritative. */
-export function reduceSessionEvent(state: SessionState, event: SessionEvent): SessionState {
+/** Every row's clusters in row order, for detectStuck and renderSnapshot. */
+export function listClusters(state: Pick<SessionState, "rows" | "clusters">, rowIds?: string[]): Cluster[] {
+  const wanted = rowIds ? new Set(rowIds) : undefined;
+  return state.rows.filter((row) => !wanted || wanted.has(row.id)).flatMap((row) => state.clusters[row.id] ?? []);
+}
+
+/** Rows whose strokes differ between two stroke lists. Event-agnostic, so erase/undo/redo semantics stay in one place. */
+function changedRows(before: Stroke[], after: Stroke[]): Set<string> {
+  const previous = new Map(before.map((stroke) => [stroke.id, stroke]));
+  const rows = new Set<string>();
+  for (const stroke of after) {
+    const old = previous.get(stroke.id);
+    previous.delete(stroke.id);
+    if (old === stroke) continue;
+    if (stroke.rowId) rows.add(stroke.rowId);
+    if (old?.rowId) rows.add(old.rowId);
+  }
+  for (const gone of previous.values()) if (gone.rowId) rows.add(gone.rowId);
+  return rows;
+}
+
+/** Recompute clusters only for rows whose strokes changed; untouched rows keep their arrays. */
+export function reclusterChanged(before: SessionState, after: SessionState): SessionState {
+  if (before.strokes === after.strokes) return after;
+  const rows = changedRows(before.strokes, after.strokes);
+  if (!rows.size) return after;
+  const clusters = { ...after.clusters };
+  for (const rowId of rows) clusters[rowId] = clusterRow(after.strokes, rowId);
+  return { ...after, clusters };
+}
+
+/** Stroke-level effect of one event: rows, erase/undo/redo (P2.4). */
+function applySessionEvent(state: SessionState, event: SessionEvent): SessionState {
   let strokes = state.strokes;
   let rows = state.rows;
   let undoStack = state.undoStack;
@@ -76,6 +110,12 @@ export function reduceSessionEvent(state: SessionState, event: SessionEvent): Se
   }
   return { ...state, strokes, rows, undoStack, redoStack, events: [...state.events, structuredClone(event)],
     durationMs: Math.max(state.durationMs, event.at) };
+}
+
+/** Both live completion and replay enter here. Recorded associations stay authoritative. */
+export function reduceSessionEvent(state: SessionState, event: SessionEvent): SessionState {
+  const next = applySessionEvent(state, event);
+  return next === state ? state : reclusterChanged(state, next);
 }
 
 /** The block supplies identity; capture's draft is never mutated. No clocks or IO. */

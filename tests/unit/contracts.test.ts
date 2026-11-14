@@ -128,9 +128,9 @@ describe("manifest validation", () => {
 
 describe("contract variants and bounds", () => {
   it("matches the plan constants", () => {
-    expect(contracts.PAGE).toEqual({ width: 1200, studentCol: { x: 0, w: 760 }, gutter: { x: 760, w: 30 }, albertCol: { x: 790, w: 410 }, rowHeight: 84, rowPaddingTop: 10, statementMinHeight: 96 });
+    expect(contracts.PAGE).toEqual({ width: 1200, studentCol: { x: 0, w: 760 }, gutter: { x: 760, w: 30 }, albertCol: { x: 790, w: 410 }, rowHeight: 128, rowPaddingTop: 10, statementMinHeight: 96 });
     expect(contracts.INK).toEqual({ student: "#1b1b1f", albert: "#c8321e", clusterLabel: "#2f6fdb" });
-    expect(contracts.STUCK).toEqual({ PAUSE_MIN_MS: 8000, PAUSE_MAX_MS: 20000, PAUSE_FACTOR: 2.5, ERASE_LOOP_COUNT: 2, ERASE_LOOP_WINDOW_MS: 45000, CROSS_OUT_COVERAGE: 0.6, CROSS_OUT_MIN_LENGTH_RATIO: 1.2, REARM_ON: "new_ink", CLUSTER_GAP: 22 });
+    expect(contracts.STUCK).toEqual({ PAUSE_MIN_MS: 8000, PAUSE_MAX_MS: 20000, PAUSE_FACTOR: 2.5, ERASE_LOOP_COUNT: 2, ERASE_LOOP_WINDOW_MS: 45000, CROSS_OUT_COVERAGE: 0.6, CROSS_OUT_MIN_LENGTH_RATIO: 1.2, REARM_ON: "new_ink", CLUSTER_GAP: 4 });
   });
   it("accepts every session event variant", () => {
     const events = [examples.SessionEvent.valid, { type: "erase", at: 1, rowId: "r1", strokeIds: [] }, { type: "undo", at: 2, rowId: "r1", strokeIds: [] }, { type: "stuck", at: 3, signal: examples.StuckSignal.valid }, { type: "hint_requested", at: 4, hintId: "h1", rowId: "r1", rung: 3 }, { type: "hint_shown", at: 5, hintId: "h1", marks: [examples.AlbertMark.valid] }, { type: "check_requested", at: 6, problemId: "p1" }, { type: "check_result", at: 7, problemId: "p1", verdict: "correct" }, { type: "problem_opened", at: 8, problemId: "p1" }];

@@ -127,11 +127,88 @@ src/lib/canvas/
 3. Dev overlay (only with `?dev=1`): draw each cluster's box and number on screen. This overlay is how you tune `STUCK.CLUSTER_GAP` against real handwriting.
 
 **Acceptance**
-- [ ] **P2.5-AC1** — Known layouts cluster as expected. *Verify:* `tests/unit/clusters.test.ts` with synthetic boxes: three well-separated symbols give three clusters; a fraction (bar with ink above and below) gives one; an equals sign (two parallel short strokes) gives one; an `i` with its dot gives one; two symbols 10 px apart give one and 40 px apart give two.
+- [ ] **P2.5-AC1** — Known layouts cluster as expected. *Verify:* `tests/unit/clusters.test.ts` with synthetic boxes: three well-separated symbols give three clusters; a fraction (bar with ink above and below) gives the numerator's clusters, then the bar, then the denominator's, as adjacent labels (was "gives one"; changed after P2.5-AC3 so a stacked denominator can be circled); an equals sign (two parallel short strokes) gives one; an `i` with its dot gives one; two symbols closer than `CLUSTER_GAP` give one and 40 px apart give two. (Was "10 px apart give one", written for the starting gap of 22; real handwriting in P2.5-AC3 had 4–15 px between separate symbols, so the gap is now 4.)
 - [ ] **P2.5-AC2** — Labels are stable left to right and restart per row. *Verify:* unit test.
 - [ ] **P2.5-AC3** — On real handwriting the clusters are usable. *Verify by hand:* with the dev overlay on, write `∫ dx / (x²√(16 − x²))` and `x = 4 sin θ` on separate rows. Each term a tutor might want to circle (the integral sign, `dx`, the denominator, `4 sin θ`) is one cluster or a run of adjacent clusters. Adjust `CLUSTER_GAP` if not, and record the final value in `contracts.md`.
 
 **Note.** Clusters do not need to be perfect symbols. Albert can name several adjacent clusters, and a circle around two of them reads fine. What matters is that boundaries fall in sensible gaps.
+
+---
+
+### P2.5a — Write anywhere (lines inferred from ink)
+
+**Goal.** The student writes anywhere in the student column, at any size, with no ruled lines. Albert still knows which line of work every stroke belongs to, so clusters, stuck detection, snapshots and hints keep working.
+
+**Depends on.** P2.5 (fraction-bar rule, `FRACTION_BAR_MIN_ASPECT`). P2.4 is built by another lane in parallel and owns erase/undo/redo semantics in the reducer; land P2.4 first or rebase onto it, and keep its semantics.
+
+**Key idea.** A `Row` stops being a fixed band and becomes a **line** inferred from ink. Its shape does not change (`{ id, problemId, index, bbox }`), so nothing downstream changes shape: `Stroke.rowId`, `Cluster.rowId`, `StuckSignal.rowId`, `HintRequest.rows`, `Mark.rowIndex`, `AlbertMarkSpec.rowId` and the snapshot's `R1, R2, …` tags all keep their meaning, with "row" now meaning "line".
+
+**Build.**
+1. `src/lib/canvas/lines.ts` (pure, unit tested):
+   ```ts
+   function assignLine(stroke: Stroke, rows: Row[], strokes: Stroke[]): { rowId: string; rows: Row[] }
+   function lineRows(rows: Row[], strokes: Stroke[]): Row[]   // bands and indexes from live ink
+   ```
+   **Line assignment** (new rule in `contracts.md` §2, replacing the band rule when the layout is `free`):
+   - A line's **band** is the vertical extent of its live pen strokes.
+   - A finished stroke **joins** the line whose band it overlaps most, when the overlap is at least `LINE.MIN_OVERLAP` of the shorter of the two heights. Ties go to the nearer band centre, then the older line.
+   - **Fraction parts join their bar's line.** If the stroke is centred over or under a flat stroke (width ≥ `FRACTION_BAR_MIN_ASPECT` × height) of a line within `LINE.GAP`, or the stroke is itself flat and covers the centre of a line's ink within `LINE.GAP` above or below, it joins that line. Numerator, bar and denominator therefore stay together in any writing order.
+   - Otherwise the stroke **starts a new line**.
+   - Assignment happens once, when the stroke ends, and is stored on the stroke as now. It never changes afterwards, so replay is exact and recordings stay authoritative.
+   - **Ids** are `${problemId}/r${n}`, with `n` the creation order. Ids are never reused.
+   - **Index** is top-to-bottom order by band top, recomputed on every change. Ids are stable; indexes can shift when a line is written between two others. History and hints refer to ids, so only the labels drawn on the next snapshot change.
+   - A line whose strokes are all erased leaves `rows`. Its events stay in the recording.
+   - `Row.bbox` is the student column's x and width, by the band ± `LINE.PAD`.
+2. Constants in `src/lib/contracts/geometry.ts`: `LINE = { GAP: 16, MIN_OVERLAP: 0.3, PAD: 8 }` (logical px). `GAP` is a first guess, tuned at AC4 the way `CLUSTER_GAP` was.
+3. **Layout switch.** The default is `ruled` until P2.5a-AC4 passes, then `free` (user decision, Nov 14).
+   - `NEXT_PUBLIC_CANVAS_LAYOUT=free|ruled`.
+   - `SessionRecording.layout?: "ruled" | "free"`. Absent means `ruled`, so `sample.json` and `ac3-handwriting.json` replay unchanged.
+   - The store uses `assignRow`/`ensureRows` for `ruled` and `assignLine`/`lineRows` for `free`.
+   - `ruled` stays as the fallback (128 px rows).
+4. **Surface in `free` layout.**
+   - No rule lines.
+   - Each problem keeps at least `2 × PAGE.rowHeight` of blank space below its lowest ink; this replaces "append one more row".
+   - A faint line number at the left edge of each line's band. Students see what Albert's `R2` means, and P2.4's "Clear row" has something to tap.
+   - The `?dev=1` overlay also outlines each line's band, next to the cluster boxes.
+5. **Docs.** `contracts.md` §1/§2 get the Line assignment rule, `LINE`, and the `Row` comment "a line of work: inferred from ink (`free`) or a ruled band (`ruled`)". `phase-2-canvas.md` P2.2 gets a note that `free` supersedes it by default.
+
+**Acceptance**
+- [ ] **P2.5a-AC1** — Lines come out as a reader would see them. *Verify:* `tests/unit/lines.test.ts` with synthetic boxes covers:
+  - two lines of work separated by whitespace give two rows;
+  - a stacked fraction written in each order (numerator→bar→denominator, denominator→bar→numerator, bar→numerator→denominator) gives one row;
+  - a tall `∫`, superscripts and subscripts join their line;
+  - a new line started just below the previous one (gap > `LINE.GAP`) is a new row;
+  - a line written between two existing lines gets index 2 and the lower one becomes index 3, with ids unchanged;
+  - a fully erased line leaves `rows`;
+  - another problem's strokes are ignored.
+- [ ] **P2.5a-AC2** — Replay is exact and old recordings still work. *Verify:* unit tests show a `free` recording replays to the same rows and rowIds; the existing `ruled` fixtures and the existing replay e2e pass unchanged.
+- [ ] **P2.5a-AC3** — The page behaves. *Verify:* `tests/e2e/lines.spec.ts`. In `free` layout:
+  - no rule lines render;
+  - strokes drawn at arbitrary heights get rows in visual order;
+  - space grows below the lowest ink;
+  - `?dev=1` shows line bands.
+
+  With `NEXT_PUBLIC_CANVAS_LAYOUT=ruled`, the P2.2 e2e passes unchanged.
+- [ ] **P2.5a-AC4** — It works on real handwriting. *Verify by hand:* with `?dev=1`, write anywhere on the page, at two sizes:
+  - `∫ dx / (x²√(16 − x²))` as a stacked fraction about two old rows tall;
+  - `x = 4 sin θ`;
+  - three more ordinary steps.
+
+  Each step must be one line, and no line may swallow its neighbour. Tune `LINE.GAP` and record it in `contracts.md`.
+
+**Fallback.** `NEXT_PUBLIC_CANVAS_LAYOUT=ruled` (128 px rows) is the demo default if AC4 is not solid within the time box.
+
+**Not in this subphase.**
+- Side-by-side work at the same height joins one line. Clusters still separate it, so Albert can point, but reading order mixes.
+- Lines merging after the fact.
+- Strongly slanted lines.
+- Moving ink with a lasso.
+
+**Downstream notes (for later phases; no change now).**
+- P2.6: "per row" means per line. Pause uses the last line with ink, by time.
+- P2.7: crop "rows 1..stuck" uses line index order. Tags go at each line's left edge.
+- P4.x: ruled rows guaranteed vertical spacing; lines do not. The margin layout must stack Albert's notes when two lines are closer than a note's height.
+- D4's narrow-screen variant puts the margin below the line.
 
 ---
 

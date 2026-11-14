@@ -1,13 +1,13 @@
 "use client";
 
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import { INK, PAGE, type Row, type Stroke, type Worksheet } from "@/lib/contracts";
 import { WorkSurface } from "./WorkSurface";
 
 // Phase 5 owns loading/typesetting. Accept its existing contract metadata directly.
 type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLatex">;
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId }: {
+export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
@@ -17,6 +17,8 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   onClearRow?: (rowId: string) => void;
   hintText?: string;
   hintRowId?: string;
+  /** SVG drawn above the ink (the ?dev=1 cluster overlay); omitted in normal use. */
+  devOverlay?: ReactNode;
 }) {
   const headingId = useId();
   const height = Math.max(...rows.map((row) => row.bbox.y + row.bbox.h));
@@ -25,7 +27,7 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
     <section data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }}>
       {/* HTML controls stay accessible outside the SVG's atomic img role. */}
       <WorkSurface problemId={problem.id} height={height} strokes={strokes}
-        onStroke={onStroke} getSessionStart={getSessionStart} tool={tool}
+        onStroke={onStroke} getSessionStart={getSessionStart} tool={tool} svgOverlay={devOverlay}
         overlay={onClearRow && rows.map((row) => <button key={row.id} type="button" data-row-number=""
           aria-label={`Clear row ${row.index} of problem ${problem.label}`}
           title={`Clear row ${row.index}`} onClick={() => onClearRow(row.id)}
