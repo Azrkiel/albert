@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useSearchParams } from "next/navigation";
-import type { Rung, SessionEvent, SessionRecording, Stroke } from "@/lib/contracts";
+import type { CanvasLayout, Rung, SessionEvent, SessionRecording, Stroke } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
 import { clearRow, createSessionState, eraseGesture, exportRecording, historyEvent, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
 import { ClusterOverlay } from "./ClusterOverlay";
@@ -14,6 +14,8 @@ declare global {
 }
 
 const devBuild = process.env.NODE_ENV !== "production";
+// Default ruled until P2.5a-AC4 passes on real handwriting; ?layout= overrides for checks and demos.
+const envLayout: CanvasLayout = process.env.NEXT_PUBLIC_CANVAS_LAYOUT === "free" ? "free" : "ruled";
 
 export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: string, rung: Rung) => Promise<void> };
 
@@ -21,10 +23,12 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
   const devTools = devBuild && params.get("dev") === "1";
+  const urlLayout = params.get("layout");
+  const layout: CanvasLayout = urlLayout === "free" || urlLayout === "ruled" ? urlLayout : envLayout;
   const urlSpeed = params.get("speed");
   const initialSpeed = urlSpeed === "instant" || urlSpeed === "4" ? urlSpeed : "1";
   const [speed, setSpeed] = useState<PlaybackSpeed>(initialSpeed);
-  const [state, setState] = useState(() => createSessionState(problems, worksheetId));
+  const [state, setState] = useState(() => createSessionState(problems, worksheetId, undefined, layout));
   const [tool, setTool] = useState<Stroke["tool"]>("pen");
   const current = useRef(state);
   const origin = useRef<number | null>(null);
@@ -97,7 +101,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     setError("");
     setReplayDone(false);
     setRevision((value) => value + 1); // Discard in-flight pointer drafts on replacement.
-    const reset = () => replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows),
+    const reset = () => replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.layout ?? "ruled"),
       durationMs: rec.durationMs, ...(rec.notes === undefined ? {} : { notes: rec.notes }) });
     reset();
     origin.current = performance.now() - rec.durationMs;
@@ -175,8 +179,9 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
         strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
         hintText={hintTarget?.problemId === problem.id ? hintText : undefined}
         hintRowId={hintTarget?.problemId === problem.id ? hintTarget.rowId : undefined}
-        getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear}
-        devOverlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))} /> : undefined} />;
+        getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear} layout={state.layout}
+        devOverlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))}
+          lines={state.layout === "free" ? rows : undefined} /> : undefined} />;
     })}
   </>;
 }

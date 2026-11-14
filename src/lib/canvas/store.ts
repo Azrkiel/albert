@@ -1,11 +1,14 @@
-import type { Cluster, Row, SessionEvent, SessionRecording, Stroke } from "../contracts";
+import type { CanvasLayout, Cluster, Row, SessionEvent, SessionRecording, Stroke } from "../contracts";
 import { clusterRow } from "./clusters";
+import { assignLine, lineRows } from "./lines";
 import { assignRow, createRows, ensureRows } from "./rows";
 
 type Edit = { kind: "draw" | "erase"; strokeIds: string[]; rowId: string };
 
 export type SessionState = {
   worksheetId: string;
+  /** "ruled": fixed bands (P2.2). "free": rows are lines inferred from ink (P2.5a). */
+  layout: CanvasLayout;
   problems: SessionRecording["problems"];
   rows: Row[];
   strokes: Stroke[];
@@ -18,10 +21,12 @@ export type SessionState = {
   notes?: string;
 };
 
-export function createSessionState(problems: string[] | SessionRecording["problems"], worksheetId = "demo", rows?: Row[]): SessionState {
+/** In the free layout rows derive from strokes, so any given rows are ignored. */
+export function createSessionState(problems: string[] | SessionRecording["problems"], worksheetId = "demo", rows?: Row[], layout: CanvasLayout = "ruled"): SessionState {
   const metadata = problems.map((problem) => typeof problem === "string"
     ? { id: problem, label: problem, statementLatex: "" } : { ...problem });
-  return { worksheetId, problems: metadata, rows: rows ? structuredClone(rows) : metadata.flatMap(({ id }) => createRows(id)),
+  const initial = layout === "free" ? [] : rows ? structuredClone(rows) : metadata.flatMap(({ id }) => createRows(id));
+  return { worksheetId, layout, problems: metadata, rows: initial,
     strokes: [], clusters: {}, events: [], durationMs: 0, undoStack: [], redoStack: [] };
 }
 
@@ -66,11 +71,14 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     const stroke = structuredClone(event.stroke);
     if (strokes.some((existing) => existing.id === stroke.id)) return state;
     if (!state.problems.some((problem) => problem.id === stroke.problemId)) throw new Error("Unknown problem");
-    stroke.rowId ??= assignRow(stroke, rows);
+    if (state.layout === "free") {
+      stroke.rowId ??= assignLine(stroke, strokes);
+      rows = lineRows(state.problems.map(({ id }) => id), [...strokes, stroke]);
+    } else stroke.rowId ??= assignRow(stroke, rows);
     if (!rows.some((row) => row.id === stroke.rowId && row.problemId === stroke.problemId)) throw new Error("Unknown row");
     event = { ...event, stroke };
     strokes = [...strokes, stroke];
-    rows = ensureRows(rows, strokes);
+    if (state.layout === "ruled") rows = ensureRows(rows, strokes);
     if (stroke.tool === "pen" && stroke.erasedAt === undefined) {
       undoStack = [...undoStack, { kind: "draw", strokeIds: [stroke.id], rowId: stroke.rowId }];
       redoStack = [];
@@ -114,8 +122,12 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
 
 /** Both live completion and replay enter here. Recorded associations stay authoritative. */
 export function reduceSessionEvent(state: SessionState, event: SessionEvent): SessionState {
-  const next = applySessionEvent(state, event);
-  return next === state ? state : reclusterChanged(state, next);
+  let next = applySessionEvent(state, event);
+  if (next === state) return state;
+  if (next.layout === "free" && next.strokes !== state.strokes) {
+    next = { ...next, rows: lineRows(next.problems.map(({ id }) => id), next.strokes) };
+  }
+  return reclusterChanged(state, next);
 }
 
 /** The block supplies identity; capture's draft is never mutated. No clocks or IO. */

@@ -139,15 +139,16 @@ src/lib/canvas/
 
 **Goal.** The student writes anywhere in the student column, at any size, with no ruled lines. Albert still knows which line of work every stroke belongs to, so clusters, stuck detection, snapshots and hints keep working.
 
-**Depends on.** P2.5 (fraction-bar rule, `FRACTION_BAR_MIN_ASPECT`). P2.4 is built by another lane in parallel and owns erase/undo/redo semantics in the reducer; land P2.4 first or rebase onto it, and keep its semantics.
+**Depends on.** P2.5 (fraction-bar rule, `FRACTION_BAR_MIN_ASPECT`). P2.4 (merged) owns erase/undo/redo semantics in the reducer; keep them. Its edits require the target row to exist, which is why fully erased lines keep their row.
 
 **Key idea.** A `Row` stops being a fixed band and becomes a **line** inferred from ink. Its shape does not change (`{ id, problemId, index, bbox }`), so nothing downstream changes shape: `Stroke.rowId`, `Cluster.rowId`, `StuckSignal.rowId`, `HintRequest.rows`, `Mark.rowIndex`, `AlbertMarkSpec.rowId` and the snapshot's `R1, R2, …` tags all keep their meaning, with "row" now meaning "line".
 
 **Build.**
 1. `src/lib/canvas/lines.ts` (pure, unit tested):
    ```ts
-   function assignLine(stroke: Stroke, rows: Row[], strokes: Stroke[]): { rowId: string; rows: Row[] }
-   function lineRows(rows: Row[], strokes: Stroke[]): Row[]   // bands and indexes from live ink
+   function assignLine(stroke: Stroke, strokes: Stroke[]): string        // an existing line id or a new one
+   function lineRows(problemIds: string[], strokes: Stroke[]): Row[]     // bands and indexes from the ink
+   function freeSurfaceHeight(rows: Row[]): number                       // blank page + room below the ink
    ```
    **Line assignment** (new rule in `contracts.md` §2, replacing the band rule when the layout is `free`):
    - A line's **band** is the vertical extent of its live pen strokes.
@@ -157,11 +158,11 @@ src/lib/canvas/
    - Assignment happens once, when the stroke ends, and is stored on the stroke as now. It never changes afterwards, so replay is exact and recordings stay authoritative.
    - **Ids** are `${problemId}/r${n}`, with `n` the creation order. Ids are never reused.
    - **Index** is top-to-bottom order by band top, recomputed on every change. Ids are stable; indexes can shift when a line is written between two others. History and hints refer to ids, so only the labels drawn on the next snapshot change.
-   - A line whose strokes are all erased leaves `rows`. Its events stay in the recording.
+   - A line whose strokes are all erased keeps its row, so P2.4's undo can restore it, but it is numbered after the lines with ink and shows no number.
    - `Row.bbox` is the student column's x and width, by the band ± `LINE.PAD`.
-2. Constants in `src/lib/contracts/geometry.ts`: `LINE = { GAP: 16, MIN_OVERLAP: 0.3, PAD: 8 }` (logical px). `GAP` is a first guess, tuned at AC4 the way `CLUSTER_GAP` was.
+2. Constants in `src/lib/contracts/geometry.ts`: `LINE = { GAP: 16, GAP_PER_HEIGHT: 0.5, MIN_OVERLAP: 0.3, PAD: 8 }` (logical px; the fraction gap is the larger of `GAP` and `GAP_PER_HEIGHT` × the part's height, so big writing still joins). `GAP` is a first guess, tuned at AC4 the way `CLUSTER_GAP` was.
 3. **Layout switch.** The default is `ruled` until P2.5a-AC4 passes, then `free` (user decision, Nov 14).
-   - `NEXT_PUBLIC_CANVAS_LAYOUT=free|ruled`.
+   - `NEXT_PUBLIC_CANVAS_LAYOUT=free|ruled`, overridden per page load by `?layout=free|ruled`.
    - `SessionRecording.layout?: "ruled" | "free"`. Absent means `ruled`, so `sample.json` and `ac3-handwriting.json` replay unchanged.
    - The store uses `assignRow`/`ensureRows` for `ruled` and `assignLine`/`lineRows` for `free`.
    - `ruled` stays as the fallback (128 px rows).
@@ -179,7 +180,7 @@ src/lib/canvas/
   - a tall `∫`, superscripts and subscripts join their line;
   - a new line started just below the previous one (gap > `LINE.GAP`) is a new row;
   - a line written between two existing lines gets index 2 and the lower one becomes index 3, with ids unchanged;
-  - a fully erased line leaves `rows`;
+  - a fully erased line keeps its row behind the lines with ink, and undo restores it;
   - another problem's strokes are ignored.
 - [ ] **P2.5a-AC2** — Replay is exact and old recordings still work. *Verify:* unit tests show a `free` recording replays to the same rows and rowIds; the existing `ruled` fixtures and the existing replay e2e pass unchanged.
 - [ ] **P2.5a-AC3** — The page behaves. *Verify:* `tests/e2e/lines.spec.ts`. In `free` layout:
