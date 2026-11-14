@@ -94,3 +94,14 @@ describe("current canvas shapes", () => {
     expect(JSON.stringify({ rows: state.rows, clusters })).toBe(before);
   });
 });
+
+describe("arrow start (P4.1 build step 3)", () => {
+  it("starts at the margin anchor in Albert's column, before any hint text exists", () => {
+    const anchor = marginAnchor(row);
+    expect(anchor.x).toBeGreaterThanOrEqual(PAGE.albertCol.x);
+    expect(anchor.x).toBeLessThan(PAGE.albertCol.x + PAGE.albertCol.w);
+    const arrow = arrowFor(anchor, targetBox([b.id], [a, b], row));
+    expect(arrow.path.startsWith(`M ${anchor.x} ${anchor.y} `)).toBe(true);
+    expect(arrowFor(anchor, targetBox(["p/r2/missing"], [a, b], row)).path.startsWith(`M ${anchor.x} ${anchor.y} `)).toBe(true);
+  });
+});

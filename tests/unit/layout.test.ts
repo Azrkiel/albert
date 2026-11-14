@@ -117,3 +117,27 @@ describe("layoutHint", () => {
     expect(() => layout([text("word")], { measure: () => size })).toThrow(RangeError);
   });
 });
+
+describe("free layout: lines closer than a note (phase-2 P2.5a/P2.5b downstream notes)", () => {
+  it("P4.1-AC2: notes for close lines and same-height side work stack instead of overlapping", () => {
+    const lineA: Row = { id: "p/r0", problemId: "p", index: 0, bbox: { x: 0, y: 391, w: 760, h: 42 } };
+    const lineB: Row = { ...lineA, id: "p/r1", index: 1, bbox: { x: 0, y: 425, w: 760, h: 42 } };
+    const side: Row = { ...lineA, id: "p/r2", index: 2, bbox: { x: 420, y: 391, w: 340, h: 42 } };
+    const segments = [text("You replaced x. What does dx become? Check the differential before continuing.")];
+    const notes: BBox[] = [];
+    for (const line of [lineA, lineB, side]) {
+      const note = layout(segments, { row: line, occupied: [...notes] });
+      inside(note);
+      // Each note is taller than the gap between the two lines, so stacking is what keeps them apart.
+      expect(note.bbox.h).toBeGreaterThan(lineB.bbox.y - lineA.bbox.y);
+      expect(note.bbox.y).toBeGreaterThanOrEqual(line.bbox.y + PAGE.rowPaddingTop);
+      for (const earlier of notes) {
+        expect(note.bbox.y >= earlier.y + earlier.h || note.bbox.y + note.bbox.h <= earlier.y).toBe(true);
+      }
+      notes.push(note.bbox);
+    }
+    const [a, b, c] = notes;
+    expect(b!.y).toBeGreaterThanOrEqual(a!.y + a!.h);
+    expect(c!.y).toBeGreaterThanOrEqual(b!.y + b!.h);
+  });
+});
