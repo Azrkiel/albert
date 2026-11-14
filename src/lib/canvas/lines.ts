@@ -1,5 +1,5 @@
 import { LINE, PAGE, type BBox, type Row, type Stroke } from "../contracts";
-import { isDivider, isFlat } from "./shapes";
+import { dividerIds, isFlat } from "./shapes";
 
 /** Lines inferred from ink (contracts.md §2, Line assignment; dividers P2.5b). Pure: no DOM, clock or IO. */
 
@@ -12,8 +12,8 @@ const centerY = (box: BBox) => box.y + box.h / 2;
 const isLive = (stroke: Stroke) => stroke.tool === "pen" && stroke.erasedAt === undefined;
 
 /** Live dividers of a problem. */
-function dividersOf(strokes: Stroke[], problemId: string): Stroke[] {
-  return strokes.filter((s) => s.problemId === problemId && isLive(s) && isDivider(s));
+function dividersOf(strokes: Stroke[], problemId: string, ids: Set<string>): Stroke[] {
+  return strokes.filter((s) => s.problemId === problemId && isLive(s) && ids.has(s.id));
 }
 
 /** A divider between the two strokes' centres whose height covers both of them. */
@@ -35,10 +35,10 @@ function verticalGap(a: BBox, b: BBox): number {
 }
 
 /** Line bands from ordinary ink (dividers excluded). */
-function bands(strokes: Stroke[], problemId: string, live: boolean): Band[] {
+function bands(strokes: Stroke[], problemId: string, live: boolean, dividers: Set<string>): Band[] {
   const byRow = new Map<string, Stroke[]>();
   for (const stroke of strokes) {
-    if (stroke.problemId !== problemId || !stroke.rowId || stroke.tool !== "pen" || isDivider(stroke)) continue;
+    if (stroke.problemId !== problemId || !stroke.rowId || stroke.tool !== "pen" || dividers.has(stroke.id)) continue;
     if (live && stroke.erasedAt !== undefined) continue;
     byRow.set(stroke.rowId, [...(byRow.get(stroke.rowId) ?? []), stroke]);
   }
@@ -71,9 +71,10 @@ function glyphHeight(line: Band): number {
  * so side work at the same height as the main column starts its own lines.
  */
 export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
-  const dividers = dividersOf(strokes, stroke.problemId);
-  const visible = isDivider(stroke) ? [] : strokes.filter((s) => s.id !== stroke.id && !separated(stroke, s, dividers));
-  const lines = bands(visible, stroke.problemId, true);
+  const ids = dividerIds([...strokes.filter((s) => s.id !== stroke.id), stroke]);
+  const dividers = dividersOf(strokes, stroke.problemId, ids);
+  const visible = ids.has(stroke.id) ? [] : strokes.filter((s) => s.id !== stroke.id && !separated(stroke, s, dividers));
+  const lines = bands(visible, stroke.problemId, true, ids);
   const box = stroke.bbox;
   const middle = box.y + box.h / 2;
   const nearer = (a: Band, b: Band) =>
@@ -93,12 +94,14 @@ export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
   // 2. Fraction parts join their bar's line, in any writing order.
   const fraction = lines.flatMap((line) => line.strokes.flatMap((other) => {
     const gap = verticalGap(box, other.bbox);
-    const overBar = isFlat(other.bbox) && centerX(box) >= other.bbox.x && centerX(box) <= rightOf(other.bbox);
-    const isBar = isFlat(box) && centerX(other.bbox) >= box.x && centerX(other.bbox) <= rightOf(box);
-    if (!overBar && !isBar) return [];
+    const bar = isFlat(other.bbox) ? other.bbox : isFlat(box) ? box : null;
+    if (!bar) return [];
+    const part = bar === box ? other.bbox : box;
     // Bigger writing leaves bigger gaps around a bar: scale with the height of the part that is not the bar.
-    const partHeight = overBar ? box.h : other.bbox.h;
-    return gap <= Math.max(LINE.GAP, LINE.GAP_PER_HEIGHT * partHeight) ? [{ line, gap }] : [];
+    // The same tolerance applies sideways, so an opening "(" just left of the bar's start still counts.
+    const tolerance = Math.max(LINE.GAP, LINE.GAP_PER_HEIGHT * part.h);
+    const under = centerX(part) >= bar.x - tolerance && centerX(part) <= rightOf(bar) + tolerance;
+    return under && gap <= tolerance ? [{ line, gap }] : [];
   })).sort((a, b) => a.gap - b.gap || a.line.n - b.line.n);
   if (fraction[0]) return fraction[0].line.rowId;
 
@@ -116,11 +119,12 @@ export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
  */
 export function lineRows(problemIds: string[], strokes: Stroke[]): Row[] {
   return problemIds.flatMap((problemId) => {
-    const dividers = dividersOf(strokes, problemId);
+    const ids = dividerIds(strokes);
+    const dividers = dividersOf(strokes, problemId, ids);
     const spanning = (band: Band) => dividers.filter((d) => d.bbox.y < band.bottom && bottomOf(d.bbox) > band.top);
     const column = (band: Band) => spanning(band).filter((d) => centerX(d.bbox) < band.left).length;
-    const all = bands(strokes, problemId, false);
-    const live = new Map(bands(strokes, problemId, true).map((band) => [band.rowId, band]));
+    const all = bands(strokes, problemId, false, ids);
+    const live = new Map(bands(strokes, problemId, true, ids).map((band) => [band.rowId, band]));
     const order = (a: Band, b: Band) => column(a) - column(b) || a.top - b.top || a.n - b.n;
     const ordered = [...all.filter((b) => live.has(b.rowId)).map((b) => live.get(b.rowId)!).sort(order),
       ...all.filter((b) => !live.has(b.rowId)).sort(order)];
@@ -134,7 +138,7 @@ export function lineRows(problemIds: string[], strokes: Stroke[]): Row[] {
     const seen = new Set(rows.map((row) => row.id));
     const dividerRows = new Map<string, Stroke[]>();
     for (const s of strokes) {
-      if (s.problemId !== problemId || !s.rowId || seen.has(s.rowId) || s.tool !== "pen" || !isDivider(s)) continue;
+      if (s.problemId !== problemId || !s.rowId || seen.has(s.rowId) || !ids.has(s.id)) continue;
       dividerRows.set(s.rowId, [...(dividerRows.get(s.rowId) ?? []), s]);
     }
     const extra = [...dividerRows].sort(([a], [b]) => lineNumber(a) - lineNumber(b)).map(([id, members], i) => {
@@ -148,7 +152,8 @@ export function lineRows(problemIds: string[], strokes: Stroke[]): Row[] {
 
 /** Rows that currently hold live ink a student would number (dividers are not lines of work). */
 export function inkedRowIds(strokes: Stroke[]): Set<string> {
-  return new Set(strokes.filter((s) => isLive(s) && !isDivider(s)).flatMap((s) => (s.rowId ? [s.rowId] : [])));
+  const dividers = dividerIds(strokes);
+  return new Set(strokes.filter((s) => isLive(s) && !dividers.has(s.id)).flatMap((s) => (s.rowId ? [s.rowId] : [])));
 }
 
 /** Free layout keeps a blank page to start and two line heights of space below the lowest ink. */
