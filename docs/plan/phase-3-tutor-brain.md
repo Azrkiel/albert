@@ -60,8 +60,8 @@ scripts/eval-hints.ts
    async function getScopeBundle(worksheetId: string, problemId: string): Promise<ScopeBundle>
    ```
    It reads cards and the worksheet from the `Repo` and applies the scope rule from `contracts.md` §6.
-4. `pnpm seed:demo` loads the fixture cards and worksheet into the store. With `STORE=memory`, the server loads them at start.
-5. `/api/scope/[worksheetId]` returns the bundle.
+4. `pnpm seed:demo` (`scripts/seed-demo.ts`) loads the fixture cards and worksheets into the store through `seedDemo` in `src/lib/db/seed-demo.ts`. With `STORE=memory`, the server loads them at start (`src/instrumentation.ts`).
+5. `GET /api/scope/[worksheetId]?problemId=<id>` returns the bundle (400 without `problemId`, 404 for an unknown worksheet or problem). Fixture ids: course `calc2`, units `calc2/u1` to `calc2/u4`, worksheets `calc2-ws1` and `calc2-ws3`; unit 4 is `taught: false` with method names only.
 
 **Acceptance**
 - [ ] **P3.2-AC1** — The fixture cards and worksheet pass the contract test.

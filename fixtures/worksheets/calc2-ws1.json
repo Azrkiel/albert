@@ -1,0 +1,52 @@
+{
+  "id": "calc2-ws1",
+  "courseId": "calc2",
+  "unitId": "calc2/u1",
+  "title": "Worksheet 1",
+  "fileId": "calc2-worksheet-1",
+  "problems": [
+    {
+      "id": "calc2-ws1/p1",
+      "label": "1",
+      "statementLatex": "$\\int x e^x\\,dx$",
+      "page": 1,
+      "subskillIds": [
+        "u1.choose_u",
+        "u1.apply_rule"
+      ],
+      "methodIds": [
+        "u1.ibp",
+        "u1.liate"
+      ]
+    },
+    {
+      "id": "calc2-ws1/p2",
+      "label": "2",
+      "statementLatex": "$\\int x\\ln x\\,dx$",
+      "page": 1,
+      "subskillIds": [
+        "u1.choose_u",
+        "u1.apply_rule"
+      ],
+      "methodIds": [
+        "u1.ibp",
+        "u1.liate"
+      ]
+    },
+    {
+      "id": "calc2-ws1/p3",
+      "label": "3",
+      "statementLatex": "$\\int x^2 e^x\\,dx$",
+      "page": 1,
+      "subskillIds": [
+        "u1.choose_u",
+        "u1.apply_rule",
+        "u1.repeat_parts"
+      ],
+      "methodIds": [
+        "u1.ibp",
+        "u1.liate"
+      ]
+    }
+  ]
+}

@@ -18,7 +18,7 @@
     "agent:replan": "node -e \"console.log('not built yet (Phase 6)')\" --",
     "ingest:flat": "node -e \"console.log('not built yet (Phase 6)')\" --",
     "seed:pdf": "node -e \"console.log('not built yet (Phase 5)')\" --",
-    "seed:demo": "node -e \"console.log('not built yet (Phase 3)')\" --",
+    "seed:demo": "tsx scripts/seed-demo.ts",
     "check:tracks": "node -e \"console.log('not built yet (Phase 8)')\" --"
   },
   "dependencies": {

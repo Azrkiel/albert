@@ -1,0 +1,40 @@
+{
+  "unitId": "calc2/u4",
+  "courseId": "calc2",
+  "order": 4,
+  "title": "Partial Fractions",
+  "taught": false,
+  "lectures": [],
+  "methods": [
+    {
+      "id": "u4.partial_fractions",
+      "name": "Partial fractions",
+      "lecture": "Lecture 11",
+      "summary": "Split a rational function into simpler fractions that integrate directly.",
+      "steps": []
+    }
+  ],
+  "notation": [],
+  "workedExamples": [],
+  "conventions": [],
+  "pitfalls": [],
+  "subskills": [
+    {
+      "id": "u4.factor_denominator",
+      "name": "Factor the denominator",
+      "description": "Factor the denominator into linear and irreducible quadratic factors."
+    },
+    {
+      "id": "u4.set_up_decomposition",
+      "name": "Set up the decomposition",
+      "description": "Write one term with an unknown constant for each factor."
+    },
+    {
+      "id": "u4.solve_coefficients",
+      "name": "Solve for the constants",
+      "description": "Find the unknown constants and integrate each term."
+    }
+  ],
+  "sourceFileIds": [],
+  "builtBy": "hand"
+}
