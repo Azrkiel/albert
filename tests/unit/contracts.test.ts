@@ -186,7 +186,8 @@ describe("fixture validation", () => {
     for (const file of mocks) {
       const mock = contracts.MockHintSchema.parse(JSON.parse(readFileSync(resolve("fixtures/llm", file), "utf8")));
       expect(mock.delaysMs, file).toHaveLength(mock.events.length);
-      expect(mock.events.at(-1)?.type, file).toBe("done");
+      // P3.8 error mocks (error-*.json) end in the error event; every other mock ends in done.
+      expect(mock.events.at(-1)?.type, file).toBe(file.startsWith("error-") ? "error" : "done");
     }
     const requests = readdirSync(resolve("fixtures/eval/requests")).filter((file) => file.endsWith(".json"));
     expect(requests).toContain("missing-dx-r1.json");

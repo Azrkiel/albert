@@ -1,0 +1,20 @@
+{
+  "fixtureId": "error-timeout",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-error-timeout",
+      "at": 0
+    },
+    {
+      "type": "error",
+      "hintId": "mock-error-timeout",
+      "code": "timeout",
+      "message": "Mock: the reply took longer than HINT_TIMEOUT_MS."
+    }
+  ],
+  "delaysMs": [
+    150,
+    300
+  ]
+}

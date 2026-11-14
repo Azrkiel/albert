@@ -1,0 +1,20 @@
+{
+  "fixtureId": "error-bad_model_output",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-error-bad_model_output",
+      "at": 0
+    },
+    {
+      "type": "error",
+      "hintId": "mock-error-bad_model_output",
+      "code": "bad_model_output",
+      "message": "Mock: the reply failed validation twice."
+    }
+  ],
+  "delaysMs": [
+    150,
+    300
+  ]
+}

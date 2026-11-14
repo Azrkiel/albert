@@ -50,7 +50,8 @@ for (const scenario of ["non-2xx", "invalid line", "truncated stream"] as const)
     const button = page.getByRole("button", { name: "Request mock hint" });
     await button.click();
     const column = page.locator(missingDx).locator("[data-albert-column]");
-    await expect(column).toContainText(scenario === "invalid line" ? "invalid hint stream" : scenario === "truncated stream" ? "ended early" : "could not finish");
+    // P3.8: an invalid line shows the bad_model_output note; non-2xx and truncation show model_unavailable.
+    await expect(column).toHaveText(scenario === "invalid line" ? "Albert couldn't read that. Try again?" : "Albert can't reach his notes right now. Try again.");
     await expect(button).toBeEnabled();
     await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
     expect(pageErrors).toEqual([]);

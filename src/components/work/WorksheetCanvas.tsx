@@ -4,6 +4,7 @@ import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, t
 import { useSearchParams } from "next/navigation";
 import type { CanvasLayout, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
+import { hintMarginText } from "@/lib/tutor/error-notes";
 import { mathToSvg, preloadInk, renderSegment, revealWipe } from "@/lib/ink";
 import "@/lib/ink/ink.css";
 import { buildHintRequest, clearRow, createSessionState, detectStuck, eraseGesture, exportRecording, historyEvent, isProblemSolved, listClusters, parseRecording, reduceSessionEvent, renderSnapshot, Replayer, type SessionState, type Snapshot } from "@/lib/canvas";
@@ -100,9 +101,8 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       rows: current.current.rows.filter((row) => row.problemId === problemId).map((row) => ({ rowId: row.id, index: row.index, clusterLabels: [] })), history: [] });
   }, [sendHint, sessionId, sink, now]);
   useImperativeHandle(ref, () => ({ requestHint }), [requestHint]);
-  const hintText = hint.events.filter((event) => event.type === "hint" || event.type === "error").map((event) =>
-    event.type === "error" ? event.message : event.segments.map((segment) =>
-      segment.type === "text" ? segment.text : segment.type === "math" ? segment.latex : "\n").join("")).join("\n");
+  // P3.8: an error shows only its plain note; partial hint text before it is dropped.
+  const hintText = hintMarginText(hint.events);
   const liveEvents = useCallback((events: SessionEvent[]) => {
     if (!events.length) return;
     // New live input takes ownership of the timeline; a pending replay cannot add old ink.
