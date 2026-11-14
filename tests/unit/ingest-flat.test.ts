@@ -76,6 +76,14 @@ it.each([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])("golden check %i detects its missin
   }
   expect(checkIngestData(data).find(c => c.number === number)?.status).toBe("fail");
 });
+it("golden check 9 accepts a method named like partial fractions, singular or plural, only without steps", async () => {
+  // Live P6.1 run named the upcoming method "Partial Fraction Decomposition".
+  const { data } = await setup();
+  data.cards[3]!.methods = [{ ...data.cards[3]!.methods[0]!, name: "Partial Fraction Decomposition", steps: [] }];
+  expect(checkIngestData(data).find(c => c.number === 9)?.status).toBe("pass");
+  data.cards[3]!.methods[0]!.steps = ["Factor the denominator"];
+  expect(checkIngestData(data).find(c => c.number === 9)?.status).toBe("fail");
+});
 it("flat ingest retries once with validation problems, preserves due dates and upserts on rerun without network", async () => {
   const { repo, course, data } = await setup();
   vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Network disabled"); }));

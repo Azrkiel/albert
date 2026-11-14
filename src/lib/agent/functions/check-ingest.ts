@@ -28,7 +28,7 @@ export function checkIngestData({ outline, cards, worksheets, sources }: IngestD
   check(6, !!u3?.conventions.some(c => /reference triangle/i.test(c)) && angles.length > 0 && angles.every(n => n.teacherWrites.trim() === "\\theta"), "M5 reference triangle and angle theta");
   check(7, !!u3?.workedExamples.some(e => e.label === "Lecture 9, Example 2"), "M6 Lecture 9, Example 2");
   check(8, !!u3?.pitfalls.some(p => p.errorType.includes("dx")), "Unit 3 dx pitfall");
-  check(9, !!u4?.methods.some(m => /partial fractions/i.test(m.name) && m.steps.length === 0), "M8 upcoming partial fractions, no steps");
+  check(9, !!u4?.methods.some(m => /partial fractions?/i.test(m.name) && m.steps.length === 0), "M8 upcoming partial fractions, no steps");
   const assignment = (n: number) => outline.assignments.find(a => a.unitOrder === n);
   const forAssignment = (n: number) => {
     const a = assignment(n);

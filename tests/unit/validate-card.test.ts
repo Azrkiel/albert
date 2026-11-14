@@ -81,3 +81,30 @@ it("does not accept a numeric label prefix as the cited lecture or example", () 
   input[0]!.text = input[0]!.text.replace("Lecture 9", "Lecture 90").replace("Example 2", "Example 20");
   expect(validateCard(card, input).join("\n")).toContain("Unsupported example label");
 });
+describe("teacherWrites source support ignores only insignificant TeX spacing", () => {
+  const withNotation = (cardWrites: string, sourceWrites: string) => {
+    const card = fixture(3), input = sources(3);
+    card.notation[0]!.teacherWrites = cardWrites;
+    input[0]!.text = `${input[0]!.text}\nSo $${sourceWrites}$.`;
+    return validateCard(card, input).filter(p => p.startsWith("Unsupported teacherWrites"));
+  };
+  it("accepts notation that differs from the transcription only by spaces around TeX spacing", () => {
+    // Live P6.1 run: the lecture said `dw = -\sin x \, dx`, the model copied `dw = -\sin x\,dx`.
+    expect(withNotation(String.raw`dw = -\sin x\,dx`, String.raw`dw = -\sin x \, dx`)).toEqual([]);
+    expect(withNotation(String.raw`dw=-\sin x \, dx`, String.raw`dw = -\sin x\,dx`)).toEqual([]);
+  });
+  it("treats display and text fraction size as the same fraction", () => {
+    // Live P6.1 run: the transcription wrote both \frac{du}{dx} and \dfrac{dy}{dx} for Leibniz form.
+    expect(withNotation(String.raw`\frac{dy}{dx}`, String.raw`\dfrac{dy}{dx} = e^x`)).toEqual([]);
+    expect(withNotation(String.raw`\dfrac{1}{2}`, String.raw`\tfrac{1}{2}`)).toEqual([]);
+    expect(withNotation(String.raw`\frac{dy}{dx}`, String.raw`\dfrac{du}{dx}`)).toHaveLength(1);
+  });
+  it("still rejects notation the source does not contain", () => {
+    expect(withNotation(String.raw`dw = \sin x\,dx`, String.raw`dw = -\sin x \, dx`)).toHaveLength(1);
+    expect(withNotation(String.raw`dw = -\cos x\,dx`, String.raw`dw = -\sin x \, dx`)).toHaveLength(1);
+  });
+  it("keeps the space that ends a control word", () => {
+    expect(withNotation(String.raw`\sinx`, String.raw`\sin x`)).toHaveLength(1);
+    expect(withNotation(String.raw`\sin x`, String.raw`\sinx`)).toHaveLength(1);
+  });
+});
