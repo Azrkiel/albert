@@ -153,7 +153,7 @@ Record the real values as they are decided. Later phases and the write-up read t
 
 | Done | Subphase | Criteria | Owner | Evidence |
 |---|---|---|---|---|
-| [ ] | P7.1 Evidence | 3 | | |
+| [ ] | P7.1 Evidence | 3 | Codex | this commit (P7.1: record deduplicated evidence; extend Repo with getSession). Base main 837a476. AC1/AC3: evidence.test.ts passes; pure context receives IDs/history/time, unknown IDs rejected with warning at persistence boundary. Hint route saves StoredHint then evidence for persisted active sessions; dev-only memory setup/read endpoint tested through real HTTP. pnpm verify: 333 passed, 16 live Mongo skipped; pnpm e2e: 29 passed, 3 skipped (production-only and two missing-dx replays). AC2 remains blocked: main lacks P2.6 and fixtures/sessions/missing-dx.json. Check route (P3.7) and session-end route (P7.5) absent: recordCheckEvidence/recordSessionEndEvidence are ready for integration; no verdicts invented. Repo interface/docs and all three synthetic missing-dx mock diagnoses updated; no persisted schema changes or dependencies. Concurrent verify/browser run hit inherited 5s contract timeouts; isolated default-timeout verify passed. git diff --check clean. |
 | [ ] | P7.2 Skill levels | 4 | | |
 | [ ] | P7.3 The course page | 4 | | |
 | [ ] | P7.4 The tutor report | 4 | | |

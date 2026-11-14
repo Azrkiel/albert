@@ -41,6 +41,8 @@ src/components/progress/SkillMap.tsx  PlanList.tsx  HowYoureDoing.tsx
 3. `evidenceFromSessionEnd(session, hints, checks): EvidenceEvent[]`
    - For each problem that had at least one `error` hint and no `correct` check: one `abandoned` event for each diagnosed subskill.
 
+Implementation on main 837a476: pure functions accept an `EvidenceContext` (Session plus course subskill IDs, existing evidence and explicit ISO time). Storage adapters validate course membership and log unknown IDs. `recordCheckEvidence` and `recordSessionEndEvidence` are integration points for P3.7/P7.5; these routes do not exist yet. `Repo.getSession` is required to resolve hint ownership without trusting request metadata. The existing mock stream is persisted only for an existing, active session. Its public events omit private notes, so P3.3 must pass the full validated reply to `recordHintEvidence`.
+
 Wire them in: `/api/hint` adds hint evidence after saving the `StoredHint`; `/api/check` adds check evidence; `/api/session/[id]/end` adds end-of-session evidence (P7.5). All through `repo.addEvidence`.
 
 **Acceptance**

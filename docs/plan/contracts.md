@@ -470,6 +470,7 @@ interface Repo {
   putFile(meta: CourseFile, bytes: Uint8Array): Promise<void>;
   getFile(id: string): Promise<{ meta: CourseFile; bytes: Uint8Array } | null>;
   // sessions
+  getSession(id: string): Promise<Session | null>;
   createSession(s: Session): Promise<void>;         appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
   endSession(sessionId: string, at: ISO): Promise<void>;
   saveHint(h: StoredHint): Promise<void>;           listHints(filter: { sessionId?: string; courseId?: string }): Promise<StoredHint[]>;

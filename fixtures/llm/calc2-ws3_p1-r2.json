@@ -35,7 +35,8 @@
         "calc2-ws3/p1/r3/c2"
       ],
       "errorType": "missing_dx",
-      "inScope": true
+      "inScope": true,
+      "subskillId": "calc2/u3/differential"
     },
     {
       "type": "mark",
