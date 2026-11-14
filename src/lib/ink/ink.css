@@ -1,0 +1,8 @@
+/* P4.2: Albert's handwriting. Kalam Regular, SIL Open Font License 1.1 (public/fonts/OFL.txt). */
+@font-face {
+  font-family: "Albert Hand";
+  src: url("/fonts/Kalam-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

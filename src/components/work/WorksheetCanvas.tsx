@@ -4,6 +4,8 @@ import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, t
 import { useSearchParams } from "next/navigation";
 import type { CanvasLayout, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
+import { mathToSvg, preloadInk, renderSegment, revealWipe } from "@/lib/ink";
+import "@/lib/ink/ink.css";
 import { buildHintRequest, clearRow, createSessionState, detectStuck, eraseGesture, exportRecording, historyEvent, isProblemSolved, listClusters, parseRecording, reduceSessionEvent, renderSnapshot, Replayer, type SessionState, type Snapshot } from "@/lib/canvas";
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
@@ -15,7 +17,9 @@ type SnapshotHook = (args: { upToRowId: string; problemId?: string; marked?: boo
 type HintRequestHook = (rowId: string, rung: Rung, trigger: StuckSignal["kind"]) => Promise<HintRequest>;
 
 declare global {
-  interface Window { __albert?: { state: SessionState; replayDone: boolean; renderSnapshot?: SnapshotHook; buildHintRequest?: HintRequestHook; sessionId?: string; flushSession?: () => Promise<boolean> } }
+  interface Window { __albert?: { state: SessionState; replayDone: boolean; renderSnapshot?: SnapshotHook; buildHintRequest?: HintRequestHook; sessionId?: string; flushSession?: () => Promise<boolean>;
+    /** P4.2 dev hooks: MathJax loaded; typeset, render and reveal one segment. */
+    mathReady?: boolean; mathToSvg?: typeof mathToSvg; renderSegment?: typeof renderSegment; revealWipe?: typeof revealWipe } }
 }
 
 /** The latest row of the problem written in last: what the dev Snapshot button shows. */
@@ -220,12 +224,20 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   }, []);
   const hintRequestHook = useCallback<HintRequestHook>((rowId, rung, trigger) =>
     buildHintRequest(current.current, rowId, rung, trigger, { sessionId }), [sessionId]);
+  // P4.2: load the hand font and MathJax when the work page mounts, before the first hint.
+  const [mathReady, setMathReady] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void preloadInk().then((ready) => { if (live) setMathReady(ready); });
+    return () => { live = false; };
+  }, []);
   useEffect(() => {
     if (!devBuild) return;
     window.__albert = { state, replayDone: replayDone && !loading, renderSnapshot: snapshotHook, buildHintRequest: hintRequestHook,
-      ...(serverSessionId === undefined ? {} : { sessionId: serverSessionId }), flushSession: sync.flush };
+      ...(serverSessionId === undefined ? {} : { sessionId: serverSessionId }), flushSession: sync.flush,
+      mathReady, mathToSvg, renderSegment, revealWipe };
     return () => { delete window.__albert; };
-  }, [state, replayDone, loading, snapshotHook, hintRequestHook, serverSessionId, sync.flush]);
+  }, [state, replayDone, loading, snapshotHook, hintRequestHook, serverSessionId, sync.flush, mathReady]);
 
   function openSnapshot() {
     const rowId = latestRow(current.current);
