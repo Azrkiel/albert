@@ -146,10 +146,12 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 
 **Build.** `/` imports via `POST /api/source/connect`; `/courses` lists saved courses via `GET /api/source/courses`. Not-ingested courses offer **Learn this course** (P6); ingested courses offer **Open**. Display plain source errors and remember the saved connection. No GitHub token input or LMS login.
 
+**P5.5 implementation.** The pages load saved courses in client components, keeping dynamic Repo reads out of the static shell with `cacheComponents`. Import stays busy while PDFs download, then opens `/courses`; failures show only the adapter's fixed messages. **Learn this course** is a disabled placeholder with a short note. **P6.6 owns wiring that button to ingestion and the run panel.** Open links encode the full snapshot-qualified course id.
+
 **Acceptance**
-- [ ] **P5.5-AC1** — Source failure stays on the import screen with a useful message (mocked route e2e).
+- [x] **P5.5-AC1** — Source failure stays on the import screen with a useful message (mocked route e2e).
 - [ ] **P5.5-AC2** — Successful import lists the actual course (recorded e2e and live by hand).
-- [ ] **P5.5-AC3** — No token appears in responses or page source (e2e).
+- [x] **P5.5-AC3** — No token appears in responses or page source (e2e).
 
 ---
 

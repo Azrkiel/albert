@@ -1,0 +1,20 @@
+.panel { display: grid; gap: 20px; margin-top: 32px; }
+.action {
+  display: inline-block;
+  justify-self: start;
+  width: fit-content;
+  border: 1px solid var(--ink-student);
+  border-radius: 4px;
+  padding: 12px 20px;
+  background: var(--ink-student);
+  color: #fffefb;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.action:focus-visible { outline: 2px solid var(--ink-albert); outline-offset: 5px; }
+.action:disabled { opacity: 0.55; cursor: default; }
+.error { color: var(--ink-albert); }
+.courses { display: grid; gap: 24px; margin: 0; padding: 0; list-style: none; }
+.course { display: grid; justify-items: start; gap: 16px; border-top: 1px solid #deddd8; padding: 24px 0; }
+.course h2 { margin: 0; font: 400 1.5rem Georgia, "Times New Roman", serif; overflow-wrap: anywhere; }
