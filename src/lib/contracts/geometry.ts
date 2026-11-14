@@ -1,0 +1,16 @@
+import { z } from "zod";
+
+export const PAGE = {
+  width: 1200,
+  studentCol: { x: 0, w: 760 },
+  gutter: { x: 760, w: 30 },
+  albertCol: { x: 790, w: 410 },
+  rowHeight: 84,
+  rowPaddingTop: 10,
+  statementMinHeight: 96,
+} as const;
+
+export const INK = { student: "#1b1b1f", albert: "#c8321e", clusterLabel: "#2f6fdb" } as const;
+
+export const BBoxSchema = z.object({ x: z.number(), y: z.number(), w: z.number().nonnegative(), h: z.number().nonnegative() });
+export type BBox = z.infer<typeof BBoxSchema>;

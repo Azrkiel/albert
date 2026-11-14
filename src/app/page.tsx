@@ -1,7 +1,8 @@
 export default function Home() {
   return (
-    <main>
-      <div>Hello world!</div>
-    </main>
+    <>
+      <h1>Connect your course</h1>
+      <p>Bring your course notes and worksheets together.</p>
+    </>
   );
 }
