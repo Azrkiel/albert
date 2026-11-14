@@ -58,16 +58,16 @@ scripts/agent-ingest.ts  scripts/agent-replan.ts  scripts/ingest-flat.ts  script
 3. `validateCard(card, sources): string[]` returns a list of problems, empty when the card is good:
    - Taught units: at least one method with two or more steps; a non-empty notation table; at least one worked example; three to eight subskills; every pitfall's `subskillId` exists.
    - Every worked example's label (for example "Lecture 9, Example 2") is supported by the source: the lecture label and the example label both occur in that file's transcribed text, and `page` is within the file's page count. This is the check that stops an invented example from being cited to a student.
-   - Every `teacherWrites` notation string occurs in the unit's text.
+   - Every `teacherWrites` notation string occurs in the unit's text (compared ignoring whitespace TeX ignores, keeping the space after a control word, and treating `\dfrac`/`	frac` as `rac`; the syllabus is not a notation source).
    - Units that are not taught: every method has zero steps, and there are no worked examples.
 4. `extractWorksheet(args: { file, text, unit, coveredCards, dueAt }): Promise<Worksheet>` and `validateWorksheet(ws, cards): string[]`: at least one problem; unique labels; non-empty statements; every problem has at least one subskill, all from the worksheet's own unit or an earlier one.
 5. `scripts/ingest-flat.ts` (`pnpm ingest:flat`): fetch the outline, loop over units and worksheets, call the functions, retry once on validation problems with the problems appended to the prompt, save through the `Repo`. Cards it saves are marked `builtBy: "flat_script"`.
 
 **Acceptance**
 - [x] **P6.1-AC1** — The validators catch what they should. *Verify:* `tests/unit/validate-card.test.ts` and `validate-worksheet.test.ts` start from the hand-written fixture cards (which pass) and break one thing at a time: an example labelled "Lecture 12, Example 9" that is not in the text; one-step methods; nine subskills; a pitfall with an unknown subskill; an upcoming card with steps; a problem mapped to an upcoming subskill.
-- [ ] **P6.1-AC2** — A lecture transcribes with its labels intact. *Verify:* `pnpm tsx scripts/read-file.ts fixtures/github/files/synthetic/pdf/unit-3/lecture-09.pdf` prints text containing "five-step recipe", "Step 2", "Example 2" and `\theta`.
+- [x] **P6.1-AC2** — A lecture transcribes with its labels intact. *Verify:* `pnpm tsx scripts/read-file.ts fixtures/github/files/synthetic/pdf/unit-3/lecture-09.pdf` prints text containing "five-step recipe", "Step 2", "Example 2" and `\theta`.
 - [x] **P6.1-AC3** — The second read is free. *Verify:* unit test with a counting fake model: two calls to `readCourseFile`, one model call.
-- [ ] **P6.1-AC4** — The flat script builds valid cards for the seed course. *Verify:* `pnpm ingest:flat -- --course <id>` then `pnpm tsx scripts/check-ingest.ts --course <id>` (golden checks 1–11 from P6.5) passes. Checks 12–13 print `skipped (agent run, P6.5)` until the P6.2+ agent run exists.
+- [x] **P6.1-AC4** — The flat script builds valid cards for the seed course. *Verify:* `pnpm ingest:flat -- --course <id>` then `pnpm tsx scripts/check-ingest.ts --course <id>` (golden checks 1–11 from P6.5) passes. Checks 12–13 print `skipped (agent run, P6.5)` until the P6.2+ agent run exists.
 
 
 **P6.1 implementation / reproducible CLI.** These are plain functions and a flat loop only; P6.2+ is unchanged. The controlled five-unit synthetic course is the AC2/AC4 source; the separate real four-unit course is optional and does not carry the golden markers.
@@ -104,6 +104,8 @@ node --env-file=../albert-p1.4/.env.local --import tsx scripts/check-ingest.ts -
 ```
 
 Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\theta`; AC4 needs eleven passes, the two explicit skips, and the second-run no-duplicates line. A fresh native-PDF run plus a second ingest needs 29 logical calls including the shared AC2 read/cache, before repairs or provider retries; stop if live attempts would exceed the 30-call budget. The cloud implementation run used **zero** live calls. Do not tick P6.1 until live AC2/AC4 are observed.
+
+**Live result (Windows, Nov 14).** AC2 and AC4 passed live; P6.1 is ticked. Evidence and the 42-attempt count are in `status.md`. The first live runs showed that exact-substring notation checks reject TeX spacing and `\dfrac` variants, so the comparison above was added. They also showed that the card prompt must say: avoid lists name standard alternative forms (for example `f'(x)` where the teacher writes Leibniz form); add a notation row for a variable letter that the unit's own files fix; pitfall `errorType` names the symbol; never take notation from the syllabus. Golden check 9 matches the singular "partial fraction" as well, per its "named like" wording.
 
 ---
 
