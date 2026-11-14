@@ -22,3 +22,7 @@ Checklist copied from [`tracks.md`](../plan/tracks.md). Tick items as evidence l
 
 | When | Organization | Contact | Channel | Reply |
 |---|---|---|---|---|
+| Nov 14, 04:10 (drafted, not sent) | McGraw Center for Teaching and Learning, Princeton | mcgraw@princeton.edu ([source](https://mcgraw.princeton.edu/undergraduates/programs/tutoring)) | email (Gmail draft) | |
+| Nov 14, 04:10 (drafted, not sent) | Princeton Math Dept, Climate and Inclusion Committee (peer tutoring) | inclusion@math.princeton.edu ([source](https://www.math.princeton.edu/climate-and-inclusion/community-and-mentorship)) | email (Gmail draft) | |
+| Nov 14, 04:10 (drafted, not sent) | Kumon of Princeton | princeton_nj@ikumon.com ([source](https://www.kumon.com/princeton-nj)) | email (Gmail draft) | |
+| Nov 14, 04:10 (drafted, not sent) | Mathnasium of Princeton | princeton@mathnasium.com ([source](https://www.mathnasium.com/math-centers/princeton)) | email (Gmail draft) | |
