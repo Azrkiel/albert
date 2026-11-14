@@ -9,12 +9,13 @@ const FinishedStroke = memo(function FinishedStroke({ stroke }: { stroke: Stroke
     data-stroke-problem-id={stroke.problemId} d={strokePath(stroke.points)} fill={INK.student} />;
 });
 
-export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children }: {
+export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart }: {
   problemId: string;
   height?: number;
   onStroke?: (stroke: Stroke) => void;
   strokes?: Stroke[];
   children?: ReactNode;
+  getSessionStart?: () => number;
 }) {
   const surface = useRef<SVGSVGElement>(null);
   const livePath = useRef<SVGPathElement>(null);
@@ -31,7 +32,7 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
 
   useEffect(() => {
     const svg = surface.current!;
-    sessionStart.current ??= performance.now();
+    sessionStart.current ??= getSessionStart?.() ?? performance.now();
     let frame: number | null = null;
     let pending: readonly Point[] = [];
     const cancelFrame = () => {
@@ -63,7 +64,7 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
       cancelFrame();
       delete svg.dataset.captureReady;
     };
-  }, [problemId]);
+  }, [problemId, getSessionStart]);
 
   return (
     <svg ref={surface} role="img" aria-label="Worksheet work surface"

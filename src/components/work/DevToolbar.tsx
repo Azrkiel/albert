@@ -1,0 +1,27 @@
+"use client";
+
+export type PlaybackSpeed = "1" | "4" | "instant";
+
+export function DevToolbar({ speed, onSpeed, onExport, onLoad, onPlay }: {
+  speed: PlaybackSpeed;
+  onSpeed: (speed: PlaybackSpeed) => void;
+  onExport: () => void;
+  onLoad: (file: File) => void;
+  onPlay: () => void;
+}) {
+  return (
+    <div role="group" aria-label="Recording tools" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginTop: 20 }}>
+      <button type="button" onClick={onExport}>Export</button>
+      <label>Load <input aria-label="Load recording" type="file" accept=".json,application/json"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) onLoad(file);
+        }} /></label>
+      <label>Playback speed <select value={speed} onChange={(event) => onSpeed(event.target.value as PlaybackSpeed)}>
+        <option value="1">1x</option><option value="4">4x</option><option value="instant">instant</option>
+      </select></label>
+      <button type="button" onClick={onPlay}>Play</button>
+    </div>
+  );
+}
