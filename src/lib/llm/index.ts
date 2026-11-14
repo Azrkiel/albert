@@ -75,20 +75,34 @@ export async function pingModel(): Promise<{ ok: boolean; ms: number; modelId: s
   return { ok, ms: Math.round(performance.now() - start), modelId };
 }
 
-export async function pingVision(): Promise<{ ok: boolean; ms: number; answer: string }> {
+export type VisionProbe = {
+  imagePath: string;                     // a PNG, relative to the repo root
+  question: string;
+  accept: (answer: string) => boolean;   // checks the model's trimmed reply
+};
+
+/** P1.4's check: the typed `2 + 2 = 5` image. */
+export const PING_PROBE: VisionProbe = {
+  imagePath: "fixtures/eval/ping.png",
+  question: "What equation is written? Reply with the equation only.",
+  accept: (answer) => VisionText.safeParse(answer).success,
+};
+
+/** Asks the reader model one question about one image. With no argument, it is P1.4's ping. */
+export async function pingVision(probe: VisionProbe = PING_PROBE): Promise<{ ok: boolean; ms: number; answer: string }> {
   const start = performance.now();
   let answer = "";
   let ok = false;
   try {
     const model = getChatModel("reader");
-    const image = await readFile(resolve("fixtures/eval/ping.png"));
+    const image = await readFile(resolve(probe.imagePath));
     const reply = await model.invoke([new HumanMessage({ content: [
-      { type: "text", text: "What equation is written? Reply with the equation only." },
+      { type: "text", text: probe.question },
       { type: "image_url", image_url: { url: `data:image/png;base64,${image.toString("base64")}` } },
     ] })], probeOptions());
     const text = ProbeText.safeParse(reply.text);
     if (text.success) answer = text.data;
-    ok = VisionText.safeParse(answer).success;
+    ok = text.success && probe.accept(answer);
   } catch {
     // A missing fixture, bad configuration, or provider failure is a failed vision check.
   }

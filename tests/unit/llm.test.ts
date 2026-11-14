@@ -148,6 +148,18 @@ describe("live probe behavior with mocked replies", () => {
     ]);
   });
 
+  it("asks a given question about a given image (P2.7 snapshot probe)", async () => {
+    mocks.invoke.mockResolvedValue(new AIMessage("7"));
+    const accept = vi.fn((answer: string) => answer === "7");
+    const result = await llm.pingVision({ imagePath: "fixtures/eval/ping.png", question: "Which number?", accept });
+    expect(result).toMatchObject({ ok: true, answer: "7" });
+    expect(accept).toHaveBeenCalledWith("7");
+    expect(mocks.invoke.mock.calls[0]?.[0]?.[0].content[0]).toEqual({ type: "text", text: "Which number?" });
+    mocks.invoke.mockResolvedValue(new AIMessage("8"));
+    expect((await llm.pingVision({ imagePath: "fixtures/eval/ping.png", question: "Which number?", accept })).ok).toBe(false);
+    expect((await llm.pingVision({ imagePath: "fixtures/eval/missing.png", question: "Which number?", accept: () => true })).ok).toBe(false);
+  });
+
   it.each(["2 + 2 = 4", "2 = 5", "unreadable"])("fails the vision check for %s", async (text) => {
     mocks.invoke.mockResolvedValue(new AIMessage(text));
     expect((await llm.pingVision()).ok).toBe(false);
