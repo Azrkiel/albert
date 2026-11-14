@@ -279,6 +279,15 @@ src/lib/canvas/
 
 **Fallback.** If cross-out and erase-loop detection are not solid by the time box, ship pause and manual only (cut list, main plan §5.3). The two unit-tested signals that work are worth more than four that misfire.
 
+**P2.6 implementation notes.**
+- Live `now` is elapsed `performance.now()` since session start. During timed replay it is recording-relative time scaled by playback speed, capped at `durationMs`. Instant replay applies the recorded events first, then detects at `durationMs`, including the trailing pause. After playback, live time resumes from that duration. The 1.5 s auto-request delay uses real visible time, independent of replay speed.
+- Solved means the latest `check_result` for that problem has verdict `correct`. It suppresses every automatic signal and the manual control until a later check changes the verdict; writing alone does not clear a correct check.
+- `SessionState.crossOuts` is a derived stroke-id → crossed-cluster-id tag, computed against the row's clusters immediately before each stroke. It is rebuilt by the common reducer on replay, never added to `Stroke` or exported as metadata. Tagged scribbles remain in `state.strokes` (visible ink and snapshot paths); the store excludes them from symbol clustering. Existing ink remains available to point at. Undo/redo preserves the tag.
+- Pause tempo uses pen-stroke gaps across the session, including ink subsequently erased. The target is the latest pen stroke still represented in live clusters in the current problem, by writing time rather than row index. Eraser strokes and divider-only lines do not start a pause. Erase-loop counts ordinary undo, not redo; edits before new ink do not immediately refire an old erase-loop. All thresholds come from `STUCK`; `PAUSE_MIN_MS` remains 8000 pending AC4.
+- The hint mark is an HTML button over the surface, centred on `Row.bbox`, with accessible name exactly `Need a hint?`. It stays inside the problem section, has no sound or layout effect, and respects reduced motion. Both controls raise `onHintRequested({ rowId, rung: 1, trigger })` and use WorksheetCanvas's existing `requestHint`; P3.1's dev button is retained. `I'm stuck` stays present; in a blank free-layout problem it is disabled until ink creates a target line.
+- `needs human: P2.6-AC4`: two people independently open `/work/calc2-ws3`, solve a real problem with normal thinking pauses, and each report whether the mark distracts them. Confirm it waits for a tap, disappears on new ink, and tapping either control produces the mock hint. If either finds it distracting, raise `STUCK.PAUSE_MIN_MS`, update Settings, and repeat with both people. Do not tick P2.6 until this and the real recording check pass.
+- `blocked: P2.6-AC3 waits on pause-row2.json`: a person records the integral on row 1 and `x = 4 sin θ` on row 2, then 15 s of nothing, using the demo device and Export. The spec is fixme until that real recording exists. Passing synthetic UI cases do not replace this check or impersonate a recording.
+
 ---
 
 ### P2.7 — Snapshots
