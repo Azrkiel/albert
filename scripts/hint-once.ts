@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { z } from "zod";
 import { HintRequestSchema, type HintEvent } from "../src/lib/contracts";
 import { MemoryRepo, seedDemo } from "../src/lib/db";
 import { runHint } from "../src/lib/tutor/hint";
@@ -6,8 +7,15 @@ import { getHintModel } from "../src/lib/tutor/tools";
 import { hintText } from "../src/lib/tutor/ladder";
 
 async function main() {
-  const file = process.argv[2];
+  const [file, ...options] = process.argv.slice(2);
   if (!file) throw new Error("Expected a request path.");
+  if (options.length !== 0 && (options.length !== 2 || options[0] !== "--timeout-ms")) {
+    throw new Error("Expected an optional --timeout-ms <milliseconds>.");
+  }
+  const timeoutMs = z.coerce.number().int().positive().max(2_147_483_647)
+    .parse(options[1] ?? (process.env.HINT_TIMEOUT_MS || 12_000));
+  // A diagnostic override is local to this CLI process; the app keeps its default.
+  if (options.length) process.env.HINT_TIMEOUT_MS = String(timeoutMs);
   const request = HintRequestSchema.parse(JSON.parse(await readFile(file, "utf8")));
   if (request.image.width <= 1 || request.image.height <= 1) throw new Error("Use a real snapshot, not the placeholder mock image.");
   if (process.env.MOCK_LLM === "1") throw new Error("hint-once requires live mode.");
@@ -21,9 +29,11 @@ async function main() {
   const bound = getHintModel();
   let calls = 0;
   const events: HintEvent[] = [];
+  const startedAt = performance.now();
   for await (const event of runHint(request, { repo, model: {
     invoke: (messages, options) => { calls++; return bound.invoke(messages, options); },
   } })) events.push(event);
+  const elapsedMs = Math.round(performance.now() - startedAt);
   const diagnosis = events.find((event) => event.type === "diagnosis");
   const hint = events.find((event) => event.type === "hint");
   const done = events.find((event) => event.type === "done");
@@ -32,7 +42,7 @@ async function main() {
     status: diagnosis?.status, row: request.rows.find((row) => row.rowId === diagnosis?.rowId)?.index,
     clusters: diagnosis?.clusterIds?.map((id) => Number(id.slice(id.lastIndexOf("/c") + 2))),
     kind: hint?.kind, text: hint ? hintText(hint) : undefined, ms: done?.ms,
-    retries: Math.max(0, calls - 1), liveCalls: calls, error: error?.code,
+    elapsedMs, timeoutMs, retries: Math.max(0, calls - 1), liveCalls: calls, error: error?.code,
   }, null, 2));
   if (error || !done) process.exitCode = 1;
 }

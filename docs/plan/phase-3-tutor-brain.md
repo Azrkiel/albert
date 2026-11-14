@@ -116,6 +116,8 @@ scripts/eval-hints.ts
 
    Before P3.4 exists, `pnpm exec tsx scripts/build-eval-request.ts` runs the offline dev page headlessly and saves `fixtures/eval/requests/missing-dx-r1-snapshot.json` through the real request builder. Keep the original placeholder request intact. Decode and inspect the snapshot before any live call, then use `scripts/hint-once.ts <request.json>` to print public results, timing and repair count. This one-off check seeds a memory Repo and uses only the live model; it does not write demo data into MongoDB.
 
+   The CLI prints `elapsedMs` and the effective `timeoutMs` even when no hint returns. For a timeout investigation, append `--timeout-ms 30000` for one diagnostic invocation; this changes only that CLI process, not the app's 12000 ms default. A timeout with zero repairs means the first invocation did not return in time; it is not evidence of a ladder violation. Count the diagnostic invocation (and any repair) against the ten-call live budget.
+
 5. `ladder.ts` — implement the checks as pure functions over `WriteHint` and `Diagnose`, each returning a list of violations with messages written so they can be fed straight back to the model.
 
 **Acceptance**
