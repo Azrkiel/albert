@@ -1,26 +1,33 @@
 "use client";
 
-import { memo, useEffect, useId, useRef, useState } from "react";
+import { memo, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { INK, PAGE, type Point, type Stroke } from "@/lib/contracts";
 import { attachCapture, strokePath } from "@/lib/canvas";
 
 const FinishedStroke = memo(function FinishedStroke({ stroke }: { stroke: Stroke }) {
-  return <path data-stroke-id={stroke.id} d={strokePath(stroke.points)} fill={INK.student} />;
+  return <path data-stroke-id={stroke.id} data-row-id={stroke.rowId}
+    data-stroke-problem-id={stroke.problemId} d={strokePath(stroke.points)} fill={INK.student} />;
 });
 
-export function WorkSurface({ problemId, height = 600, onStroke }: {
+export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children }: {
   problemId: string;
   height?: number;
   onStroke?: (stroke: Stroke) => void;
+  strokes?: Stroke[];
+  children?: ReactNode;
 }) {
   const surface = useRef<SVGSVGElement>(null);
   const livePath = useRef<SVGPathElement>(null);
   const sessionStart = useRef<number | null>(null);
   const onStrokeRef = useRef(onStroke);
+  const controlled = useRef(completedStrokes !== undefined);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const clipId = useId();
 
-  useEffect(() => { onStrokeRef.current = onStroke; }, [onStroke]);
+  useEffect(() => {
+    onStrokeRef.current = onStroke;
+    controlled.current = completedStrokes !== undefined;
+  }, [onStroke, completedStrokes]);
 
   useEffect(() => {
     const svg = surface.current!;
@@ -46,7 +53,7 @@ export function WorkSurface({ problemId, height = 600, onStroke }: {
         }
       },
       onStroke(stroke) {
-        setStrokes((previous) => [...previous, stroke]);
+        if (!controlled.current) setStrokes((previous) => [...previous, stroke]);
         onStrokeRef.current?.(stroke);
       },
     });
@@ -67,8 +74,9 @@ export function WorkSurface({ problemId, height = 600, onStroke }: {
           <rect x={PAGE.studentCol.x} y={0} width={PAGE.studentCol.w} height={height} />
         </clipPath>
       </defs>
+      {children}
       <g clipPath={`url(#${clipId})`}>
-        {strokes.map((stroke) => <FinishedStroke key={stroke.id} stroke={stroke} />)}
+        {(completedStrokes ?? strokes).map((stroke) => <FinishedStroke key={stroke.id} stroke={stroke} />)}
       </g>
       <path ref={livePath} data-live-stroke="" d="" fill={INK.student} />
     </svg>
