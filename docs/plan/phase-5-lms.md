@@ -116,7 +116,7 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 - [x] **P5.3-AC2** — Moving branches cannot mix revisions; repeated imports create no duplicates.
 - [x] **P5.3-AC3** — Cached outline/PDF reads and a mocked hint work with transport disabled and zero GitHub calls.
 - [x] **P5.3-AC4** — Invalid paths/references, non-PDF content, 404, quota and network failures yield specified errors; no ingestion-complete flag or token leakage.
-- [ ] **P5.3-AC5** — After confirmed manifest publication, live smoke prints `source ok` with actual title/unit count; snapshot records SHA/demo day.
+- [x] **P5.3-AC5** — After confirmed manifest publication, live smoke prints `source ok` with actual title/unit count; snapshot records SHA/demo day.
 
 **Verify.** `pnpm verify`, offline `pnpm e2e`, recorded import tests and confirmed published-manifest live smoke. Fake transport tests alone do not complete this subphase.
 
@@ -181,9 +181,9 @@ Moodle/Canvas integration and automatic refresh are deferred. No LMS credential 
 ## Phase exit
 
 - [ ] `pnpm verify` and offline `pnpm e2e` pass.
-- [ ] Published, confirmed manifest passes live source smoke.
+- [x] Published, confirmed manifest passes live source smoke.
 - [ ] By hand: import the real configured source and open an original PDF from cache.
 - [ ] By hand: upload fallback works (P5.4 owner).
 - [ ] Status records source SHA/demo day and distinguishes synthetic golden evidence from real-course evidence.
 
-Review-branch evidence (Nov 14): owner confirmed mapping; manifest commit `ce2196c8417b4fe751923b7969744b3d4ec41968` on `Azrkiel/albert-files:codex/p5-course-manifest`; real `pnpm smoke --no-llm` printed `source ok Calculus II — Integration Techniques 4 units` plus SHA and demo day `2026-11-14`. AC5 remains conservatively open for publication/smoke of the default configured `main` ref; neither repository main was merged. P5.2-AC1 now uses the owner's manifest and all 11 PDFs from 7ce9cd74d940e24b49b1814e0cbedc2cd6470098, with build hashes verified and offline imports tested. The initial transport placeholders were replaced. P5.1's own human readability check remains with that owner.
+Review-branch evidence (Nov 14): owner confirmed mapping; manifest commit `ce2196c8417b4fe751923b7969744b3d4ec41968` on `Azrkiel/albert-files:codex/p5-course-manifest`; real `pnpm smoke --no-llm` printed `source ok Calculus II — Integration Techniques 4 units` plus SHA and demo day `2026-11-14`. The manifest was subsequently merged with user authorization in albert-files PR #1; default-main smoke passed at `dbed3e3581bda2fea17cf6d1f3601b269875a886`, demo day `2026-11-14`, so AC5 is now verified. P5.2-AC1 now uses the owner's manifest and all 11 PDFs from 7ce9cd74d940e24b49b1814e0cbedc2cd6470098, with build hashes verified and offline imports tested. The initial transport placeholders were replaced. P5.1's own human readability check remains with that owner.

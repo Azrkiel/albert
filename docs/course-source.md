@@ -21,7 +21,7 @@ Manifest paths are relative to the manifest directory. URLs, traversal, absolute
 
 ## Review state
 
-The user confirmed the live four-unit mapping on November 14, 2026: Integration by Parts → Trigonometric Integrals → Trigonometric Substitution → Partial Fractions; labels Section 7.1–7.4; worksheets 7.1a, 7.2, 7.3a, 7.4a. Unknown dates and syllabus are omitted. The root manifest is proposed in [albert-files draft PR #1](https://github.com/Azrkiel/albert-files/pull/1) on branch `codex/p5-course-manifest`; existing PDFs are unchanged. Review branch publication is separate from publication on the configured `main` ref. Neither main is merged by this lane.
+The user confirmed the live four-unit mapping on November 14, 2026: Integration by Parts → Trigonometric Integrals → Trigonometric Substitution → Partial Fractions; labels Section 7.1–7.4; worksheets 7.1a, 7.2, 7.3a, 7.4a. Unknown dates and syllabus are omitted. The root manifest is proposed in [albert-files PR #1](https://github.com/Azrkiel/albert-files/pull/1) on branch `codex/p5-course-manifest`; existing PDFs are unchanged. The user subsequently authorized merging: content PR #1 is now merged into the configured `main` ref. Application integration is validated separately.
 
 Run a review-branch check without a model or database credential:
 
@@ -54,7 +54,7 @@ source ok Calculus II — Integration Techniques 4 units ce2196c8417b4fe751923b7
 
 - [x] Owner mapping confirmed in this session.
 - [x] Manifest-only review branch published; all eight live PDFs downloaded at its pinned SHA.
-- [ ] Manifest published on the default configured `main` ref and that configuration smoked.
+- [x] Manifest published on the default configured `main` ref and that configuration smoked.
 - [x] P5.1 published manifest/PDF artifacts consumed; hashes verified and imported offline.
 - [ ] P5.1 owner records human PDF-readability sign-off (P5.1-AC4).
 
@@ -63,3 +63,7 @@ The Windows dirty checkout is unavailable here. The user directed plan reconcili
 Production HTTP verification also passed: POST connect returned the pinned review SHA; GET courses returned the imported course with `ingested: false`; GET original for `lecture notes/7.4 annotated.pdf` returned 2,197,431 bytes with PDF MIME and SHA-256 `8af06d4403be9ecf46522df4bfc8b9f154be7a37663d903041d3974aabbfa4ce`, matching the unchanged source. The browser endpoint uses the Repo cache and an encoded snapshot-qualified id.
 
 Final validation: `pnpm verify` — 490 passed, 16 live MongoDB tests skipped without credentials; offline `pnpm e2e` — 49 passed, four existing deferred/production opt-in skips; production `pnpm build` passed. No dependencies were added by this lane.
+
+After user merge authorization, albert-files PR #1 merged at `dbed3e3581bda2fea17cf6d1f3601b269875a886`. Configured-main smoke printed `source ok Calculus II — Integration Techniques 4 units dbed3e3581bda2fea17cf6d1f3601b269875a886 2026-11-14`. P5.3-AC5 is verified; the P5.1 human readability check remains separately open.
+
+Before application merge, current main `2dd3f08` (P2.8 session sync) was integrated while preserving both status logs. Combined validation passed: `pnpm verify` — 504 tests, 16 live Mongo skips; offline `pnpm e2e` — 55 tests, five existing deferred/production opt-in skips.
