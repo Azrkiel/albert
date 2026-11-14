@@ -1,0 +1,42 @@
+{
+  "name": "albert",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.34.9",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "next typegen && tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test",
+    "e2e": "node -e \"console.log('not built yet (Phase 1)')\" --",
+    "smoke": "node -e \"console.log('not built yet (Phase 1)')\" --",
+    "eval:hints": "node -e \"console.log('not built yet (Phase 3)')\" --",
+    "agent:ingest": "node -e \"console.log('not built yet (Phase 6)')\" --",
+    "agent:replan": "node -e \"console.log('not built yet (Phase 6)')\" --",
+    "ingest:flat": "node -e \"console.log('not built yet (Phase 6)')\" --",
+    "seed:pdf": "node -e \"console.log('not built yet (Phase 5)')\" --",
+    "seed:demo": "node -e \"console.log('not built yet (Phase 3)')\" --",
+    "check:tracks": "node -e \"console.log('not built yet (Phase 8)')\" --"
+  },
+  "dependencies": {
+    "nanoid": "^6.0.2",
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "vitest": "^5.1.0"
+  }
+}
