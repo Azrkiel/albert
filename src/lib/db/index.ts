@@ -27,3 +27,4 @@ export function getRepo(): Repo {
   }
   return repo;
 }
+export { seedDemo } from "./seed-demo";
