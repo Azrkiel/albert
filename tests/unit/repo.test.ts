@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { SessionEventSchema, type Session, type SessionEvent } from "../../src/lib/contracts";
 import { getRepo, MemoryRepo, MongoRepo } from "../../src/lib/db";
 import { repoBehaviour } from "./repo.shared";
+import { dropTestDatabase } from "./repo.mongo-cleanup";
 
 // Atlas caps database names at 38 bytes; this preserves the full UUID in 37.
 function testDatabaseName(): string {
@@ -37,7 +38,7 @@ repoBehaviour("MongoRepo (live, throwaway database)", async () => {
       return doc;
     },
     readEvents: async sessionId => (await db.collection("session_events").find({ sessionId }).sort({ _id: 1 }).toArray()).map(doc => SessionEventSchema.parse(doc)),
-    dispose: async () => { try { await db.dropDatabase(); } finally { await client.close(); } },
+    dispose: async () => { try { await dropTestDatabase(db); } finally { await client.close(); } },
   };
 }, mongoEnabled, 30000);
 
