@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { LINE, PAGE, type BBox, type Point, type Stroke } from "../../src/lib/contracts";
-import { createSessionState, inkedRowIds, reduceSessionEvent, type SessionState } from "../../src/lib/canvas";
+import { createSessionState, inkedRowIds, parseRecording, reduceSessionEvent, type SessionState } from "../../src/lib/canvas";
 import { isDivider } from "../../src/lib/canvas/shapes";
 
 let seq = 0;
@@ -33,6 +34,29 @@ describe("isDivider (P2.5b-AC1)", () => {
     // A slanted, slightly wobbly hand line still counts.
     const slanted = pen({ x: 380, y: 100, w: 30, h: 300 }, [[380, 100], [388, 180], [392, 260], [403, 340], [410, 400]]);
     expect(isDivider(slanted)).toBe(true);
+  });
+});
+
+describe("divider height is relative to the writing (P2.5b-AC1)", () => {
+  // Letters 50 tall: a divider must be at least 3 × 50 = 150 (and at least LINE.DIVIDER_MIN_HEIGHT).
+  const letters = () => [0, 1, 2, 3, 4].map((i) => pen({ x: 100 + 40 * i, y: 100, w: 25, h: 50 }));
+
+  it("a straight '1' is never a divider; a line several letters tall is", () => {
+    const context = letters();
+    const one = divider(400, 100, 175);           // 1.5 letters tall
+    const short = divider(400, 100, 240);         // 140: above the absolute floor, under 3 letters
+    const long = divider(400, 100, 260);          // 160: over 3 letters
+    expect(isDivider(one, context)).toBe(false);
+    expect(isDivider(short, context)).toBe(false);
+    expect(isDivider(long, context)).toBe(true);
+    expect(LINE.DIVIDER_MIN_GLYPHS * 50).toBeGreaterThan(140);
+  });
+
+  it("only earlier letters set the baseline, so a divider stays a divider when bigger writing follows", () => {
+    const context = letters();
+    const d = divider(400, 100, 260);
+    const later = [0, 1, 2, 3, 4, 5].map((i) => pen({ x: 450 + 40 * i, y: 300, w: 25, h: 90 }));
+    expect(isDivider(d, [...context, ...later])).toBe(true);
   });
 });
 
@@ -95,5 +119,19 @@ describe("side work beside a divider (P2.5b-AC1)", () => {
     const state = write([d], createSessionState(["p1"]));
     expect(state.layout).toBe("ruled");
     expect(state.clusters[rowOf(state, d)]).toEqual([]);
+  });
+});
+
+describe("real side work (P2.5b-AC3 sample)", () => {
+  it("main line, side line and the line below stay separate; the 161 px hand-drawn divider counts", () => {
+    const rec = parseRecording(JSON.parse(readFileSync("fixtures/sessions/ac5-side-work.json", "utf8")));
+    const erased = new Set(rec.events.flatMap((e) => e.type === "erase" ? e.strokeIds : []));
+    const strokes = rec.events.flatMap((e) => e.type === "stroke_end" && !erased.has(e.stroke.id) ? [e.stroke] : [])
+      .sort((a, b) => a.t0 - b.t0);
+    const state = strokes.reduce((st, stroke) => reduceSessionEvent(st, { type: "stroke_end", at: stroke.t1, stroke: { ...stroke, rowId: null } }),
+      createSessionState(rec.problems, rec.worksheetId, undefined, "free"));
+    const lines = state.rows.map((r) => [r.index, Math.round(r.bbox.x), state.strokes.filter((x) => x.rowId === r.id).length]);
+    // main (left of x 380) | the long stroke below | side work (right) | the divider's own row
+    expect(lines).toEqual([[1, 0, 13], [2, 0, 1], [3, 389, 16], [4, 380, 1]]);
   });
 });

@@ -220,7 +220,7 @@ src/lib/canvas/
 **Depends on.** P2.5a (free layout). User request, Nov 14.
 
 **Build.**
-1. `src/lib/canvas/shapes.ts` (pure): `isDivider(stroke)`. A pen stroke is a divider when it is at least `LINE.DIVIDER_MIN_HEIGHT` tall, no wider than `LINE.DIVIDER_MAX_WIDTH_RATIO` × its height, and nearly straight: path length ≤ `LINE.DIVIDER_MAX_PATH_RATIO` × the distance between its ends. Real integrals measured 1.17–1.55 on that ratio, a hand-drawn straight line about 1.0–1.05. `FRACTION_BAR_MIN_ASPECT` and `isFlat` move here too, shared by clusters and lines.
+1. `src/lib/canvas/shapes.ts` (pure): `dividerIds(strokes)` and `isDivider(stroke, context)`. A pen stroke is a divider when it is at least `LINE.DIVIDER_MIN_HEIGHT` (120) tall and at least `LINE.DIVIDER_MIN_GLYPHS` (3) × the median letter height written before it in the problem, so a "1" or an absolute-value bar never counts and a stroke's status never changes as more is written. It must also be no wider than `LINE.DIVIDER_MAX_WIDTH_RATIO` × its height, and nearly straight: path length ≤ `LINE.DIVIDER_MAX_PATH_RATIO` × the distance between its ends. Real integrals measured 1.17–1.55 on that ratio, a hand-drawn straight line about 1.0–1.05. `FRACTION_BAR_MIN_ASPECT` and `isFlat` move here too, shared by clusters and lines.
 2. `lines.ts`:
    - A stroke cannot join ink on the other side of a live divider when the divider's height covers both strokes' centres. Side work therefore starts its own lines, and below the divider's end the page is one column again.
    - A divider gets a row of its own. It is not numbered, has no clusters, and comes after every other row, so P2.4's erase and undo still find it.

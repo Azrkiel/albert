@@ -62,6 +62,14 @@ describe("assignLine (P2.5a-AC1)", () => {
     expect(rowOf(write([...glyphs, below]), below.id)).toBe("p1/r2");
   });
 
+  it("an opening parenthesis just left of the bar's start still joins the fraction's line", () => {
+    const num = pen({ x: 160, y: 100, w: 30, h: 30 });
+    const bar = pen({ x: 150, y: 138, w: 100, h: 4 });
+    const paren = pen({ x: 130, y: 150, w: 14, h: 36 }); // centre x 137: 13 px before the bar starts
+    const state = write([num, bar, paren]);
+    expect(state.rows).toHaveLength(1);
+  });
+
   it("a tall integral, a superscript and a subscript join their line", () => {
     const x = pen({ x: 160, y: 120, w: 25, h: 25 });
     const integral = pen({ x: 100, y: 90, w: 30, h: 90 });
