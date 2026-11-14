@@ -7,6 +7,11 @@ import { SessionEventSchema, type Session, type SessionEvent } from "../../src/l
 import { getRepo, MemoryRepo, MongoRepo } from "../../src/lib/db";
 import { repoBehaviour } from "./repo.shared";
 
+// Atlas caps database names at 38 bytes; this preserves the full UUID in 37.
+function testDatabaseName(): string {
+  return `repo_${randomUUID().replaceAll("-", "")}`;
+}
+
 class InspectableMemoryRepo extends MemoryRepo {
   async readSession(id: string): Promise<Session | null> { return structuredClone(this.sessions.get(id) ?? null); }
   async readEvents(id: string): Promise<SessionEvent[]> { return structuredClone(this.sessionEvents.get(id) ?? []); }
@@ -23,7 +28,7 @@ const mongoEnabled = process.env.RUN_DB_TESTS === "1" && Boolean(process.env.MON
 repoBehaviour("MongoRepo (live, throwaway database)", async () => {
   const client = new MongoClient(process.env.MONGODB_URI!, { serverSelectionTimeoutMS: 5000 });
   // Never use MONGODB_DB here: only a freshly generated test database is dropped.
-  const db = client.db(`albert_repo_test_${randomUUID().replaceAll("-", "")}`);
+  const db = client.db(testDatabaseName());
   const repo = new MongoRepo(db);
   return {
     repo,
@@ -35,6 +40,14 @@ repoBehaviour("MongoRepo (live, throwaway database)", async () => {
     dispose: async () => { try { await db.dropDatabase(); } finally { await client.close(); } },
   };
 }, mongoEnabled, 30000);
+
+describe("MongoRepo test databases", () => {
+  it("keeps throwaway names unique and within Atlas's 38-byte limit", () => {
+    const names = [testDatabaseName(), testDatabaseName()];
+    expect(new Set(names).size).toBe(names.length);
+    for (const name of names) expect(Buffer.byteLength(name, "utf8")).toBeLessThanOrEqual(38);
+  });
+});
 
 describe("getRepo", () => {
   afterEach(() => { vi.unstubAllEnvs(); });
