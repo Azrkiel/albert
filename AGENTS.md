@@ -49,7 +49,7 @@ This repo is **Albert**, a handwriting-first math tutor built for HackPrinceton 
 | `pnpm dev` | Run the app |
 | `pnpm verify` | Type-check, lint, unit and contract tests. Run before every commit |
 | `pnpm e2e` | Browser tests with recorded strokes and recorded model replies. No network needed |
-| `pnpm smoke` | Check the database, the model and Moodle are reachable |
+| `pnpm smoke` | Check the database, the model and (if configured) the GitHub course manifest are reachable |
 | `pnpm eval:hints` | Score hint quality and speed against the live model |
 | `pnpm agent:ingest -- --course <id> --check` | Run course ingestion and its golden checks |
 | `pnpm check:tracks` | Check each prize track's evidence is in place |
