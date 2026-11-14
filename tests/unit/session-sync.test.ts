@@ -71,6 +71,27 @@ describe("P2.8-AC2 session sync buffer", () => {
     expect(maxActive).toBe(1);
   });
 
+  it("two flushes waiting on one batch never send the next batch twice (timer + End session)", async () => {
+    const stored: SessionEvent[][] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    let first = true;
+    const sync = createSessionSync(async (events) => {
+      if (first) { first = false; await gate; }
+      stored.push(events);
+    });
+    sync.push(ev(1));
+    const a = sync.flush();
+    await tick();
+    sync.push(ev(2));
+    const b = sync.flush();
+    const c = sync.flush();
+    release();
+    expect(await Promise.all([a, b, c])).toEqual([true, true, true]);
+    expect(ats(stored)).toEqual([1, 2]);
+    expect(sync.pending).toBe(0);
+  });
+
   it("a flush that joined a failed batch reports failure and keeps everything", async () => {
     let fail = true;
     const stored: number[] = [];

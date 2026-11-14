@@ -56,8 +56,9 @@ export function createSessionSync(transport: SyncTransport): SessionSync {
     push(event) { queue.push(event); },
     get pending() { return queue.length; },
     async flush() {
-      // Join the batch in flight so batches never overlap, then send what arrived meanwhile.
-      if (inFlight && !(await inFlight)) return false;
+      // Join the batch in flight so batches never overlap, then send what arrived meanwhile. Loop: two
+      // callers waiting on one batch both wake up, and the first one's send must not be repeated by the second.
+      while (inFlight) if (!(await inFlight)) return false;
       return send();
     },
     flushBeacon(beacon) {
