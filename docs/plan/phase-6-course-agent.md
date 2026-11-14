@@ -47,7 +47,7 @@ scripts/agent-ingest.ts  scripts/agent-replan.ts  scripts/ingest-flat.ts  script
 
 **Build.**
 1. `readCourseFile(fileId): Promise<{ text: string; pages: number }>`
-   - Get the bytes from the `Repo`; if they are not cached, download through the course's adapter and `putFile`.
+   - Get the bytes from the `Repo` only. Missing bytes require an explicit source reimport; ingestion and tutoring must not fetch GitHub.
    - Send the PDF to `getChatModel("reader")` as a document content block with the instruction: *transcribe this document faithfully to Markdown, with LaTeX for all math; keep headings, example labels and step labels exactly as written; mark page breaks as `--- page N ---`; do not summarise.*
    - Cache the result in the `Repo` and set `textCacheId`. A second call returns the cache without a model call.
    - If the provider rejects PDF blocks, rasterise the pages to PNG and send them as images. Check the provider's document size and page limits first; the seed PDFs are kept small for this reason.
@@ -205,7 +205,7 @@ Every tool calls `ctx.emit({ type: "tool", label })` with a short human label su
    | 8 | Unit 3 has a pitfall whose `errorType` contains `dx` | — |
    | 9 | Unit 4 has a method named like "partial fractions" with no steps | M8 |
    | 10 | Four worksheets exist; Worksheet 3 has five problems; every problem has a subskill from its own unit or an earlier one | — |
-   | 11 | Worksheet 3 and Worksheet 4 have due dates equal to Moodle's | — |
+   | 11 | Worksheet 3 and Worksheet 4 have due dates equal to the pinned outline (synthetic offsets use persisted demo day) | — |
    | 12 | The run produced a todo list, at least three `subagent_start` events and a `/course/scope.md` file | — |
    | 13 | A plan was saved and passes `validatePlan` | — |
 
@@ -217,7 +217,7 @@ Every tool calls `ctx.emit({ type: "tool", label })` with a short human label su
 - [ ] **P6.5-AC2** — Ingestion finishes in under six minutes. *Verify:* the elapsed time printed by the script.
 - [ ] **P6.5-AC3** — Running it again does not duplicate anything. *Verify:* card and worksheet counts are unchanged after a second run.
 - [ ] **P6.5-AC4** — Hints are still good with agent-built cards. *Verify:* `pnpm eval:hints --cards ingested` meets the P3.4 quality bars, and the missing-`dx` rung 1 hint carries a citation containing "Lecture 9".
-- [ ] **P6.5-AC5** — **Gate G3.** By hand: connect Moodle, ingest the course (from the terminal now; from the **Learn this course** button once P6.6 exists), open Worksheet 3, make the missing-`dx` mistake, and get a hint that cites Lecture 9.
+- [ ] **P6.5-AC5** — **Gate G3.** By hand: import the pinned GitHub source, ingest the course (from the terminal now; from the **Learn this course** button once P6.6 exists), open Worksheet 3, make the missing-`dx` mistake, and get a hint that cites Lecture 9.
 
 **Fallback.** If golden checks 2 to 9 fail repeatedly, the cause is almost always the transcription (check `readCourseFile` output for the missing words) or a skill that is too vague (tighten `teaching-card/SKILL.md`). If the agent itself is failing (loops, tool errors) and an hour has gone, run `pnpm ingest:flat` to get cards, pass G3 with those, and come back to the agent for P6.7. Say so in `status.md`.
 
@@ -300,3 +300,5 @@ pnpm tsx scripts/check-replan.ts              # plan reacts to evidence
 - [ ] **G4** (with Phase 7) — end a real session and see the plan change.
 - [ ] `docs/tracks/langchain.md` has a screenshot of the run panel during a real ingestion.
 - [ ] `status.md` records whether cards were built by the agent or the flat script, and the ingestion time.
+
+Source reconciliation: run synthetic marker-fact golden checks only on the verified P5.1 artifacts. The live course has its own owner-confirmed mapping and no fabricated marker facts or dates.

@@ -292,7 +292,7 @@ A check never reveals the answer or the wrong step's fix. On `not_yet` the page 
 
 ```ts
 type Course = {
-  id: string;                  // "github:<owner>/<repo>:<manifestId>:<sha>:<demoDay>" | "upload:<uuid>"
+  id: string;                  // "github:<owner>/<repo>:<manifestPath>~<manifestId>:<sha>:<demoDay>" | "upload:<uuid>"
   source: "github" | "upload";
   snapshot?: GitHubSnapshot;   // required when source is github; pins files and dates
   title: string; shortName?: string;
@@ -673,7 +673,8 @@ Recorded data that makes offline verification possible. The contract test (`test
 | `fixtures/worksheets/*.json` | `Worksheet` | P3.2 |
 | `fixtures/plans/*.json` | `StudyPlan` | P6.7 |
 | `fixtures/agent/*.json` | `AgentRun` | P6.6 |
-| `fixtures/github/manifest.json` | `CourseManifest` | P5.2 |
+| `fixtures/github/manifest.json` | `CourseManifest` (synthetic transport only until P5.1 artifacts) | P5.2 |
+| `fixtures/github/live-manifest.json` | `CourseManifest` (separate confirmed live mapping) | P5.2 |
 | `fixtures/github/commit.json` | none: recorded GitHub commit response | P5.2 |
 | `fixtures/github/files/*` | none: copies of manifest-listed PDFs | P5.2 |
 | `fixtures/eval/*.png` | none: images for model pings | P1.4, P2.7 |
