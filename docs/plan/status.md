@@ -74,8 +74,8 @@ Record the real values as they are decided. Later phases and the write-up read t
 | Done | Subphase | Criteria | Owner | Evidence |
 |---|---|---|---|---|
 | [x] | P1.1 Scaffold and tooling | 4 | Codex | 16e8f3d · pnpm verify (AC2); pnpm dev + Chromium: HTTP 200, page rendered, zero console/page errors (AC1); pnpm run: all 11 commands (AC3); git check-ignore .env.local (AC4); env/folder/placeholder audit; pnpm install --frozen-lockfile --offline. |
-| [x] | P1.1a Reconcile scaffold with GitHub course source | 2 | Codex | this commit ? pnpm verify (typecheck, lint, zero tests; exit 0); pnpm run: all 11 documented commands; env/source wording audit; tracked GitHub fixture directories, unused Moodle placeholder removed; git check-ignore .env.local. |
-| [ ] | P1.2 Contracts in code | 3 | | |
+| [x] | P1.1a Reconcile scaffold with GitHub course source | 2 | Codex | 24a5d08 - pnpm verify (typecheck, lint, zero tests; exit 0); pnpm run: all 11 documented commands; env/source wording audit; tracked GitHub fixture directories, unused Moodle placeholder removed; git check-ignore .env.local. |
+| [x] | P1.2 Contracts in code | 3 | Codex | this commit (P1.2: implement shared contracts and fixture validation) - pnpm verify: typecheck, lint and 138 tests passed (exit 0); 47 named schemas with inferred types and valid/invalid examples; REQUIRED_SCHEMAS matches contracts.md; Repo/CourseSourceAdapter signatures compile against the documented interfaces; all fixture mappings exercised with synthetic temporary data (zero recorded JSON fixtures); invalid JSON/schema and unmapped fixtures fail; none entries skipped; rg duplicate-type audit: HintRequest/Stroke only in contracts; git diff --check clean. |
 | [ ] | P1.3 App shell and brand | 2 | | |
 | [ ] | P1.4 Model access | 5 | | |
 | [ ] | P1.5 Database | 4 | | |
@@ -182,4 +182,5 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 13 | Codex | Completed P1.1a then P1.2 only. P1.1 evidence preserved. Added GitHub source env/folders and 47 runtime contracts; service interfaces stay compile-time only. Tests first exposed missing schemas, then an import-order cycle; fixed with lazy schema construction and verified 138 tests. Local code/security/cleanup review: no remaining findings. No albert-files requests or PDF bodies read; manifest creation remains P5.2. Existing pnpm installation used through a local PATH shim; no dependency changes |
 | Nov 13 | — | Plan written. Repo contains the plan only; no code yet |

@@ -2,6 +2,8 @@
 
 The shared shapes every module agrees on. Phase 1 turns this file into zod schemas in `src/lib/contracts/`, one file per section, and every type below is then `z.infer` of its schema. After that, the code is the source of truth and this file is kept in step with it.
 
+`Repo` and `CourseSourceAdapter` describe service behavior and remain TypeScript interfaces. They have no runtime data schema; the schema-completeness test covers the named data types, while a compile-time check covers both interfaces.
+
 **Rules**
 
 - Every API route parses its input and its output with these schemas.
@@ -270,8 +272,9 @@ A check never reveals the answer or the wrong step's fix. On `not_yet` the page 
 
 ```ts
 type Course = {
-  id: string;                  // "moodle:<host>:<courseId>" | "upload:<uuid>"
-  source: "moodle" | "upload" | "canvas";
+  id: string;                  // "github:<owner>/<repo>:<manifestId>:<sha>:<demoDay>" | "upload:<uuid>"
+  source: "github" | "upload";
+  snapshot?: GitHubSnapshot;   // required when source is github; pins files and dates
   title: string; shortName?: string;
   ingestedAt?: ISO;
   unitIds: string[];           // in teaching order
@@ -454,9 +457,10 @@ type AgentEvent = {
 ```ts
 interface Repo {
   // connection
-  saveConnection(c: LmsConnection): Promise<void>;
-  getConnection(studentId: string): Promise<LmsConnection | null>;
+  saveConnection(c: CourseConnection): Promise<void>;
+  getConnection(studentId: string): Promise<CourseConnection | null>;
   // course content
+  saveOutline(o: CourseOutline): Promise<void>;   getOutline(courseId: string): Promise<CourseOutline | null>;
   upsertCourse(c: Course): Promise<void>;           getCourse(id: string): Promise<Course | null>;
   upsertCard(c: TeachingCard): Promise<void>;       listCards(courseId: string): Promise<TeachingCard[]>;
   upsertWorksheet(w: Worksheet): Promise<void>;     listWorksheets(courseId: string): Promise<Worksheet[]>;
@@ -477,8 +481,13 @@ interface Repo {
   ping(): Promise<boolean>;
 }
 
-type LmsConnection = { studentId: string; source: "moodle" | "upload"; baseUrl?: string;
-                       token?: string; siteName?: string; userFullName?: string; userId?: number; connectedAt: ISO };
+type GitHubSnapshot = { owner: string; repo: string; commitSha: string; manifestPath: string;
+                        demoDay: string }; // YYYY-MM-DD, fixed at import
+
+type CourseConnection = { studentId: string; connectedAt: ISO } & (
+  | { source: "github"; snapshot: GitHubSnapshot; courseId: string }
+  | { source: "upload"; courseId: string }
+); // no token in persisted connection; optional GitHub token comes from server env
 type Session = { id: string; studentId: string; courseId: string; worksheetId: string; startedAt: ISO; endedAt?: ISO };
 type StoredHint = { id: string; sessionId: string; courseId: string; problemId: string; rowId: string; rung: Rung;
                     reading: ReadWork; diagnose: Diagnose; marks: AlbertMarkSpec[]; hint: WriteHint;
@@ -489,10 +498,10 @@ type StoredHint = { id: string; sessionId: string; courseId: string; problemId: 
 
 **Indexes:** `cards {courseId, order}`, `worksheets {courseId}`, `session_events {sessionId, at}`, `evidence {studentId, courseId, subskillId, at}`, `plans {studentId, courseId, generatedAt: -1}`, `hints {courseId, at}`.
 
-## 10. LMS adapter
+## 10. Course-source adapter
 
 ```ts
-interface LmsAdapter {
+interface CourseSourceAdapter {
   readonly source: Course["source"];
   listCourses(): Promise<Array<{ id: string; title: string; shortName?: string }>>;
   getOutline(courseId: string): Promise<CourseOutline>;
@@ -501,6 +510,7 @@ interface LmsAdapter {
 
 type CourseOutline = {
   course: { id: string; title: string };
+  files: FileRef[];             // course-wide files, including the syllabus
   units: Array<{
     order: number; title: string; sectionId: string;
     files: FileRef[];
@@ -508,17 +518,40 @@ type CourseOutline = {
   assignments: Array<{ id: string; title: string; unitOrder?: number; dueAt?: ISO; fileRefs: FileRef[] }>;
 };
 
-type FileRef = { title: string; mime: string; bytes?: number; url: string; kindGuess: CourseFile["kind"] };
+type FileRef = { title: string; mime: string; bytes?: number; url: string; kindGuess: CourseFile["kind"];
+                 lectureLabel?: string };
 ```
+
+The existing `src/lib/lms` folder hosts both initial sources; its name does not imply a working LMS integration. `getAdapter(courseId)` selects an adapter from the stored course source. `saveOutline` / `getOutline` persist the normalized outline alongside the course in both Repo implementations.
+
+```ts
+type CourseManifest = {
+  version: 1;
+  course: { id: string; title: string; shortName?: string };
+  units: Array<{ order: number; title: string }>;
+  files: Array<{
+    path: string; title: string; mime: "application/pdf";
+    kind: CourseFile["kind"]; unitOrder?: number; lectureLabel?: string;
+  }>;
+  assignments: Array<{
+    id: string; title: string; unitOrder: number; filePaths: string[];
+    dueOffsetDays?: number;    // integer days from snapshot.demoDay, due at 23:59:59 UTC
+  }>;
+};
+```
+
+Manifest file paths are relative to its directory. Accept only normalized repository-relative paths beneath that directory; reject URLs, absolute paths and traversal. Require unique unit orders, file paths and assignment ids; every file unit and assignment reference must exist. Derive each outline `sectionId` as `${courseId}/u${order}` and preserve `lectureLabel` in its file references. Import only listed PDFs, never evaluation answers. Preserve empty future units and course-wide syllabus files. Unit order controls scope as before; a worksheet file alone does not make a unit taught.
+
+Resolve `COURSE_GITHUB_REF` through `GET /repos/{owner}/{repo}/commits/{ref}`, then fetch the manifest and PDFs through `GET /repos/{owner}/{repo}/contents/{path}?ref={commitSha}` with `Accept: application/vnd.github.raw+json`. Use that SHA for every request and cache the manifest, normalized outline and bytes. Do not persist temporary download URLs. Snapshot-qualified course ids keep a new revision separate from existing cards, citations and student history. Re-importing the same snapshot and demo day is idempotent. Hints and original-file views use the Repo cache only. This MVP supports the configured public course repository. Automatic GitHub updates and LMS sync are post-hackathon work; P5.7 covers LMS sync.
 
 ## 11. API routes
 
 | Route | Method | In | Out |
 |---|---|---|---|
-| `/api/health` | GET | — | `{ db: boolean; llm: boolean; lms: boolean \| null; provider: string; store: string }` |
-| `/api/lms/connect` | POST | `{ baseUrl, username, password }` or `{ baseUrl, token }` | `{ siteName, userFullName }` |
-| `/api/lms/courses` | GET | — | `Array<{ id, title, shortName?, ingested: boolean }>` |
-| `/api/lms/upload` | POST | multipart: files, plus `meta` JSON naming each file's unit order and kind | `{ courseId }` |
+| `/api/health` | GET | — | `{ db: boolean; llm: boolean; courseSource: boolean \| null; provider: string; store: string }` |
+| `/api/source/connect` | POST | —; imports configured GitHub manifest | `{ courseId, title, commitSha }` |
+| `/api/source/courses` | GET | — | `Array<{ id, title, shortName?, ingested: boolean }>` |
+| `/api/source/upload` | POST | multipart: files, plus `meta` JSON naming each file's unit order and kind | `{ courseId }` |
 | `/api/agent/ingest` | POST | `{ courseId }` | SSE of `AgentEvent` |
 | `/api/agent/replan` | POST | `{ courseId, trigger }` | SSE of `AgentEvent` |
 | `/api/agent/runs/[runId]` | GET | — | `AgentRun` |
@@ -536,7 +569,7 @@ type FileRef = { title: string; mime: string; bytes?: number; url: string; kindG
 | `/api/plan/[planId]/item/[itemId]` | PATCH | `{ status }` | `{ ok: true }` |
 | `/api/report/[courseId]` | GET | — | `TutorReport` |
 
-All routes run on the Node runtime. The Moodle token and model keys never reach the browser.
+All routes run on the Node runtime. The optional GitHub token and model keys never reach the browser. Source errors return `{ code, message }` with `not_found`, `forbidden`, `rate_limited`, `unavailable` or `bad_reply`; source import does not invoke the model. No LMS credential routes are built for the hackathon.
 
 ## 12. Environment
 
@@ -560,9 +593,12 @@ STORE=mongo                      # mongo | memory
 MONGODB_URI=
 MONGODB_DB=albert
 
-# lms
-MOODLE_BASE_URL=                 # dev convenience; the app normally takes this from the connect form
-MOODLE_TOKEN=                    # dev convenience
+# course source (server only; published in P5.2)
+COURSE_GITHUB_REPO=Azrkiel/albert-files
+COURSE_GITHUB_REF=main            # resolved to a commit SHA once per explicit import
+COURSE_MANIFEST_PATH=manifest.json # add at the content repo root in P5.2
+COURSE_DEMO_DAY=                  # YYYY-MM-DD; defaults to UTC import date, then persisted
+COURSE_GITHUB_TOKEN=              # optional read-only token for API quota; never NEXT_PUBLIC
 
 # app
 DEMO_STUDENT_ID=demo
@@ -573,7 +609,7 @@ PLAN_MAX_MINUTES_PER_DAY=60
 LANGSMITH_TRACING= LANGSMITH_API_KEY=
 ```
 
-`.env.example` in the repo lists every variable above with empty values. Real values live in `.env.local`, which is git-ignored.
+Apply the P1.1a scaffold follow-up before P1.2: update `.env.example` to list the course-source variables above instead of the old Moodle variables, and add the GitHub fixture directories. Other variables retain their existing defaults. Real values live in `.env.local`, which is git-ignored. The public content repository currently contains PDFs but no manifest; P5.2 adds it before live manifest-based import can work.
 
 **URL flags on the work page**
 
@@ -592,7 +628,7 @@ LANGSMITH_TRACING= LANGSMITH_API_KEY=
 | `pnpm dev` | Runs the app | — |
 | `pnpm verify` | Type-check, lint, unit and contract tests | No |
 | `pnpm e2e` | Playwright replay tests with `MOCK_LLM=1` and `STORE=memory` | No |
-| `pnpm smoke` | Pings the database, the model and (if configured) Moodle; prints a pass or fail line for each | Yes |
+| `pnpm smoke` | Pings the database, the model and (if configured) the GitHub course manifest; prints a pass or fail line for each | Yes |
 | `pnpm eval:hints` | Runs the hint eval set against the live model and prints the score table | Yes |
 | `pnpm agent:ingest -- --course <id>` | Runs course ingestion from the terminal and prints the event stream | Yes |
 | `pnpm agent:replan -- --course <id>` | Runs a re-plan from the terminal | Yes |
@@ -615,7 +651,9 @@ Recorded data that makes offline verification possible. The contract test (`test
 | `fixtures/worksheets/*.json` | `Worksheet` | P3.2 |
 | `fixtures/plans/*.json` | `StudyPlan` | P6.7 |
 | `fixtures/agent/*.json` | `AgentRun` | P6.6 |
-| `fixtures/moodle/*.json` | none: raw Moodle replies, tokens redacted | P5.2 |
+| `fixtures/github/manifest.json` | `CourseManifest` | P5.2 |
+| `fixtures/github/commit.json` | none: recorded GitHub commit response | P5.2 |
+| `fixtures/github/files/*` | none: copies of manifest-listed PDFs | P5.2 |
 | `fixtures/eval/*.png` | none: images for model pings | P1.4, P2.7 |
 
 ```ts
