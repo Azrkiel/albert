@@ -7,3 +7,5 @@ export { addCompletedStroke, createSessionState, listClusters, reduceSessionEven
 export { exportRecording, parseRecording, Replayer } from "./recording";
 export { clearRow, eraseGesture, historyEvent } from "./erase";
 export { crossOutClusterIds, detectStuck, isProblemSolved } from "./stuck";
+export { planSnapshot, renderSnapshot, SNAPSHOT, type Snapshot, type SnapshotArgs, type SnapshotPlan, type SnapshotRow } from "./snapshot";
+export { buildHintRequest, hintHistory, localSessionId, type BuildHintRequestOptions } from "./hint-request";

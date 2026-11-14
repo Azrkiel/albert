@@ -2,15 +2,27 @@
 
 import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
 import { useSearchParams } from "next/navigation";
-import type { CanvasLayout, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
+import type { CanvasLayout, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
-import { clearRow, createSessionState, detectStuck, eraseGesture, exportRecording, historyEvent, isProblemSolved, listClusters, parseRecording, reduceSessionEvent, Replayer, type SessionState } from "@/lib/canvas";
+import { buildHintRequest, clearRow, createSessionState, detectStuck, eraseGesture, exportRecording, historyEvent, isProblemSolved, listClusters, parseRecording, reduceSessionEvent, renderSnapshot, Replayer, type SessionState, type Snapshot } from "@/lib/canvas";
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock, type HintRequested } from "./ProblemBlock";
 
+/** P2.7 dev hook: snapshot of the current state; problem and marked default to the row's problem and true. */
+type SnapshotHook = (args: { upToRowId: string; problemId?: string; marked?: boolean }) => Promise<Snapshot>;
+type HintRequestHook = (rowId: string, rung: Rung, trigger: StuckSignal["kind"]) => Promise<HintRequest>;
+
 declare global {
-  interface Window { __albert?: { state: SessionState; replayDone: boolean } }
+  interface Window { __albert?: { state: SessionState; replayDone: boolean; renderSnapshot?: SnapshotHook; buildHintRequest?: HintRequestHook } }
+}
+
+/** The latest row of the problem written in last: what the dev Snapshot button shows. */
+function latestRow(state: SessionState): string | null {
+  const last = state.strokes.filter((s) => s.tool === "pen" && s.erasedAt === undefined).sort((a, b) => b.t1 - a.t1)[0];
+  if (!last) return null;
+  const inked = new Set(state.strokes.filter((s) => s.problemId === last.problemId && s.tool === "pen" && s.erasedAt === undefined).map((s) => s.rowId));
+  return state.rows.filter((row) => inked.has(row.id)).sort((a, b) => b.index - a.index)[0]?.id ?? null;
 }
 
 const devBuild = process.env.NODE_ENV !== "production";
@@ -189,11 +201,32 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   }, [fixture, initialSpeed, start]);
 
   useEffect(() => () => { loadId.current++; player.current?.cancel(); player.current = null; }, []);
+  const snapshotHook = useCallback<SnapshotHook>(({ upToRowId, problemId, marked = true }) => {
+    const state = current.current;
+    const row = state.rows.find((r) => r.id === upToRowId);
+    return renderSnapshot({ strokes: state.strokes, rows: state.rows, clusters: listClusters(state),
+      problemId: problemId ?? row?.problemId ?? "", upToRowId, marked });
+  }, []);
+  const hintRequestHook = useCallback<HintRequestHook>((rowId, rung, trigger) =>
+    buildHintRequest(current.current, rowId, rung, trigger, { sessionId }), [sessionId]);
   useEffect(() => {
     if (!devBuild) return;
-    window.__albert = { state, replayDone: replayDone && !loading };
+    window.__albert = { state, replayDone: replayDone && !loading, renderSnapshot: snapshotHook, buildHintRequest: hintRequestHook };
     return () => { delete window.__albert; };
-  }, [state, replayDone, loading]);
+  }, [state, replayDone, loading, snapshotHook, hintRequestHook]);
+
+  function openSnapshot() {
+    const rowId = latestRow(current.current);
+    if (!rowId) { setError("Nothing written yet."); return; }
+    // Open the tab inside the click so it is not blocked, then point it at the image.
+    const tab = window.open("", "_blank");
+    void snapshotHook({ upToRowId: rowId }).then(({ png }) => {
+      const bytes = Uint8Array.from(atob(png), (c) => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+      if (tab) tab.location.href = url; else window.open(url, "_blank");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }, () => { tab?.close(); setError("Could not render snapshot."); });
+  }
 
   async function load(file: File) {
     const id = ++loadId.current;
@@ -224,7 +257,8 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       <button type="button" disabled={!state.redoStack.length} onClick={() => history("redo")}>Redo</button>
     </div>
     {devTools && <DevToolbar speed={speed} onSpeed={setSpeed}
-      onLoad={(file) => void load(file)} onExport={download} onPlay={() => start(loaded.current ?? snapshot(), speed)} />}
+      onLoad={(file) => void load(file)} onExport={download} onPlay={() => start(loaded.current ?? snapshot(), speed)}
+      onSnapshot={openSnapshot} />}
     {devTools && state.problems[0] && <button type="button"
       disabled={hint.status === "streaming"}
       onClick={() => {

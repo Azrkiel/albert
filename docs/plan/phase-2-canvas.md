@@ -316,6 +316,13 @@ src/lib/canvas/
 - [ ] **P2.7-AC4** — A model can read the numbers. *Verify:* `pnpm smoke --snapshot fixtures/eval/marked-sample.png` asks the model "Which cluster number is above the term dx in row R2?" and gets the known answer. (Uses `pingVision` from P1.4 with a different image and question.)
 - [ ] **P2.7-AC5** — `buildHintRequest` output parses as `HintRequest`. *Verify:* unit test.
 
+**Implementation notes (Nov 14).**
+- `planSnapshot` (pure, unit tested) holds every rule; `renderSnapshot` only draws its plan. Rows are rows 1..upTo by `Row.index` (lines in `free`). Only rows with live ink are drawn, tagged and listed; the stuck row is always listed so its id resolves. Divider rows (P2.5b) are unnumbered and last, so dividers are not drawn.
+- The crop is the union of the ink, the row tags and the cluster numbers, plus 24 px, so no mark is ever clipped. It is the same with and without marks, so `image.clean` lines up with `image.marked` (one `width`/`height` in `HintRequest`).
+- Numbers are 14 logical px (28 image px at 2×). A number goes centred above its cluster unless that overlaps another number, a tag or another cluster's box; then centred **below** the cluster (a stacked denominator sits right under its bar), then the nearest free spot sideways above, then sideways below. White halos keep numbers readable where they cross ink. Tags `R1, R2, …` sit in grey left of each row's own ink.
+- `buildHintRequest(state, rowId, rung, trigger, options?)`: `SessionState` has no session id until P2.8, so `sessionId` defaults to the placeholder `local:<worksheetId>` and callers may pass one (the page passes its own id). **P2.8 replaces the placeholder.** History rung and row come from the matching `hint_requested` event (rung 1 if none). Not wired into the page's hint flow (P3.3 / P4.4).
+- AC4: `fixtures/eval/marked-sample.png` is rows 1–2 of `ac4-handwriting.json`; the answer key sits beside it in `marked-sample.md` (`answer: 9, 10`, since `d` and `x` are separate clusters). `pnpm smoke --snapshot <png>` runs only that question and grades the reply's last line; without the flag smoke is unchanged.
+
 ---
 
 ### P2.8 — Session sync
