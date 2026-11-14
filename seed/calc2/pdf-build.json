@@ -1,0 +1,83 @@
+{
+  "generatorSha256": "ef428e4dadcaffa7abf40b564b574c42adfd1af549ba82de990022df8931f18e",
+  "chromium": "159.0.8154.6",
+  "files": [
+    {
+      "path": "pdf/syllabus.pdf",
+      "sourceSha256": "d12a0115650a7c5f521277602b26d33c5a2fa8d60a57c9bd217ba0ecc6076cf1",
+      "pdfSha256": "262439683685cb7db10cf73230018c1996359288aed490b73947707cc2c5652f",
+      "pages": 1,
+      "bytes": 36505
+    },
+    {
+      "path": "pdf/unit-1/lecture-05.pdf",
+      "sourceSha256": "ae961f2c1721e710dc333390c0ca5839f3eb570b9955e284263d9783fdf1a477",
+      "pdfSha256": "2233a5d5c1b89b0d7ffcb05699b608964d693e1cc1c430095b3b4d841c67b2ce",
+      "pages": 3,
+      "bytes": 54647
+    },
+    {
+      "path": "pdf/unit-1/lecture-06.pdf",
+      "sourceSha256": "6dcc9226c2a4bb2f1bebe5d70bad2270f406737cd34869764be8ebbb7f2cf6fd",
+      "pdfSha256": "f7727c1751190ca72e6cd9b807f40e60b11652a531e55b4090324cd3fd260a8e",
+      "pages": 2,
+      "bytes": 52427
+    },
+    {
+      "path": "pdf/unit-2/lecture-07.pdf",
+      "sourceSha256": "375438590521cd079e7ee6df363dcb2f955ffa07d71d29d951de17de3a9cabed",
+      "pdfSha256": "485d369363290b53ea17165a8fe9e8a509e991ebb3993f18264a83f82f9e7f56",
+      "pages": 2,
+      "bytes": 51300
+    },
+    {
+      "path": "pdf/unit-2/lecture-08.pdf",
+      "sourceSha256": "fdcd2b76084e278f32e21b00540e154e5dee71c294d2041dbeb061c7f58a29ad",
+      "pdfSha256": "366e52bf255d859066a09f2e5b908812e4a700fa9e1e3b7c3fa931ce1235b9a4",
+      "pages": 2,
+      "bytes": 54768
+    },
+    {
+      "path": "pdf/unit-3/lecture-09.pdf",
+      "sourceSha256": "e5699704d971fa7ae34d9372ebb94059dae867d7612187e60cfc7092d420ed1d",
+      "pdfSha256": "54d44d487bdfd71465d517e1c03efa9ec2768c267c153d0e20bbd5284725ff48",
+      "pages": 3,
+      "bytes": 76426
+    },
+    {
+      "path": "pdf/unit-3/lecture-10.pdf",
+      "sourceSha256": "7d4d74cbd1135e302b99240065fcc3bbccbb3862a6a43fa1f5fb6161048f53f7",
+      "pdfSha256": "a6e13fa88d912961875946ef6f94e596eaf34f811ada998cf611ce92e036f738",
+      "pages": 3,
+      "bytes": 78675
+    },
+    {
+      "path": "pdf/unit-1/worksheet-1.pdf",
+      "sourceSha256": "7d4ae44dbd67d9f69c19292a95d6f56436707b28a8b6158d57416722ab204b79",
+      "pdfSha256": "ed9093496624197f062302e4a8cec5ad3cef1f456528ac3d32c0dae2e385797f",
+      "pages": 1,
+      "bytes": 33330
+    },
+    {
+      "path": "pdf/unit-2/worksheet-2.pdf",
+      "sourceSha256": "b1e54fa472bf6f2d6dfb8d213e981ffae5df60aaf470d041c2b0de39b7569060",
+      "pdfSha256": "79afe749b66b0e6462d0a04ee6dbd6044776c68a2775039465e4ba916a2a562f",
+      "pages": 1,
+      "bytes": 31334
+    },
+    {
+      "path": "pdf/unit-3/worksheet-3.pdf",
+      "sourceSha256": "1fa4abe006ce3cf79ac6984938d7a550aafc3740b66632889eb64f9ca0a9e6e6",
+      "pdfSha256": "bed2cc67faf40677c1f4ced280d268c6f1c25f0b2a3dce339c66fba335575e2d",
+      "pages": 2,
+      "bytes": 42107
+    },
+    {
+      "path": "pdf/unit-4/worksheet-4.pdf",
+      "sourceSha256": "ecab76304a2c7c9487993f202b4ae1d79bb066ae5a5ccd83225b816b69784945",
+      "pdfSha256": "b9d95a0990c1115b883a4efc290a553c15233b1103cb95be807bb2ff75c47767",
+      "pages": 1,
+      "bytes": 32529
+    }
+  ]
+}

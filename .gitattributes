@@ -1,0 +1,6 @@
+# Keep source-bound PDF/CAS evidence reproducible on Windows and Linux.
+seed/calc2/** text eol=lf
+scripts/seed-pdf.ts text eol=lf
+
+# Seed PDFs must never undergo Git's automatic line-ending conversion.
+seed/calc2/**/*.pdf binary
