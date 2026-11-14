@@ -49,6 +49,8 @@ export class MemoryRepo implements Repo {
     if (!this.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
     this.sessionEvents.set(sessionId, [...(this.sessionEvents.get(sessionId) ?? []), ...copy(events)]);
   }
+  /** Dev read-back (not in the Repo contract): the stored events of one session, in append order. */
+  async listEvents(sessionId: string): Promise<SessionEvent[]> { return copy(this.sessionEvents.get(sessionId) ?? []); }
   async endSession(sessionId: string, at: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
