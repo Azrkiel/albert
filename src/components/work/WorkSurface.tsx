@@ -9,12 +9,14 @@ const FinishedStroke = memo(function FinishedStroke({ stroke }: { stroke: Stroke
     data-stroke-problem-id={stroke.problemId} d={strokePath(stroke.points)} fill={INK.student} />;
 });
 
-export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay }: {
+export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay }: {
   problemId: string;
   height?: number;
   onStroke?: (stroke: Stroke) => void;
   strokes?: Stroke[];
   children?: ReactNode;
+  /** SVG drawn above finished ink (dev cluster overlay); must not take pointer events. */
+  svgOverlay?: ReactNode;
   getSessionStart?: () => number;
   tool?: Stroke["tool"];
   overlay?: ReactNode;
@@ -85,6 +87,7 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
           {(completedStrokes ?? strokes).filter((stroke) => stroke.tool === "pen" && stroke.erasedAt === undefined)
             .map((stroke) => <FinishedStroke key={stroke.id} stroke={stroke} />)}
         </g>
+        {svgOverlay}
         <path ref={livePath} data-live-stroke="" d="" fill={INK.student} />
       </svg>
       {overlay}

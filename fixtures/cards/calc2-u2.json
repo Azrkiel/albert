@@ -1,0 +1,127 @@
+{
+  "unitId": "calc2/u2",
+  "courseId": "calc2",
+  "order": 2,
+  "title": "Trigonometric Integrals",
+  "taught": true,
+  "lectures": [
+    {
+      "label": "Lecture 7",
+      "fileId": "calc2-lecture-07"
+    },
+    {
+      "label": "Lecture 8",
+      "fileId": "calc2-lecture-08"
+    }
+  ],
+  "methods": [
+    {
+      "id": "u2.odd_power",
+      "name": "Odd power of sine or cosine",
+      "lecture": "Lecture 7",
+      "summary": "Split off one factor and turn the rest into the other function with \\sin^2 x + \\cos^2 x = 1.",
+      "steps": [
+        "Peel off one factor of the odd-power function.",
+        "Rewrite the remaining even power with \\sin^2 x + \\cos^2 x = 1.",
+        "Substitute for the other function and integrate."
+      ]
+    },
+    {
+      "id": "u2.half_angle",
+      "name": "Half-angle reduction of even powers",
+      "lecture": "Lecture 8",
+      "summary": "Lower an even power with \\cos^2 x = \\tfrac{1}{2}(1+\\cos 2x) and \\sin^2 x = \\tfrac{1}{2}(1-\\cos 2x).",
+      "steps": [
+        "Replace each even power with the half-angle identity.",
+        "Expand and integrate term by term; repeat if a power remains."
+      ]
+    }
+  ],
+  "notation": [
+    {
+      "concept": "Pythagorean identity",
+      "teacherWrites": "\\sin^2 x + \\cos^2 x = 1",
+      "avoid": []
+    },
+    {
+      "concept": "half-angle identities",
+      "teacherWrites": "\\cos^2 x = \\tfrac{1}{2}(1+\\cos 2x),\\ \\sin^2 x = \\tfrac{1}{2}(1-\\cos 2x)",
+      "avoid": []
+    },
+    {
+      "concept": "derivative",
+      "teacherWrites": "\\frac{d}{dx}\\sin x = \\cos x",
+      "avoid": [
+        "f'(x)"
+      ]
+    }
+  ],
+  "workedExamples": [
+    {
+      "label": "Lecture 7, Example 1",
+      "problemLatex": "\\int \\sin^3 x\\,dx",
+      "fileId": "calc2-lecture-07",
+      "page": 2,
+      "methodIds": [
+        "u2.odd_power"
+      ],
+      "stepsLatex": [
+        "\\int \\sin^2 x \\sin x\\,dx = \\int (1-\\cos^2 x)\\sin x\\,dx",
+        "w = \\cos x,\\ dw = -\\sin x\\,dx",
+        "= -\\int (1 - w^2)\\,dw = -w + \\tfrac{w^3}{3} + C",
+        "= -\\cos x + \\tfrac{1}{3}\\cos^3 x + C"
+      ]
+    },
+    {
+      "label": "Lecture 8, Example 1",
+      "problemLatex": "\\int \\cos^2 x\\,dx",
+      "fileId": "calc2-lecture-08",
+      "page": 2,
+      "methodIds": [
+        "u2.half_angle"
+      ],
+      "stepsLatex": [
+        "\\int \\tfrac{1}{2}(1+\\cos 2x)\\,dx",
+        "= \\tfrac{1}{2}x + \\tfrac{1}{4}\\sin 2x + C"
+      ]
+    }
+  ],
+  "conventions": [
+    "Name the identity you use on the page.",
+    "Derivatives are written in Leibniz form, dy/dx."
+  ],
+  "pitfalls": [
+    {
+      "description": "Forgetting the factor 1/2 from the chain rule when integrating \\cos 2x.",
+      "subskillId": "u2.even_power_half_angle",
+      "errorType": "chain_rule_factor"
+    },
+    {
+      "description": "Leaving the peeled-off factor out of the substitution so that dw has no match.",
+      "subskillId": "u2.odd_power_split",
+      "errorType": "missing_factor"
+    }
+  ],
+  "subskills": [
+    {
+      "id": "u2.odd_power_split",
+      "name": "Split an odd power",
+      "description": "Peel off one factor and convert the rest with the Pythagorean identity."
+    },
+    {
+      "id": "u2.even_power_half_angle",
+      "name": "Half-angle reduction",
+      "description": "Lower an even power with the half-angle identities and integrate."
+    },
+    {
+      "id": "u2.pythagorean_identity",
+      "name": "Pythagorean identity",
+      "description": "Use \\sin^2 + \\cos^2 = 1 and its tan/sec form to rewrite an expression."
+    }
+  ],
+  "sourceFileIds": [
+    "calc2-lecture-07",
+    "calc2-lecture-08"
+  ],
+  "builtBy": "hand"
+}

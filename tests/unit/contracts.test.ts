@@ -30,7 +30,7 @@ function schemaFor(name: string): z.ZodType {
 // Exact table from contracts.md §14. Unknown JSON must not silently escape validation.
 function fixtureSchema(path: string): string | null {
   if (path === "github/commit.json" || path.startsWith("github/files/")) return null;
-  if (path === "github/manifest.json") return "CourseManifest";
+  if ((path === "github/manifest.json" || path === "github/live-manifest.json")) return "CourseManifest";
   const folders: Record<string, string> = {
     sessions: "SessionRecording", llm: "MockHint", "eval/requests": "HintRequest",
     "eval/cases": "EvalCase", cards: "TeachingCard", worksheets: "Worksheet",
@@ -67,11 +67,13 @@ function validateFixtures(root: string): number {
 }
 
 describe("contract completeness", () => {
+  // These checks start six Node processes / a TypeScript compiler; allow
+  // cold Windows starts without changing any contract assertions.
   it("initializes contract modules regardless of entry point", () => {
     for (const name of ["hints", "check", "events", "course", "storage", "lms"]) {
       execFileSync(process.execPath, ["--import", "tsx", "--input-type=module", "-e", `import './src/lib/contracts/${name}.ts'`], { cwd: resolve("."), stdio: "pipe" });
     }
-  });
+  }, 30000);
   it("tracks every named data type in contracts.md and exports a Zod schema", () => {
     const doc = readFileSync(resolve("docs/plan/contracts.md"), "utf8");
     const names = [...doc.matchAll(/^type (\w+)\s*=/gm)].map((match) => match[1]);
@@ -97,7 +99,7 @@ describe("contract completeness", () => {
     } finally { rmSync(dir, { recursive: true, force: true }); }
     expect(runtime.Repo).toBeUndefined();
     expect(runtime.CourseSourceAdapter).toBeUndefined();
-  });
+  }, 30000);
 });
 
 describe("manifest validation", () => {
@@ -128,9 +130,9 @@ describe("manifest validation", () => {
 
 describe("contract variants and bounds", () => {
   it("matches the plan constants", () => {
-    expect(contracts.PAGE).toEqual({ width: 1200, studentCol: { x: 0, w: 760 }, gutter: { x: 760, w: 30 }, albertCol: { x: 790, w: 410 }, rowHeight: 84, rowPaddingTop: 10, statementMinHeight: 96 });
+    expect(contracts.PAGE).toEqual({ width: 1200, studentCol: { x: 0, w: 760 }, gutter: { x: 760, w: 30 }, albertCol: { x: 790, w: 410 }, rowHeight: 128, rowPaddingTop: 10, statementMinHeight: 96 });
     expect(contracts.INK).toEqual({ student: "#1b1b1f", albert: "#c8321e", clusterLabel: "#2f6fdb" });
-    expect(contracts.STUCK).toEqual({ PAUSE_MIN_MS: 8000, PAUSE_MAX_MS: 20000, PAUSE_FACTOR: 2.5, ERASE_LOOP_COUNT: 2, ERASE_LOOP_WINDOW_MS: 45000, CROSS_OUT_COVERAGE: 0.6, CROSS_OUT_MIN_LENGTH_RATIO: 1.2, REARM_ON: "new_ink", CLUSTER_GAP: 22 });
+    expect(contracts.STUCK).toEqual({ PAUSE_MIN_MS: 8000, PAUSE_MAX_MS: 20000, PAUSE_FACTOR: 2.5, ERASE_LOOP_COUNT: 2, ERASE_LOOP_WINDOW_MS: 45000, CROSS_OUT_COVERAGE: 0.6, CROSS_OUT_MIN_LENGTH_RATIO: 1.2, REARM_ON: "new_ink", CLUSTER_GAP: 4 });
   });
   it("accepts every session event variant", () => {
     const events = [examples.SessionEvent.valid, { type: "erase", at: 1, rowId: "r1", strokeIds: [] }, { type: "undo", at: 2, rowId: "r1", strokeIds: [] }, { type: "stuck", at: 3, signal: examples.StuckSignal.valid }, { type: "hint_requested", at: 4, hintId: "h1", rowId: "r1", rung: 3 }, { type: "hint_shown", at: 5, hintId: "h1", marks: [examples.AlbertMark.valid] }, { type: "check_requested", at: 6, problemId: "p1" }, { type: "check_result", at: 7, problemId: "p1", verdict: "correct" }, { type: "problem_opened", at: 8, problemId: "p1" }];

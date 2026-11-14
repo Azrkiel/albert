@@ -25,9 +25,21 @@ const PAGE = {
   studentCol: { x: 0,   w: 760 },   // the student writes here
   gutter:     { x: 760, w: 30 },
   albertCol:  { x: 790, w: 410 },   // Albert writes here
-  rowHeight: 84,
+  rowHeight: 128,              // was 84; raised after P2.5-AC3: a hand-written stacked fraction was ~125 px tall
   rowPaddingTop: 10,
   statementMinHeight: 96,      // space above the rows for the problem statement
+} as const;
+
+const LINE = {                 // free layout only (P2.5a): lines inferred from ink
+  GAP: 16,                     // logical px; fraction parts within this of their bar join its line…
+  GAP_PER_HEIGHT: 0.5,         // …or within this share of the part's own height, if larger (big writing)
+  MIN_OVERLAP: 0.3,            // share of the shorter height a stroke must overlap a line to join it…
+  REACH: 0.5,                  // …or its centre lies within this many glyph heights of the line's ink
+  PAD: 8,                      // logical px added above and below a line's ink for its row box
+  DIVIDER_MIN_HEIGHT: 120,     // P2.5b: a divider is at least this tall…
+  DIVIDER_MIN_GLYPHS: 3,       // …and this many times the median letter height written before it…
+  DIVIDER_MAX_WIDTH_RATIO: 0.15, // …no wider than this × its height…
+  DIVIDER_MAX_PATH_RATIO: 1.1, // …and nearly straight: path length ÷ distance between its ends
 } as const;
 
 const INK = {
@@ -61,10 +73,10 @@ type Stroke = {
 };
 
 type Row = {
-  id: string;                  // `${problemId}/r${index}`
+  id: string;                  // `${problemId}/r${n}`: ruled, n = index; free, n = creation order, never reused
   problemId: string;
-  index: number;               // 1-based within the problem
-  bbox: BBox;                  // the full student-column band for this row
+  index: number;               // 1-based within the problem, top to bottom
+  bbox: BBox;                  // ruled: the student-column band; free: the line's column (dividers bound it) around its ink ± LINE.PAD
 };
 
 type Cluster = {
@@ -76,9 +88,15 @@ type Cluster = {
 };
 ```
 
-**Row assignment.** A stroke belongs to the row that contains the largest share of its points. Ties go to the row containing the stroke's first point.
+**Row assignment (ruled layout).** A stroke belongs to the row that contains the largest share of its points. Ties go to the row containing the stroke's first point.
 
-**Clustering.** Within a row, sort live pen strokes by `bbox.x`. Start a new cluster when the horizontal gap between a stroke's left edge and the current cluster's right edge exceeds `CLUSTER_GAP`. Strokes that overlap horizontally always join (this keeps a fraction bar with its numerator and denominator, and an integral sign with its limits).
+**Line assignment (free layout, P2.5a).** A row is a line of work inferred from the ink; its band is the vertical extent of its live pen strokes. A finished pen stroke joins the line it overlaps most vertically, if the overlap is at least `LINE.MIN_OVERLAP` of the shorter height or its centre lies within `LINE.REACH` × the line's median glyph height (non-flat strokes) of the line's ink (ties: larger overlap, nearer band centre, then older line). Otherwise it joins a line through a fraction: it is centred over or under a flat stroke (width ≥ 3× height) of that line, or it is itself flat and covers the centre of a stroke of that line (sideways, the bar's ends get the same tolerance as the gap), with a vertical gap of at most `max(LINE.GAP, LINE.GAP_PER_HEIGHT × the height of the part that is not the bar)`. Otherwise it starts a new line. Assignment happens once, when the stroke ends, and is recorded. Indexes are recomputed top to bottom over lines with live ink; a line whose ink is all erased keeps its row (so undo can restore it), numbered after the lines with ink.
+
+**Dividers (free layout, P2.5b).** A long, near-vertical, nearly straight pen stroke (`LINE.DIVIDER_*`) is a divider; "long" is relative to the letters written before it in the problem, so a "1" never counts and a stroke's status never changes later. A stroke never joins ink on the other side of a live divider whose height covers both strokes' centres, so side work starts its own lines. Indexes run through the main column top to bottom, then each side column; a divider gets its own unnumbered row, placed last, and is never clustered.
+
+**Clustering.** Within a row, sort live pen strokes by `bbox.x` (ties by `t0`, then `id`). Start a new cluster when the horizontal gap between a stroke's left edge and the current cluster's right edge (the running maximum) exceeds `CLUSTER_GAP`. Strokes that overlap horizontally join (this keeps an integral sign with its limits, an `=` and an `i` together).
+
+**Fractions.** A stroke at least 3× wider than tall, with ink centred above it and below it within its x-range, is a fraction bar. Its clusters are the numerator's, then the bar, then the denominator's, so Albert can circle the numerator or the denominator as a run of adjacent labels. Ink just past the bar's ends that lies wholly above or below its centre line, within `CLUSTER_GAP` of that side's ink (an exponent on the denominator), joins that side. The widest bar splits first; numerators and denominators are clustered by the same rules, so nested fractions work. A flat stroke with ink on one side only (a minus sign, an overline) follows the gap rule. Labels run left to right, with a fraction placed by its left edge.
 
 ## 3. Session events and stuck signals
 
@@ -111,7 +129,7 @@ const STUCK = {
   CROSS_OUT_COVERAGE: 0.6,     // a stroke covering this share of existing ink in a row
   CROSS_OUT_MIN_LENGTH_RATIO: 1.2, // path length ÷ bbox diagonal
   REARM_ON: "new_ink",         // one signal per row until the student writes again
-  CLUSTER_GAP: 22,             // logical px
+  CLUSTER_GAP: 4,              // logical px; tuned in P2.5-AC3 (real gaps between symbols were 4–15 px)
 } as const;
 ```
 
@@ -274,7 +292,7 @@ A check never reveals the answer or the wrong step's fix. On `not_yet` the page 
 
 ```ts
 type Course = {
-  id: string;                  // "github:<owner>/<repo>:<manifestId>:<sha>:<demoDay>" | "upload:<uuid>"
+  id: string;                  // "github:<owner>/<repo>:<manifestPath>~<manifestId>:<sha>:<demoDay>" | "upload:<uuid>"
   source: "github" | "upload";
   snapshot?: GitHubSnapshot;   // required when source is github; pins files and dates
   title: string; shortName?: string;
@@ -608,6 +626,7 @@ COURSE_GITHUB_TOKEN=              # optional read-only token for API quota; neve
 # app
 DEMO_STUDENT_ID=demo
 NEXT_PUBLIC_AUTO_HINT=0          # "AUTO_HINT" in the plan. 1 = a pause writes a rung 1 hint without a tap
+NEXT_PUBLIC_CANVAS_LAYOUT=ruled  # ruled | free (P2.5a, D18). free = write anywhere; becomes the default once P2.5a-AC4 passes
 PLAN_MAX_MINUTES_PER_DAY=60
 
 # optional
@@ -620,7 +639,8 @@ Apply the P1.1a scaffold follow-up before P1.2: update `.env.example` to list th
 
 | Flag | Effect |
 |---|---|
-| `?dev=1` | Shows the dev toolbar (export, load, snapshot) and the cluster overlay |
+| `?dev=1` | Shows the dev toolbar (export, load, snapshot) and the cluster overlay (plus line bands in the free layout) |
+| `?layout=free` / `?layout=ruled` | Overrides `NEXT_PUBLIC_CANVAS_LAYOUT` for this page load |
 | `?replay=<name>` | Plays `fixtures/sessions/<name>.json`. Add `&speed=4` or `&speed=instant` |
 | `?auto=1` | Same as `NEXT_PUBLIC_AUTO_HINT=1` for this page load |
 | `?demo=1` | Demo mode: auto-hint on, dev tools hidden, thicker ink, a **Reset demo** control |
@@ -656,7 +676,8 @@ Recorded data that makes offline verification possible. The contract test (`test
 | `fixtures/worksheets/*.json` | `Worksheet` | P3.2 |
 | `fixtures/plans/*.json` | `StudyPlan` | P6.7 |
 | `fixtures/agent/*.json` | `AgentRun` | P6.6 |
-| `fixtures/github/manifest.json` | `CourseManifest` | P5.2 |
+| `fixtures/github/manifest.json` | `CourseManifest` (synthetic transport only until P5.1 artifacts) | P5.2 |
+| `fixtures/github/live-manifest.json` | `CourseManifest` (separate confirmed live mapping) | P5.2 |
 | `fixtures/github/commit.json` | none: recorded GitHub commit response | P5.2 |
 | `fixtures/github/files/*` | none: copies of manifest-listed PDFs | P5.2 |
 | `fixtures/eval/*.png` | none: images for model pings | P1.4, P2.7 |
@@ -671,6 +692,7 @@ type SessionRecording = {
   events: SessionEvent[];      // in time order
   durationMs: number;
   notes?: string;              // what the recording is meant to show
+  layout?: "ruled" | "free";   // absent = "ruled"; free recordings replay with inferred lines
 };
 
 type MockHint = {

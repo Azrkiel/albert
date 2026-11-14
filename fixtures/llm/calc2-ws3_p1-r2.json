@@ -36,7 +36,7 @@
       ],
       "errorType": "missing_dx",
       "inScope": true,
-      "subskillId": "calc2/u3/differential"
+      "subskillId": "u3.find_dx"
     },
     {
       "type": "mark",

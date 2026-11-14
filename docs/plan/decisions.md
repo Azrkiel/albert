@@ -80,13 +80,13 @@ Each decision has a reason and a trigger that would change it. During the build,
 
 **Trigger to change.** None for the hint path. For the agent, see D1.
 
-## D9 — Moodle for real, upload as fallback, Canvas as a stub
+## D9 — Pinned GitHub course source, upload fallback
 
-**Decision.** `MoodleAdapter` is fully built against the team's MoodleCloud site. `UploadAdapter` lets a student drop PDFs and label them. `CanvasAdapter` implements the interface with `not_implemented` errors and documented endpoints.
+**Decision.** The configured public `Azrkiel/albert-files` repository supplies a reviewed `CourseManifest`. Resolve its configured ref once per explicit import and cache manifest, normalized outline and original PDFs at that exact SHA. Snapshot-qualified ids include persisted demo day. `GitHubAdapter` implements `CourseSourceAdapter`; upload is the fallback. Moodle/Canvas and automatic source refresh are post-hackathon.
 
-**Why.** The team administers its own Moodle site, so web services and tokens are under its control. Canvas tokens are restricted for students at many universities, and a proper Canvas integration needs an institution-approved developer key, which cannot be obtained in a weekend. The upload path is what a student at any school can use today, and it is the demo's insurance if the venue network blocks Moodle.
+**Why.** Existing course PDFs are available without institutional LMS credentials. An owner-confirmed mapping supplies teaching order and labels; filenames alone do not. Immutable snapshots keep cards and citations reproducible. The hot path and original views read the Repo cache only. Synthetic marker facts remain confined to the separately verified P5.1 course.
 
-**Trigger to change.** A teammate has a Canvas instance where they can create a token and Phase 6 is finished early. Then build `CanvasAdapter` as a stretch goal.
+**Trigger to change.** After the hackathon, implement another source behind the same interface. Never silently update an existing snapshot.
 
 ## D10 — Scope is relative to the worksheet
 
@@ -122,7 +122,7 @@ Each decision has a reason and a trigger that would change it. During the build,
 
 ## D14 — One demo student, no sign-up
 
-**Decision.** `DEMO_STUDENT_ID` identifies the only student. There is no account system. The Moodle password is exchanged for a token and discarded; the token is stored on the server and never sent to the browser.
+**Decision.** `DEMO_STUDENT_ID` identifies the only student. There is no account system. The optional GitHub read token comes from server environment only; it is never persisted in a connection or sent to the browser.
 
 **Why.** Authentication is a day of work that no judge will score. The one piece of security that matters in a demo, not leaking the student's LMS credentials, is kept.
 
@@ -151,3 +151,11 @@ Each decision has a reason and a trigger that would change it. During the build,
 **Why.** The tagline was given as "Turns you to Einstein"; "into" is the idiomatic form. Change the one string in `src/lib/brand.ts` to restore the original wording.
 
 **Note.** An unrelated education product called Albert (albert.io) exists. If a judge raises it, the answer is that this is a hackathon project name inside Albert and Einstein Academy.
+
+## D18 — Lines are inferred from ink, not ruled
+
+**Decision.** Once P2.5a-AC4 passes, the work surface has no ruled rows by default. A "row" is a line of work inferred from the ink (contracts §2, Line assignment). Ruled 128 px rows remain as `NEXT_PUBLIC_CANVAS_LAYOUT=ruled`.
+
+**Why.** At P2.5-AC3 real handwriting did not fit fixed bands: a stacked fraction was 1.5 rows tall and was split between two rows, so Albert could not point at its denominator. Students should write the way they write on paper. Inferring lines keeps the `Row` shape, so clusters, stuck detection, snapshots and hint anchoring are unchanged.
+
+**Trigger to change.** If AC4 shows lines merging or splitting in normal writing and tuning `LINE.GAP` does not fix it, ship `ruled` and keep `free` behind the flag.

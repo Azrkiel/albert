@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { PAGE } from "../../src/lib/contracts";
 
 // All input below is synthetic automation through the real UI, not human handwriting.
 async function drag(page: Page, x1: number, y1: number, x2: number, y2: number, problem = 0) {
@@ -14,6 +15,7 @@ async function drag(page: Page, x1: number, y1: number, x2: number, y2: number, 
   await page.mouse.move(to!.x, to!.y, { steps: 6 });
   await page.mouse.up();
 }
+const row2 = PAGE.statementMinHeight + PAGE.rowHeight + 30; // inside row 2 at any row height
 const paths = (page: Page) => page.locator("path[data-stroke-id]");
 const state = (page: Page) => page.evaluate(() => window.__albert!.state);
 
@@ -25,7 +27,7 @@ test.beforeEach(async ({ page }) => {
 test("draw, erase, undo, redo and accessible Clear row survive export/load exactly", async ({ page }) => {
   await drag(page, 100, 126, 220, 126);
   await drag(page, 280, 126, 380, 126);
-  await drag(page, 100, 210, 220, 210);
+  await drag(page, 100, row2, 220, row2);
   await drag(page, 100, 126, 220, 126, 1);
   const original = await state(page);
   await expect(paths(page)).toHaveCount(4);
@@ -73,7 +75,7 @@ test("Ctrl/Cmd+Z and shifted redo retain IDs; shortcuts leave text inputs alone"
   for (const modifier of ["Control", "Meta"]) {
     await page.keyboard.press(`${modifier}+z`);
     await expect(paths(page)).toHaveCount(0);
-    expect((await state(page)).events.at(-1)).toEqual({ type: "undo", at: expect.any(Number), strokeIds: [stroke.id], rowId: stroke.rowId });
+    expect((await state(page)).events.findLast((event) => event.type === "undo")).toEqual({ type: "undo", at: expect.any(Number), strokeIds: [stroke.id], rowId: stroke.rowId });
     await page.keyboard.press(`${modifier}+Shift+z`);
     await expect(paths(page)).toHaveCount(1);
     expect((await state(page)).strokes[0]).toEqual(stroke);

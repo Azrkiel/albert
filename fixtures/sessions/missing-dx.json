@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "name": "session",
+  "name": "missing-dx",
   "worksheetId": "calc2-ws3",
   "problems": [
     {
@@ -7164,5 +7164,6 @@
       }
     }
   ],
-  "durationMs": 57155.29999999702
+  "durationMs": 57155.29999999702,
+  "notes": "Recorded by a person on the real canvas, Nov 14 (ruled layout). Row 1: the integral ∫ dx/(x²√(16 − x²)). Row 2: x = 4 sin θ. Row 3: the integral rewritten in θ as ∫ 1/(16 sin²θ · 4 cos θ) — the denominator is substituted but dx is never replaced (no 4 cos θ dθ). Then a pause. The main demo and eval case (P3.1-AC4, P3.4)."
 }

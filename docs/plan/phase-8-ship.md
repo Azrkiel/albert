@@ -19,8 +19,8 @@ Read first: [`tracks.md`](./tracks.md) in full, [`00-main-plan.md`](./00-main-pl
 **Goal.** One automated test and one manual run that walk the full user journey from the main plan §1.2.
 
 **Build.**
-1. `tests/e2e/journey.spec.ts`, offline (`MOCK_LLM=1`, `STORE=memory`, seeded data, the LMS adapter served from recordings):
-   1. Connect with the mocked Moodle login → courses list shows Calculus II.
+1. `tests/e2e/journey.spec.ts`, offline (`MOCK_LLM=1`, `STORE=memory`, seeded data, the course-source adapter served from recordings):
+   1. Import the recorded GitHub manifest → courses list shows Calculus II.
    2. Open the course → the course page renders.
    3. Open Worksheet 3, problem 1 → replay `missing-dx.json`.
    4. The hint mark appears → tap → circle, arrow, question, citation.
@@ -29,7 +29,10 @@ Read first: [`tracks.md`](./tracks.md) in full, [`00-main-plan.md`](./00-main-pl
    7. Problem 4 → replay `partial-fractions-urge.json` → **I'm stuck** → the deferral note names Unit 4 and the hint does not contain partial-fraction steps.
    8. **End session** → course page shows a moved skill and (with a fake re-plan) a new plan item.
    9. Open the tutor report → one stuck point with "What was wrong".
-2. `scripts/journey-live.md`: the same nine steps as a manual checklist against the real model, database, agent and Moodle site, with a box to tick and a place to note the time of each hint.
+   10. Canvas integration (P2.5a/P2.5b with P2.7 and P4). Replay a free-layout recording with side work beside a divider and ask for a hint on a side line. Check two things:
+       - the snapshot tags every line at its own left edge (`row.bbox.x`), so side lines are tagged beside the side work;
+       - Albert's margin notes for two lines at the same height stack without overlapping.
+2. `scripts/journey-live.md`: the same ten steps as a manual checklist against the real model, database, agent and pinned GitHub source, with a box to tick and a place to note the time of each hint.
 
 **Acceptance**
 - [ ] **P8.1-AC1** — The offline journey passes. *Verify:* `pnpm e2e -- journey`.
@@ -134,8 +137,8 @@ Evidence: img/peri-1.jpg   (or a quoted message)
 2. **Input device.** Try every device available: a touchscreen laptop, a drawing tablet, a tablet with a stylus, a mouse. Write the missing-`dx` work with each and run it as a hint. Choose the device whose handwriting the model reads most reliably. Then write the demo work with that device five times and record how many hints landed on the right clusters.
 3. **Warm-up.** A `scripts/warm.ts` that sends one hint request for the demo problem so that the prompt cache and connections are warm. Run it two minutes before presenting.
 4. **Offline kit.** Confirm `STORE=memory MOCK_LLM=1 pnpm start` runs the journey with no network, using recorded replies for the two demo problems. This is for a dead network only. If it is ever used in front of judges, say so: "the venue network is down, so these two replies are recordings of the real model from an hour ago".
-5. **Pre-flight list** in `scripts/preflight.md`: charger; device paired and charged; browser zoom; do-not-disturb on; `pnpm smoke` green; warm-up run; Moodle demo login typed once to confirm; the course already ingested; the recorded agent run loaded; the backup video open in a tab; a phone hotspot ready.
-6. **Known-bad handwriting.** Find out what breaks it (tiny writing, writing across rows, cursive) and simply do not do that on stage.
+5. **Pre-flight list** in `scripts/preflight.md`: charger; device paired and charged; browser zoom; do-not-disturb on; `pnpm smoke` green; warm-up run; confirmed source snapshot cached and demo day recorded; the course already ingested; the recorded agent run loaded; the backup video open in a tab; a phone hotspot ready.
+6. **Known-bad handwriting.** Find out what breaks it and simply do not do that on stage. Candidates: tiny writing, cursive, side work without a divider (it shares lines with the main work), and strokes written out of order (going back to an earlier line). Writing across rows and tall fractions are handled by the free layout (P2.5a).
 
 **Acceptance**
 - [ ] **P8.4-AC1** — **Reset demo** returns to an identical start. *Verify:* e2e test: draw, reset, state equals the seeded state.
@@ -161,7 +164,7 @@ Evidence: img/peri-1.jpg   (or a quoted message)
 2. **Project description** for the submission site, written from this skeleton. Keep each part to a short paragraph.
    - **Inspiration.** AI tutors live in chat boxes and teach methods the class has not reached. Math homework happens by hand.
    - **What it does.** The journey in five sentences.
-   - **How we built it.** Next.js and TypeScript; our own stroke canvas; Claude on Amazon Bedrock for reading handwriting and writing hints; a deep agent built with LangChain's Deep Agents for course ingestion and study planning; MongoDB Atlas for all data and the agent's memory; Moodle web services for the course. *We built with Cursor as our coding agent, working from a written plan in the repo, and a Grok Bot automation that re-ran our checks on `main` every hour and told us when it broke.*
+   - **How we built it.** Next.js and TypeScript; our own stroke canvas; Claude on Amazon Bedrock for reading handwriting and writing hints; a deep agent built with LangChain's Deep Agents for course ingestion and study planning; MongoDB Atlas for all data and the agent's memory; a pinned GitHub manifest and cached PDFs for the course. *We built with Cursor as our coding agent, working from a written plan in the repo, and a Grok Bot automation that re-ran our checks on `main` every hour and told us when it broke.*
    - **Forward Deployed (Peri).** Business name; person and role; what they told us; what we changed; the evidence.
    - **Challenges.** Pointing at the right symbol (solved by numbered clusters); keeping hints from giving answers (the ladder plus server-side checks); making the ink look written.
    - **Accomplishments.** The eval numbers from `fixtures/eval/last-run.json`: row accuracy, the 100% no-answer result, median time to first ink.
@@ -185,7 +188,7 @@ Evidence: img/peri-1.jpg   (or a quoted message)
 | Time | On screen | Say |
 |---|---|---|
 | 0:00 | The work page, empty | "AI tutors make you type your problem into a chat box, then teach you a method your class never covered. Albert works on the page, in your handwriting, the way your professor taught it." |
-| 0:15 | Connect Moodle → Calculus II → the run panel replaying | "You connect your course. A deep agent reads every unit: one sub-agent per unit, each writing a teaching card of the methods, notation and examples your teacher uses. This is a recording of that run, sped up." |
+| 0:15 | Import GitHub course → Calculus II → the run panel replaying | "You connect your course. A deep agent reads every unit: one sub-agent per unit, each writing a teaching card of the methods, notation and examples your teacher uses. This is a recording of that run, sped up." |
 | 0:35 | Worksheet 3, problem 1. Write three rows, dropping `dx`. Stop | "Now I just do my homework. …And I'm stuck." |
 | 0:55 | The mark, then the circle, arrow and question | "Albert noticed the pause. It circled the exact symbol, and it asked me a question. It didn't give me the answer. And it's pointing me to Lecture 9, where my professor taught this step." |
 | 1:20 | **More help**, then fix the row, **Check** | "If I need more, the next tap names the step. Only the third writes it. …Correct." |
@@ -202,7 +205,7 @@ Evidence: img/peri-1.jpg   (or a quoted message)
    - *What if the notes are handwritten scans?* The reader is a vision model; every example label is checked against the transcribed source before it can be cited.
    - *Why not just ChatGPT with a photo?* No timing, no pointing, no course scope, no memory of the student.
    - *Does it work with Canvas?* The adapter interface is there; real Canvas access needs an institution-approved key; upload works anywhere today.
-   - *What about privacy?* Only the student's own course materials are read; the password is never stored; nothing is written back to the LMS.
+   - *What about privacy?* Only the student's own course materials are read; optional source tokens stay server-side; nothing is written back to the LMS.
 3. Record the backup: a clean run of the full script, screen and voice, at the demo's resolution. Upload it unlisted and put the link in the README and the submission.
 
 **Acceptance**
@@ -257,3 +260,5 @@ Not to be attempted this weekend: drawing over other desktop apps, accounts, gra
 - [ ] Backup video linked.
 - [ ] `status.md` is complete: every subphase ticked or marked cut, with the reason.
 - [ ] Sleep before judging if there is any time left. A tired presenter costs more than a missing stretch goal.
+
+Source evidence: distinguish verified synthetic golden checks from the real course import. Record the published manifest SHA/demo day; keep owner confirmation, publication and live smoke pending until actually verified.

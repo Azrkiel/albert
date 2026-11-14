@@ -96,7 +96,7 @@ it("preserves repeated mock hint timestamps while deduplicating evidence and rec
   const { examples } = await import("./contracts.examples");
   const repo = getRepo();
   const card = TeachingCardSchema.parse(examples.TeachingCard.valid);
-  card.subskills[0]!.id = "calc2/u3/differential";
+  card.subskills[0]!.id = "u3.find_dx";
   const session = { ...SessionSchema.parse(examples.Session.valid), id: "persisted-hint-test", worksheetId: input.worksheetId };
   const worksheet = { ...WorksheetSchema.parse(examples.Worksheet.valid), id: input.worksheetId, problems: [{ ...WorksheetSchema.parse(examples.Worksheet.valid).problems[0]!, id: input.problemId, subskillIds: [card.subskills[0]!.id] }] };
   await repo.upsertCard(card);

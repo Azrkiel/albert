@@ -1,9 +1,10 @@
+import { existsSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
 const missingDx = 'section[data-problem-id="calc2-ws3/p1"]';
 
 test("P3.1-AC4: replay missing dx, tap the hint mark, see Albert's question", async ({ page }) => {
-  test.fixme(true, "needs P2.6 hint-mark wiring on this branch; missing-dx.json is now recorded");
+  test.fixme(!existsSync("fixtures/sessions/missing-dx.json"), "needs P2.6 hint mark and fixtures/sessions/missing-dx.json");
   await page.goto("/work/calc2-ws3?replay=missing-dx&speed=instant");
   await page.waitForFunction(() => window.__albert?.replayDone === true);
   const problem = page.locator(missingDx);
@@ -20,6 +21,7 @@ test("dev hint button is opt-in and displays rung 1 in red in the correct column
   await page.goto("/work/calc2-ws3");
   await expect(page.getByRole("button", { name: "Request mock hint" })).toHaveCount(0);
   await page.goto("/work/calc2-ws3?dev=1");
+  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
   const button = page.getByRole("button", { name: "Request mock hint" });
   await expect(button).toBeVisible();
   const sent = page.waitForRequest((request) => request.url().endsWith("/api/hint") && request.method() === "POST");
@@ -43,6 +45,8 @@ for (const scenario of ["non-2xx", "invalid line", "truncated stream"] as const)
       body: scenario === "invalid line" ? "bad JSON\n" : '{"type":"started","hintId":"partial","at":0}\n',
     }));
     await page.goto("/work/calc2-ws3?dev=1");
+    // Wait for hydration: a click on server-rendered markup before React attaches is lost (Nov 14 CI flake).
+    await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
     const button = page.getByRole("button", { name: "Request mock hint" });
     await button.click();
     const column = page.locator(missingDx).locator("[data-albert-column]");

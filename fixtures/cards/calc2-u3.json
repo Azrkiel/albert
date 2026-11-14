@@ -1,0 +1,208 @@
+{
+  "unitId": "calc2/u3",
+  "courseId": "calc2",
+  "order": 3,
+  "title": "Trigonometric Substitution",
+  "taught": true,
+  "lectures": [
+    {
+      "label": "Lecture 9",
+      "fileId": "calc2-lecture-09"
+    },
+    {
+      "label": "Lecture 10",
+      "fileId": "calc2-lecture-10"
+    }
+  ],
+  "methods": [
+    {
+      "id": "u3.recipe",
+      "name": "Trigonometric substitution (the five-step recipe)",
+      "lecture": "Lecture 9",
+      "summary": "Remove \\sqrt{a^2-x^2}, \\sqrt{a^2+x^2} or \\sqrt{x^2-a^2} with x = a\\sin\\theta, a\\tan\\theta or a\\sec\\theta.",
+      "steps": [
+        "Step 1: choose the substitution from the table.",
+        "Step 2: find dx. Differentiate the substitution and write dx = \\frac{dx}{d\\theta}\\,d\\theta on its own line.",
+        "Step 3: substitute and simplify the root with a Pythagorean identity.",
+        "Step 4: integrate in \\theta.",
+        "Step 5: draw the reference triangle and convert back to x."
+      ]
+    },
+    {
+      "id": "u3.reference_triangle",
+      "name": "Reference triangle",
+      "lecture": "Lecture 9",
+      "summary": "Convert the answer from \\theta back to x by drawing a right triangle from the substitution, not with inverse-trig identities.",
+      "steps": [
+        "Write the substitution as a ratio of two sides, for example sin θ = x/a.",
+        "Draw the right triangle with those two sides and find the third with Pythagoras.",
+        "Read each trig function of θ from the triangle."
+      ]
+    }
+  ],
+  "notation": [
+    {
+      "concept": "substitution table",
+      "teacherWrites": "\\sqrt{a^2-x^2}: x=a\\sin\\theta;\\ \\sqrt{a^2+x^2}: x=a\\tan\\theta;\\ \\sqrt{x^2-a^2}: x=a\\sec\\theta",
+      "avoid": [
+        "u = a\\sin\\theta",
+        "x = a\\sin t"
+      ]
+    },
+    {
+      "concept": "differential",
+      "teacherWrites": "dx = a\\cos\\theta\\,d\\theta",
+      "avoid": [
+        "dx = a\\cos\\theta"
+      ],
+      "note": "Written on its own line as Step 2: find dx. Never leave out dθ."
+    },
+    {
+      "concept": "new variable",
+      "teacherWrites": "\\theta, always",
+      "avoid": [
+        "u",
+        "t",
+        "\\phi"
+      ]
+    },
+    {
+      "concept": "derivative",
+      "teacherWrites": "\\frac{dx}{d\\theta}",
+      "avoid": [
+        "f'(x)"
+      ]
+    }
+  ],
+  "workedExamples": [
+    {
+      "label": "Lecture 9, Example 1",
+      "problemLatex": "\\int \\frac{\\sqrt{9-x^2}}{x^2}\\,dx",
+      "fileId": "calc2-lecture-09",
+      "page": 2,
+      "methodIds": [
+        "u3.recipe",
+        "u3.reference_triangle"
+      ],
+      "stepsLatex": [
+        "\\text{Step 1: } x = 3\\sin\\theta",
+        "\\text{Step 2: find } dx:\\quad dx = 3\\cos\\theta\\,d\\theta",
+        "\\text{Step 3: } \\sqrt{9-x^2} = 3\\cos\\theta \\text{ and } \\int \\frac{3\\cos\\theta\\cdot 3\\cos\\theta}{9\\sin^2\\theta}\\,d\\theta = \\int \\cot^2\\theta\\,d\\theta = \\int(\\csc^2\\theta - 1)\\,d\\theta",
+        "\\text{Step 4: } -\\cot\\theta - \\theta + C",
+        "\\text{Step 5: } \\sin\\theta = \\tfrac{x}{3},\\ \\cot\\theta = \\tfrac{\\sqrt{9-x^2}}{x},\\ \\text{so } -\\tfrac{\\sqrt{9-x^2}}{x} - \\arcsin\\tfrac{x}{3} + C"
+      ]
+    },
+    {
+      "label": "Lecture 9, Example 2",
+      "problemLatex": "\\int \\frac{dx}{x^2\\sqrt{9-x^2}}",
+      "fileId": "calc2-lecture-09",
+      "page": 3,
+      "methodIds": [
+        "u3.recipe",
+        "u3.reference_triangle"
+      ],
+      "stepsLatex": [
+        "\\text{Step 1: } x = 3\\sin\\theta",
+        "\\text{Step 2: find } dx:\\quad dx = 3\\cos\\theta\\,d\\theta",
+        "\\text{Step 3: } \\sqrt{9-x^2} = 3\\cos\\theta \\text{, so } \\int \\frac{3\\cos\\theta\\,d\\theta}{9\\sin^2\\theta\\cdot 3\\cos\\theta} = \\tfrac{1}{9}\\int \\csc^2\\theta\\,d\\theta",
+        "\\text{Step 4: } -\\tfrac{1}{9}\\cot\\theta + C",
+        "\\text{Step 5: } \\sin\\theta = \\tfrac{x}{3},\\ \\cot\\theta = \\tfrac{\\sqrt{9-x^2}}{x},\\ \\text{so } -\\tfrac{\\sqrt{9-x^2}}{9x} + C"
+      ]
+    },
+    {
+      "label": "Lecture 10, Example 1",
+      "problemLatex": "\\int \\frac{dx}{x^2\\sqrt{x^2+4}}",
+      "fileId": "calc2-lecture-10",
+      "page": 2,
+      "methodIds": [
+        "u3.recipe",
+        "u3.reference_triangle"
+      ],
+      "stepsLatex": [
+        "\\text{Step 1: } x = 2\\tan\\theta",
+        "\\text{Step 2: find } dx:\\quad dx = 2\\sec^2\\theta\\,d\\theta",
+        "\\text{Step 3: } \\sqrt{x^2+4} = 2\\sec\\theta \\text{, so } \\int \\frac{2\\sec^2\\theta\\,d\\theta}{4\\tan^2\\theta\\cdot 2\\sec\\theta} = \\tfrac{1}{4}\\int \\frac{\\cos\\theta}{\\sin^2\\theta}\\,d\\theta",
+        "\\text{Step 4: } -\\tfrac{1}{4}\\csc\\theta + C",
+        "\\text{Step 5: } \\tan\\theta = \\tfrac{x}{2},\\ \\csc\\theta = \\tfrac{\\sqrt{x^2+4}}{x},\\ \\text{so } -\\tfrac{\\sqrt{x^2+4}}{4x} + C"
+      ]
+    },
+    {
+      "label": "Lecture 10, Example 2",
+      "problemLatex": "\\int \\frac{\\sqrt{x^2-9}}{x}\\,dx,\\quad x>3",
+      "fileId": "calc2-lecture-10",
+      "page": 3,
+      "methodIds": [
+        "u3.recipe",
+        "u3.reference_triangle"
+      ],
+      "stepsLatex": [
+        "\\text{Step 1: } x = 3\\sec\\theta",
+        "\\text{Step 2: find } dx:\\quad dx = 3\\sec\\theta\\tan\\theta\\,d\\theta",
+        "\\text{Step 3: } \\sqrt{x^2-9} = 3\\tan\\theta \\text{, so } \\int \\frac{3\\tan\\theta\\cdot 3\\sec\\theta\\tan\\theta}{3\\sec\\theta}\\,d\\theta = 3\\int \\tan^2\\theta\\,d\\theta = 3\\int(\\sec^2\\theta - 1)\\,d\\theta",
+        "\\text{Step 4: } 3\\tan\\theta - 3\\theta + C",
+        "\\text{Step 5: } \\sec\\theta = \\tfrac{x}{3},\\ \\tan\\theta = \\tfrac{\\sqrt{x^2-9}}{3},\\ \\text{so } \\sqrt{x^2-9} - 3\\operatorname{arcsec}\\tfrac{x}{3} + C"
+      ]
+    }
+  ],
+  "conventions": [
+    "The angle is always θ.",
+    "Write Step 2: find dx on its own line, before substituting anything.",
+    "Always draw the reference triangle to convert back to x; do not use inverse-trig identities for that step.",
+    "State the restriction on x (for example x > 3) when the root is √(x² − a²).",
+    "Derivatives are written in Leibniz form, dy/dx; the course never uses f'(x)."
+  ],
+  "pitfalls": [
+    {
+      "description": "Substituting x = a\\sin\\theta but leaving out dx = a\\cos\\theta\\,d\\theta, so the integral has no d\\theta.",
+      "subskillId": "u3.find_dx",
+      "errorType": "missing_dx"
+    },
+    {
+      "description": "Choosing the wrong row of the table, for example x = a\\tan\\theta for \\sqrt{a^2-x^2}.",
+      "subskillId": "u3.choose_substitution",
+      "errorType": "wrong_substitution"
+    },
+    {
+      "description": "Not simplifying the root with the Pythagorean identity, for example leaving \\sqrt{9-9\\sin^2\\theta}.",
+      "subskillId": "u3.simplify_identity",
+      "errorType": "identity_not_applied"
+    },
+    {
+      "description": "Labelling the triangle's sides with the wrong ratio, or leaving the answer in terms of θ.",
+      "subskillId": "u3.reference_triangle",
+      "errorType": "bad_back_substitution"
+    }
+  ],
+  "subskills": [
+    {
+      "id": "u3.choose_substitution",
+      "name": "Choose the substitution",
+      "description": "Match \\sqrt{a^2-x^2}, \\sqrt{a^2+x^2} or \\sqrt{x^2-a^2} to its row of the table."
+    },
+    {
+      "id": "u3.find_dx",
+      "name": "Find dx",
+      "description": "Differentiate the substitution and carry dx = \\frac{dx}{d\\theta}\\,d\\theta into the integral."
+    },
+    {
+      "id": "u3.simplify_identity",
+      "name": "Simplify with an identity",
+      "description": "Replace the root with a trig function using a Pythagorean identity."
+    },
+    {
+      "id": "u3.integrate_theta",
+      "name": "Integrate in θ",
+      "description": "Evaluate the trig integral in θ."
+    },
+    {
+      "id": "u3.reference_triangle",
+      "name": "Back-substitute with the triangle",
+      "description": "Draw the reference triangle and rewrite the answer in x."
+    }
+  ],
+  "sourceFileIds": [
+    "calc2-lecture-09",
+    "calc2-lecture-10"
+  ],
+  "builtBy": "hand"
+}

@@ -127,11 +127,126 @@ src/lib/canvas/
 3. Dev overlay (only with `?dev=1`): draw each cluster's box and number on screen. This overlay is how you tune `STUCK.CLUSTER_GAP` against real handwriting.
 
 **Acceptance**
-- [ ] **P2.5-AC1** — Known layouts cluster as expected. *Verify:* `tests/unit/clusters.test.ts` with synthetic boxes: three well-separated symbols give three clusters; a fraction (bar with ink above and below) gives one; an equals sign (two parallel short strokes) gives one; an `i` with its dot gives one; two symbols 10 px apart give one and 40 px apart give two.
+- [ ] **P2.5-AC1** — Known layouts cluster as expected. *Verify:* `tests/unit/clusters.test.ts` with synthetic boxes: three well-separated symbols give three clusters; a fraction (bar with ink above and below) gives the numerator's clusters, then the bar, then the denominator's, as adjacent labels (was "gives one"; changed after P2.5-AC3 so a stacked denominator can be circled); an equals sign (two parallel short strokes) gives one; an `i` with its dot gives one; two symbols closer than `CLUSTER_GAP` give one and 40 px apart give two. (Was "10 px apart give one", written for the starting gap of 22; real handwriting in P2.5-AC3 had 4–15 px between separate symbols, so the gap is now 4.)
 - [ ] **P2.5-AC2** — Labels are stable left to right and restart per row. *Verify:* unit test.
 - [ ] **P2.5-AC3** — On real handwriting the clusters are usable. *Verify by hand:* with the dev overlay on, write `∫ dx / (x²√(16 − x²))` and `x = 4 sin θ` on separate rows. Each term a tutor might want to circle (the integral sign, `dx`, the denominator, `4 sin θ`) is one cluster or a run of adjacent clusters. Adjust `CLUSTER_GAP` if not, and record the final value in `contracts.md`.
 
 **Note.** Clusters do not need to be perfect symbols. Albert can name several adjacent clusters, and a circle around two of them reads fine. What matters is that boundaries fall in sensible gaps.
+
+---
+
+### P2.5a — Write anywhere (lines inferred from ink)
+
+**Goal.** The student writes anywhere in the student column, at any size, with no ruled lines. Albert still knows which line of work every stroke belongs to, so clusters, stuck detection, snapshots and hints keep working.
+
+**Depends on.** P2.5 (fraction-bar rule, `FRACTION_BAR_MIN_ASPECT`). P2.4 (merged) owns erase/undo/redo semantics in the reducer; keep them. Its edits require the target row to exist, which is why fully erased lines keep their row.
+
+**Key idea.** A `Row` stops being a fixed band and becomes a **line** inferred from ink. Its shape does not change (`{ id, problemId, index, bbox }`), so nothing downstream changes shape: `Stroke.rowId`, `Cluster.rowId`, `StuckSignal.rowId`, `HintRequest.rows`, `Mark.rowIndex`, `AlbertMarkSpec.rowId` and the snapshot's `R1, R2, …` tags all keep their meaning, with "row" now meaning "line".
+
+**Build.**
+1. `src/lib/canvas/lines.ts` (pure, unit tested):
+   ```ts
+   function assignLine(stroke: Stroke, strokes: Stroke[]): string        // an existing line id or a new one
+   function lineRows(problemIds: string[], strokes: Stroke[]): Row[]     // bands and indexes from the ink
+   function freeSurfaceHeight(rows: Row[]): number                       // blank page + room below the ink
+   ```
+   **Line assignment** (new rule in `contracts.md` §2, replacing the band rule when the layout is `free`):
+   - A line's **band** is the vertical extent of its live pen strokes.
+   - A finished stroke **joins** the line whose band it overlaps most, when the overlap is at least `LINE.MIN_OVERLAP` of the shorter of the two heights. Ties go to the nearer band centre, then the older line.
+   - **Fraction parts join their bar's line.** If the stroke is centred over or under a flat stroke (width ≥ `FRACTION_BAR_MIN_ASPECT` × height) of a line within `LINE.GAP`, or the stroke is itself flat and covers the centre of a line's ink within `LINE.GAP` above or below, it joins that line. Numerator, bar and denominator therefore stay together in any writing order.
+   - Otherwise the stroke **starts a new line**.
+   - Assignment happens once, when the stroke ends, and is stored on the stroke as now. It never changes afterwards, so replay is exact and recordings stay authoritative.
+   - **Ids** are `${problemId}/r${n}`, with `n` the creation order. Ids are never reused.
+   - **Index** is top-to-bottom order by band top, recomputed on every change. Ids are stable; indexes can shift when a line is written between two others. History and hints refer to ids, so only the labels drawn on the next snapshot change.
+   - A line whose strokes are all erased keeps its row, so P2.4's undo can restore it, but it is numbered after the lines with ink and shows no number.
+   - `Row.bbox` is the student column's x and width, by the band ± `LINE.PAD`.
+2. Constants in `src/lib/contracts/geometry.ts`: `LINE = { GAP: 16, GAP_PER_HEIGHT: 0.5, MIN_OVERLAP: 0.3, REACH: 0.5, PAD: 8 }` (logical px; the fraction gap is the larger of `GAP` and `GAP_PER_HEIGHT` × the part's height, so big writing still joins). `GAP` is a first guess, tuned at AC4 the way `CLUSTER_GAP` was.
+3. **Layout switch.** The default is `ruled` until P2.5a-AC4 passes, then `free` (user decision, Nov 14).
+   - `NEXT_PUBLIC_CANVAS_LAYOUT=free|ruled`, overridden per page load by `?layout=free|ruled`.
+   - `SessionRecording.layout?: "ruled" | "free"`. Absent means `ruled`, so `sample.json` and `ac3-handwriting.json` replay unchanged.
+   - The store uses `assignRow`/`ensureRows` for `ruled` and `assignLine`/`lineRows` for `free`.
+   - `ruled` stays as the fallback (128 px rows).
+4. **Surface in `free` layout.**
+   - No rule lines.
+   - Each problem keeps at least `2 × PAGE.rowHeight` of blank space below its lowest ink; this replaces "append one more row".
+   - A faint line number at the left edge of each line's band. Students see what Albert's `R2` means, and P2.4's "Clear row" has something to tap.
+   - The `?dev=1` overlay also outlines each line's band, next to the cluster boxes.
+5. **Docs.** `contracts.md` §1/§2 get the Line assignment rule, `LINE`, and the `Row` comment "a line of work: inferred from ink (`free`) or a ruled band (`ruled`)". `phase-2-canvas.md` P2.2 gets a note that `free` supersedes it by default.
+
+**Acceptance**
+- [ ] **P2.5a-AC1** — Lines come out as a reader would see them. *Verify:* `tests/unit/lines.test.ts` with synthetic boxes covers:
+  - two lines of work separated by whitespace give two rows;
+  - a stacked fraction written in each order (numerator→bar→denominator, denominator→bar→numerator, bar→numerator→denominator) gives one row;
+  - a tall `∫`, superscripts and subscripts join their line;
+  - a new line started just below the previous one (gap > `LINE.GAP`) is a new row;
+  - a line written between two existing lines gets index 2 and the lower one becomes index 3, with ids unchanged;
+  - a fully erased line keeps its row behind the lines with ink, and undo restores it;
+  - another problem's strokes are ignored.
+- [ ] **P2.5a-AC2** — Replay is exact and old recordings still work. *Verify:* unit tests show a `free` recording replays to the same rows and rowIds; the existing `ruled` fixtures and the existing replay e2e pass unchanged.
+- [ ] **P2.5a-AC3** — The page behaves. *Verify:* `tests/e2e/lines.spec.ts`. In `free` layout:
+  - no rule lines render;
+  - strokes drawn at arbitrary heights get rows in visual order;
+  - space grows below the lowest ink;
+  - `?dev=1` shows line bands.
+
+  With `NEXT_PUBLIC_CANVAS_LAYOUT=ruled`, the P2.2 e2e passes unchanged.
+- [ ] **P2.5a-AC4** — It works on real handwriting. *Verify by hand:* with `?dev=1`, write anywhere on the page, at two sizes:
+  - `∫ dx / (x²√(16 − x²))` as a stacked fraction about two old rows tall;
+  - `x = 4 sin θ`;
+  - three more ordinary steps.
+
+  Each step must be one line, and no line may swallow its neighbour. Tune `LINE.GAP` and record it in `contracts.md`.
+
+**Fallback.** `NEXT_PUBLIC_CANVAS_LAYOUT=ruled` (128 px rows) is the demo default if AC4 is not solid within the time box.
+
+**Not in this subphase.**
+- Side-by-side work at the same height joins one line. Clusters still separate it, so Albert can point, but reading order mixes.
+- Lines merging after the fact.
+- Strongly slanted lines.
+- Moving ink with a lasso.
+
+**Downstream notes (for later phases; no change now).**
+- P2.6: "per row" means per line. Pause uses the last line with ink, by time.
+- P2.7: crop "rows 1..stuck" uses line index order. Tags go at each line's left edge.
+- P4.x: ruled rows guaranteed vertical spacing; lines do not. The margin layout must stack Albert's notes when two lines are closer than a note's height.
+- D4's narrow-screen variant puts the margin below the line.
+
+---
+
+### P2.5b — Side work beside a divider
+
+**Goal.** A student can draw a long vertical line and do side work next to the main column, and the side work gets its own lines even at the same height as main work.
+
+**Depends on.** P2.5a (free layout). User request, Nov 14.
+
+**Build.**
+1. `src/lib/canvas/shapes.ts` (pure): `dividerIds(strokes)` and `isDivider(stroke, context)`. A pen stroke is a divider when it is at least `LINE.DIVIDER_MIN_HEIGHT` (120) tall and at least `LINE.DIVIDER_MIN_GLYPHS` (3) × the median letter height written before it in the problem, so a "1" or an absolute-value bar never counts and a stroke's status never changes as more is written. It must also be no wider than `LINE.DIVIDER_MAX_WIDTH_RATIO` × its height, and nearly straight: path length ≤ `LINE.DIVIDER_MAX_PATH_RATIO` × the distance between its ends. Real integrals measured 1.17–1.55 on that ratio, a hand-drawn straight line about 1.0–1.05. `FRACTION_BAR_MIN_ASPECT` and `isFlat` move here too, shared by clusters and lines.
+2. `lines.ts`:
+   - A stroke cannot join ink on the other side of a live divider when the divider's height covers both strokes' centres. Side work therefore starts its own lines, and below the divider's end the page is one column again.
+   - A divider gets a row of its own. It is not numbered, has no clusters, and comes after every other row, so P2.4's erase and undo still find it.
+   - Numbering: the main column top to bottom, then each side column (right of a divider that spans the line) top to bottom.
+   - A row's box spans its column, from the divider on its left to the one on its right.
+3. `clusterRow` ignores dividers in both layouts: they are page structure, not symbols.
+4. Clear-row numbers sit at each row's own left edge, so side lines are numbered beside the side work.
+
+**Acceptance**
+- [ ] **P2.5b-AC1** — Dividers and side lines come out right. *Verify:* `tests/unit/side-work.test.ts`:
+  - divider detection: a straight line, a slanted wobbly line, too short, a wide diagonal, a tall thin hooked integral;
+  - side work at the same height as two main lines gives four lines, numbered main then side, with column boxes;
+  - main work continued left of the divider joins its line;
+  - below the divider's end the page is one column again;
+  - the divider is unnumbered, last and has no clusters;
+  - erasing and undoing a divider keeps P2.4 history valid;
+  - the ruled layout keeps dividers out of clusters.
+- [ ] **P2.5b-AC2** — The page behaves. *Verify:* `tests/e2e/side-work.spec.ts`. Main work, a divider, side work at the same height and more main work give two numbered lines (the side number to the right) plus the divider's row, three line bands and three cluster boxes.
+- [ ] **P2.5b-AC3** — Real side work. *Verify by hand:* with `?layout=free&dev=1`, write two lines of main work, draw a long line down the page, do side work beside it at the same heights, then continue main work below. Each side line is its own band and the main lines are unchanged. Tune the `DIVIDER_*` values if not.
+
+**Known limits.**
+- Only strokes written after the divider are split by it. Assignment is incremental (P2.5a).
+- A divider must be one stroke.
+- Side work without a divider is still grouped with main work at the same height.
+
+**Downstream notes (later phases).** P4.x: two lines can now share a height, so Albert's margin notes must stack. P2.7: tag each line at its own `bbox.x`.
 
 ---
 
@@ -164,6 +279,15 @@ src/lib/canvas/
 
 **Fallback.** If cross-out and erase-loop detection are not solid by the time box, ship pause and manual only (cut list, main plan §5.3). The two unit-tested signals that work are worth more than four that misfire.
 
+**P2.6 implementation notes.**
+- Live `now` is elapsed `performance.now()` since session start. During timed replay it is recording-relative time scaled by playback speed, capped at `durationMs`. Instant replay applies the recorded events first, then detects at `durationMs`, including the trailing pause. After playback, live time resumes from that duration. The 1.5 s auto-request delay uses real visible time, independent of replay speed.
+- Solved means the latest `check_result` for that problem has verdict `correct`. It suppresses every automatic signal and the manual control until a later check changes the verdict; writing alone does not clear a correct check.
+- `SessionState.crossOuts` is a derived stroke-id → crossed-cluster-id tag, computed against the row's clusters immediately before each stroke. It is rebuilt by the common reducer on replay, never added to `Stroke` or exported as metadata. Tagged scribbles remain in `state.strokes` (visible ink and snapshot paths); the store excludes them from symbol clustering. Existing ink remains available to point at. Undo/redo preserves the tag.
+- Pause tempo uses pen-stroke gaps across the session, including ink subsequently erased. The target is the latest pen stroke still represented in live clusters in the current problem, by writing time rather than row index. Eraser strokes and divider-only lines do not start a pause. Erase-loop counts ordinary undo, not redo; edits before new ink do not immediately refire an old erase-loop. All thresholds come from `STUCK`; `PAUSE_MIN_MS` remains 8000 pending AC4.
+- The hint mark is an HTML button over the surface, centred on `Row.bbox`, with accessible name exactly `Need a hint?`. It stays inside the problem section, has no sound or layout effect, and respects reduced motion. Both controls raise `onHintRequested({ rowId, rung: 1, trigger })` and use WorksheetCanvas's existing `requestHint`; P3.1's dev button is retained. `I'm stuck` stays present; in a blank free-layout problem it is disabled until ink creates a target line.
+- `needs human: P2.6-AC4`: two people independently open `/work/calc2-ws3`, solve a real problem with normal thinking pauses, and each report whether the mark distracts them. Confirm it waits for a tap, disappears on new ink, and tapping either control produces the mock hint. If either finds it distracting, raise `STUCK.PAUSE_MIN_MS`, update Settings, and repeat with both people. Do not tick P2.6 until this and the real recording check pass.
+- `blocked: P2.6-AC3 waits on pause-row2.json`: a person records the integral on row 1 and `x = 4 sin θ` on row 2, then 15 s of nothing, using the demo device and Export. The spec is fixme until that real recording exists. Passing synthetic UI cases do not replace this check or impersonate a recording.
+
 ---
 
 ### P2.7 — Snapshots
@@ -192,6 +316,13 @@ src/lib/canvas/
 - [ ] **P2.7-AC4** — A model can read the numbers. *Verify:* `pnpm smoke --snapshot fixtures/eval/marked-sample.png` asks the model "Which cluster number is above the term dx in row R2?" and gets the known answer. (Uses `pingVision` from P1.4 with a different image and question.)
 - [ ] **P2.7-AC5** — `buildHintRequest` output parses as `HintRequest`. *Verify:* unit test.
 
+**Implementation notes (Nov 14).**
+- `planSnapshot` (pure, unit tested) holds every rule; `renderSnapshot` only draws its plan. Rows are rows 1..upTo by `Row.index` (lines in `free`). Only rows with live ink are drawn, tagged and listed; the stuck row is always listed so its id resolves. Divider rows (P2.5b) are unnumbered and last, so dividers are not drawn.
+- The crop is the union of the ink, the row tags and the cluster numbers, plus 24 px, so no mark is ever clipped. It is the same with and without marks, so `image.clean` lines up with `image.marked` (one `width`/`height` in `HintRequest`).
+- Numbers are 14 logical px (28 image px at 2×). A number goes centred above its cluster unless that overlaps another number, a tag or another cluster's box; then centred **below** the cluster (a stacked denominator sits right under its bar), then the nearest free spot sideways above, then sideways below. White halos keep numbers readable where they cross ink. Tags `R1, R2, …` sit in grey left of each row's own ink.
+- `buildHintRequest(state, rowId, rung, trigger, options?)`: `SessionState` has no session id, so `sessionId` defaults to the placeholder `local:<worksheetId>` and callers pass their own. **P2.8 replaced the page's use of it:** `WorksheetCanvas` passes the store's session id from `POST /api/session` once it is known, and falls back to its per-page `useId()` before that. The `local:` default stays only for callers with no session. History rung and row come from the matching `hint_requested` event (rung 1 if none). Not wired into the page's hint flow (P3.3 / P4.4).
+- AC4: `fixtures/eval/marked-sample.png` is rows 1–2 of `ac4-handwriting.json`; the answer key sits beside it in `marked-sample.md` (`answer: 9, 10`, since `d` and `x` are separate clusters). `pnpm smoke --snapshot <png>` runs only that question and grades the reply's last line; without the flag smoke is unchanged.
+
 ---
 
 ### P2.8 — Session sync
@@ -208,6 +339,14 @@ src/lib/canvas/
 - [ ] **P2.8-AC1** — Events reach the store in order. *Verify:* `tests/e2e/session.spec.ts` (with `STORE=memory`) replays a fixture, waits for a flush, and reads the events back through a dev-only route; the count and order match.
 - [ ] **P2.8-AC2** — A failed post loses nothing. *Verify:* unit test of the buffer with a mock transport that fails once.
 - [ ] **P2.8-AC3** — Drawing is unaffected by a slow network. *Verify by hand:* throttle the network to "Slow 3G" in dev tools and write. Ink stays immediate.
+
+**Implementation notes (P2.8).**
+- `createSessionSync(transport)` in `src/lib/canvas/session-sync.ts` is the pure buffer: no timers, no network. `push` only appends; `flush` sends the whole buffer as one batch, one batch at a time; a failed batch stays in front of newer events and goes out with the next flush; `flushBeacon(send)` clears the buffer only if `send` (the `navigator.sendBeacon` wrapper) returns true, and is skipped while a batch is in flight (sending those events twice would be worse than losing the tail of an unloading page). The page owns the 3 s interval (`useSessionSync`, `FLUSH_INTERVAL_MS`) and the `visibilitychange` hook.
+- A post that reached the store but whose reply was lost is sent again, so the store can hold those events twice. Events have no ids to dedupe on; revisit when Phase 7 computes evidence from them.
+- `POST /api/session` creates the `Session` with `studentId = DEMO_STUDENT_ID` (default `demo`) and the worksheet's course (`demo` until Phase 5 stores worksheets). The events route returns 404 for an unknown session. `POST /api/session/[id]/end` returns `{ evidenceAdded: 0 }` until Phase 7. The routes set no `runtime`/`dynamic` export (cacheComponents).
+- **End session** flushes, then ends the session; it stays on screen as "Session ended". Ink written afterwards starts a new session (the ended one is never appended to again).
+- **Replay decision.** Replayed fixture events are synced, because that is what makes AC1 testable without a pen, and replay is dev-only (`?replay=` is off in production). Each replay is its own session: starting one flushes the current session and opens a fresh one when the current one holds any events (an untouched session is reused), so replays never append a second copy of a history to an old session or mix with live ink. The stored events keep the recording's `at` values; they are not rebased to the wall clock.
+- `GET /api/dev/session-events?id=` reads a session's events back for the e2e. It returns 404 in production like `/api/dev/recording`, and 501 unless `STORE=memory`, because the `Repo` contract has no event read-back; `MemoryRepo.listEvents` is a dev-only method outside the contract.
 
 ---
 
@@ -237,3 +376,12 @@ pnpm e2e         # replay, stuck mark, snapshot, session sync
 - [ ] All seven recordings exist and pass the contract test.
 - [ ] By hand: solve the demo problem start to finish with the demo device. Stall once and see the mark. Export, reload the page, load the export, and see the same page.
 - [ ] `status.md` records the final `CLUSTER_GAP` and `PAUSE_MIN_MS` values.
+- [ ] **Handwriting sign-off (P2.5-AC3, P2.5a-AC4, P2.5b-AC3 together).** By hand, on the demo device, with `?layout=free&dev=1`, in one session:
+  - write the demo problem anywhere on the page, including a stacked fraction about two old rows tall;
+  - do one piece of side work beside a hand-drawn divider;
+  - continue the main work below the divider.
+
+  Check that each symbol a tutor would circle is a cluster or a run of adjacent clusters, each step is one line band, and the side work has its own bands. Export the session to `fixtures/sessions/` if anything needs tuning. Tick P2.5, P2.5a and P2.5b when it passes.
+- [ ] **Default layout.** Once the sign-off passes, make `free` the default: the `envLayout` fallback in `WorksheetCanvas`, `.env.example`, and `contracts.md` §12. Otherwise record in `status.md` why `ruled` stays.
+- [ ] **Stroke order.** During the sign-off, note whether any line splits because strokes were written out of order: going back to an earlier line, or writing right to left. Lines are assigned incrementally and never merge (P2.5a known limit). If it happens in normal writing, add a line-merge step before Gate G2.
+- [ ] **No flaky e2e.** `pnpm e2e` passes three runs in a row locally and CI is green on `main` without re-runs. The known flake is P3.1's `hint-mock` error-state tests (failed CI three times on Nov 14): they click **Request mock hint** before the page has hydrated. Make them wait for `svg[data-capture-ready=true]` before clicking.
