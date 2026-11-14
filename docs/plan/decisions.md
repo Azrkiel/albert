@@ -151,3 +151,11 @@ Each decision has a reason and a trigger that would change it. During the build,
 **Why.** The tagline was given as "Turns you to Einstein"; "into" is the idiomatic form. Change the one string in `src/lib/brand.ts` to restore the original wording.
 
 **Note.** An unrelated education product called Albert (albert.io) exists. If a judge raises it, the answer is that this is a hackathon project name inside Albert and Einstein Academy.
+
+## D18 — Lines are inferred from ink, not ruled
+
+**Decision.** Once P2.5a-AC4 passes, the work surface has no ruled rows by default. A "row" is a line of work inferred from the ink (contracts §2, Line assignment). Ruled 128 px rows remain as `NEXT_PUBLIC_CANVAS_LAYOUT=ruled`.
+
+**Why.** At P2.5-AC3 real handwriting did not fit fixed bands: a stacked fraction was 1.5 rows tall and was split between two rows, so Albert could not point at its denominator. Students should write the way they write on paper. Inferring lines keeps the `Row` shape, so clusters, stuck detection, snapshots and hint anchoring are unchanged.
+
+**Trigger to change.** If AC4 shows lines merging or splitting in normal writing and tuning `LINE.GAP` does not fix it, ship `ruled` and keep `free` behind the flag.
