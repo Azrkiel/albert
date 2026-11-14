@@ -45,7 +45,7 @@ Every feature belongs to one of these four ideas. If a proposed feature belongs 
 
 This is the path the demo walks. Each step names the phase that builds it.
 
-1. **Connect.** The student enters their Moodle site address and signs in. Albert lists their courses. *(Phase 5)*
+1. **Connect.** The student imports the configured GitHub manifest. Albert lists the cached course. *(Phase 5)*
 2. **Learn the course.** The student picks Calculus II. The course agent reads each unit's notes and worksheets and writes a *teaching card* per unit: methods, notation, worked examples, common mistakes, subskills. A panel shows the agent planning, delegating to sub-agents and saving cards. *(Phase 6)*
 3. **Open a worksheet.** The student opens Worksheet 3 (trigonometric substitution). Each problem is shown with ruled rows to work in. *(Phase 5, Phase 2)*
 4. **Work by hand.** The student writes one step per row with a stylus, finger or mouse. *(Phase 2)*
@@ -98,13 +98,13 @@ The hot path never waits on the agent. The agent does its work ahead of time and
 │    tutor/  scope bundle + Socratic ladder → one streaming call    │
 │  SLOW PATH  /api/agent/ingest, /api/agent/replan                  │
 │    agent/  deep agent: todos · sub-agents · files · memory        │
-│  lms/      MoodleAdapter · UploadAdapter · CanvasAdapter (stub)   │
+│  lms/      GitHubAdapter · UploadAdapter (fallback)   │
 │  progress/ evidence → skill levels (plain code, no model)         │
 │  db/       Repo interface → Mongo (default) or in-memory (tests)  │
 │  llm/      provider adapter: bedrock (default) · anthropic · xai  │
 └───────┬───────────────────────┬───────────────────────┬───────────┘
         ▼                       ▼                       ▼
-  Amazon Bedrock         MongoDB Atlas              Moodle site
+  Amazon Bedrock         MongoDB Atlas              GitHub repository
   (Claude models)   (data + agent checkpoints)  (web services REST)
 ```
 
@@ -120,7 +120,7 @@ All paths are under `src/`. Each module has one job and talks to the others only
 | `lib/canvas` | Stroke capture, row assignment, clustering, stuck detection, snapshot rendering, record and replay | browser | 2 |
 | `lib/tutor` | Builds the hint prompt, calls the model, validates and streams the hint | server | 3 |
 | `lib/ink` | Places and draws Albert's handwriting and marks | browser | 4 |
-| `lib/lms` | `LmsAdapter` interface and its implementations | server | 5 |
+| `lib/lms` | `CourseSourceAdapter` interface and its implementations | server | 5 |
 | `lib/agent` | The course agent: tools, sub-agents, skills, memory | server | 6 |
 | `lib/progress` | Turns evidence events into skill levels | server | 7 |
 | `app/` | Pages and API routes | both | all |
@@ -176,12 +176,12 @@ The reasons are in [`decisions.md`](./decisions.md). Do not reopen these during 
 | D6 | MongoDB Atlas is the database |
 | D7 | Claude on Amazon Bedrock is the default model provider, behind an adapter. The direct Anthropic API is the fallback. Grok is an optional third provider for the agent only |
 | D8 | `deepagents` runs the course agent. It is never in the hint path |
-| D9 | Moodle is the one real LMS integration. Manual upload is the fallback. Canvas is a typed stub |
+| D9 | Pinned GitHub manifests are the initial source; manual upload is the fallback; LMS sync is deferred |
 | D10 | Scope is relative to the worksheet: its unit and every earlier unit are covered, later units are not |
 | D11 | Skill levels are computed by plain code from evidence events. The model never sets a level |
 | D12 | A stuck signal shows a "Need a hint?" mark. Albert writes only after a tap, except in demo mode |
 | D13 | Annotations are drawn with `roughjs`, so circles and arrows are true pen strokes that animate |
-| D14 | One demo student, no sign-up flow. The Moodle token stays on the server |
+| D14 | One demo student, no sign-up flow. The optional GitHub token stays in server environment |
 | D15 | Everything the model returns is validated with zod before it is used |
 | D16 | The Jane Street Socratic skill is adapted: its rules shape the hint ladder and the level rule; its full course loop is used only in stretch-goal drill mode |
 | D17 | The name is Albert and the tagline is "Turns you into Einstein." |
@@ -222,7 +222,7 @@ Two track facts change how the product is built, so they are stated here as well
 | 2 | [Canvas](./phase-2-canvas.md) | Stroke capture with timing, rows, clusters, stuck detection, snapshots, record and replay | 1 |
 | 3 | [Tutor brain](./phase-3-tutor-brain.md) | `/api/hint` and `/api/check`: read, diagnose, Socratic ladder, scope rules, streaming, an eval set | 1 (2 for live input) |
 | 4 | [Ink](./phase-4-ink.md) | Albert's handwriting and marks drawn on the canvas | 2 (3 for live hints) |
-| 5 | [LMS](./phase-5-lms.md) | The Moodle site and seed course, the adapter, upload fallback, the worksheet page | 1 |
+| 5 | [LMS](./phase-5-lms.md) | Pinned GitHub manifests and cached PDFs, the adapter, upload fallback, the worksheet page | 1 |
 | 6 | [Course agent](./phase-6-course-agent.md) | Teaching cards, worksheet maps, scope bundles, the study plan, re-planning, the agent run panel | 1, 5 |
 | 7 | [Progress](./phase-7-progress.md) | Evidence events, skill levels, the course page, the tutor report | 3, 6 |
 | 8 | [Ship](./phase-8-ship.md) | End-to-end tests, track evidence, the Peri visit, the demo, the submission, stretch goals | all |
@@ -236,7 +236,7 @@ Time is counted from the start of hacking (`T`). Fill in the real clock times in
 | **G0** | T+2h | The app runs, `pnpm verify` passes, the model and database answer | Phase 1 exit |
 | **G1** | T+8h | Write on the canvas, get stuck, see a hint arrive from a recorded reply | Phase 2 exit and P3.1 |
 | **G2** | T+16h | A **live** hint, drawn in red ink with a circle and arrow, on a hand-written teaching card | Phases 3 and 4 exit |
-| **G3** | T+22h | Connect Moodle, watch the agent build cards, get a hint that cites a real lecture | Phases 5 and 6 (ingest) exit |
+| **G3** | T+22h | Connect GitHub, watch the agent build cards, get a hint that cites a real lecture | Phases 5 and 6 (ingest) exit |
 | **G4** | T+28h | Skill map, study plan, re-plan after a session, tutor report | Phases 6 (plan) and 7 exit |
 | **G5** | T+31h | **Feature freeze.** Only fixes, track evidence and rehearsal after this | P8.1 to P8.4 |
 | **G6** | T+34h | Submitted, with a recorded backup run | Phase 8 exit |
@@ -252,7 +252,7 @@ Cut in this order. Each cut names what replaces it, so the demo still works.
 | G1 | Cross-out and erase-loop detection | Pause detection and the "I'm stuck" button only |
 | G2 | Handwriting level 1 (per-glyph paths) | Level 0: a handwriting web font revealed with a wipe. Circles and arrows still animate |
 | G2 | Streaming | One JSON reply, drawn when it arrives |
-| G3 | Live Moodle in the demo | The upload fallback with the seed PDFs. Show the Moodle connect screen only if it works |
+| G3 | Live GitHub in the demo | The upload fallback with the seed PDFs. Show the GitHub connect screen only if it works |
 | G3 | The agent framework, only if it is blocking | `scripts/ingest-flat.ts` for cards, then return to the agent for the study plan |
 | G4 | Re-planning | The first study plan only |
 | G4 | The tutor report | A screenshot of the skill map in the Peri evidence |
@@ -268,7 +268,7 @@ With one person, follow the phases in order. With more, split like this after Ph
 |---|---|---|
 | A — Page | Phases 2 and 4 | Recorded stroke sessions in `fixtures/sessions/` |
 | B — Brain | Phase 3 | `/api/hint` passing the eval set on recorded snapshots |
-| C — Course | Phases 5 and 6 | The seed course in Moodle and one teaching card |
+| C — Course | Phases 5 and 6 | The verified synthetic seed, a pinned real course source and one teaching card |
 | D — Proof | Phase 7, Phase 8, the Peri visit, track evidence | The outreach message sent on Friday night |
 
 ### 5.5 Building alone
@@ -281,7 +281,7 @@ The phase time boxes add up to about 44 working hours. The gates assume two or m
 | 2 | P2.1, P2.2, P2.3, P2.5, P2.7. From P2.6: pause and the "I'm stuck" button only | P2.4 undo and redo (keep "Clear row"), erase-loop and cross-out detection, P2.8 beyond one flush on session end | 4 |
 | 3 | P3.1, P3.2, P3.3, P3.4 with eight cases, P3.7 | P3.5 (use one model), P3.6 streaming, most of P3.8 | 5 |
 | 4 | P4.1 to P4.4 at ink level 0 | P4.5, P4.6 except the "Albert read" tooltip | 4 |
-| 5 | P5.1, P5.2, P5.3, P5.5, P5.6 | P5.4 unless Moodle is blocked (then do it *instead of* P5.2 and P5.3), P5.7 | 4 |
+| 5 | P5.1, P5.2, P5.3, P5.5, P5.6 | P5.4 unless GitHub is blocked (then do it *instead of* P5.2 and P5.3), P5.7 | 4 |
 | 6 | P6.1, P6.2, P6.3, P6.4 without `card-checker`, P6.5, P6.7. P6.6 as a plain log list | P6.8 memory notes (keep the re-plan itself), run-panel replay | 5 |
 | 7 | P7.1, P7.2, P7.3 | P7.4 unless entering Peri (then build the report and skip the "what changed" markers), most of P7.5's polish | 3 |
 | 8 | P8.1 by hand only, P8.2, P8.3, P8.5, P8.6, P8.8 | P8.4 beyond the device choice and the pre-flight list, all of P8.7 | 4 |
@@ -334,7 +334,7 @@ Two kinds of recording make offline verification possible, and both are created 
 | Handwriting animation eats the schedule | P4.3 not done by its time box | Level 0 rendering is acceptable for the demo. Circles and arrows carry the effect |
 | Bedrock access or quota is not ready | The model ping in P1.4 fails | Switch `LLM_PROVIDER=anthropic`. Decide within 30 minutes |
 | The deep agent API differs from this plan | Type errors against the installed package | Read the current docs first (links in §9). Tools are plain functions, so the flat script still works |
-| Moodle web services are off or locked down | The token request in P5.2 fails | Enable them in site administration. Otherwise use the upload fallback |
+| GitHub is unavailable or quota-limited | Source import fails | Use an already cached snapshot or the upload fallback |
 | Venue Wi-Fi fails during the demo | — | `STORE=memory`, `MOCK_LLM=1`, seeded cards, and a recorded backup video |
 | Stuck detection interrupts thinking | Testers find the mark annoying | It is only a mark, never unprompted writing. Tune the pause threshold in P2.5 |
 | Scope is lost in 36 hours | A gate is missed | The cut list in §5.3. Feature freeze at G5 is not negotiable |
@@ -364,7 +364,7 @@ Read the current page before coding against any of these. Libraries in this area
 | Deep Agents API reference | https://reference.langchain.com/javascript/deepagents/types/CreateDeepAgentParams |
 | LangGraph MongoDB checkpointer | https://www.mongodb.com/docs/atlas/ai-integrations/langgraph-js/ and https://npmjs.com/package/@langchain/langgraph-checkpoint-mongodb |
 | Claude on Bedrock, model ids | https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-sonnet-5.html |
-| Moodle web services | https://docs.moodle.org/en/Web_services and https://docs.moodle.org/en/admin/setting/mobileapp |
+| GitHub contents and commits | https://docs.github.com/en/rest/repos/contents and https://docs.github.com/en/rest/commits/commits |
 | MathJax SVG output | https://docs.mathjax.org/en/latest/output/svg.html |
 | Socratic tutor skill (MIT) | https://github.com/janestreet/agent_skills |
 | MLH prize categories | https://www.mlh.com/events/prizes |

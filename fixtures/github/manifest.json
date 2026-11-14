@@ -1,0 +1,149 @@
+{
+  "version": 1,
+  "course": {
+    "id": "transport-only",
+    "title": "Synthetic transport fixture (not teaching material)"
+  },
+  "units": [
+    {
+      "order": 1,
+      "title": "Transport Unit 1"
+    },
+    {
+      "order": 2,
+      "title": "Transport Unit 2"
+    },
+    {
+      "order": 3,
+      "title": "Transport Unit 3"
+    },
+    {
+      "order": 4,
+      "title": "Transport Unit 4"
+    },
+    {
+      "order": 5,
+      "title": "Transport Unit 5"
+    }
+  ],
+  "files": [
+    {
+      "path": "notes/Transport Lecture 5.pdf",
+      "title": "Transport Lecture 5",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 1,
+      "lectureLabel": "Transport Lecture 5"
+    },
+    {
+      "path": "notes/Transport Lecture 6.pdf",
+      "title": "Transport Lecture 6",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 1,
+      "lectureLabel": "Transport Lecture 6"
+    },
+    {
+      "path": "notes/Transport Lecture 7.pdf",
+      "title": "Transport Lecture 7",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 2,
+      "lectureLabel": "Transport Lecture 7"
+    },
+    {
+      "path": "notes/Transport Lecture 8.pdf",
+      "title": "Transport Lecture 8",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 2,
+      "lectureLabel": "Transport Lecture 8"
+    },
+    {
+      "path": "notes/Transport Lecture 9.pdf",
+      "title": "Transport Lecture 9",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 3,
+      "lectureLabel": "Transport Lecture 9"
+    },
+    {
+      "path": "notes/Transport Lecture 10.pdf",
+      "title": "Transport Lecture 10",
+      "mime": "application/pdf",
+      "kind": "lecture_notes",
+      "unitOrder": 3,
+      "lectureLabel": "Transport Lecture 10"
+    },
+    {
+      "path": "worksheets/Transport Worksheet 1.pdf",
+      "title": "Transport Worksheet 1",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 1
+    },
+    {
+      "path": "worksheets/Transport Worksheet 2.pdf",
+      "title": "Transport Worksheet 2",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 2
+    },
+    {
+      "path": "worksheets/Transport Worksheet 3.pdf",
+      "title": "Transport Worksheet 3",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 3
+    },
+    {
+      "path": "worksheets/Transport Worksheet 4.pdf",
+      "title": "Transport Worksheet 4",
+      "mime": "application/pdf",
+      "kind": "worksheet",
+      "unitOrder": 4
+    },
+    {
+      "path": "Transport Syllabus.pdf",
+      "title": "Transport Syllabus",
+      "mime": "application/pdf",
+      "kind": "syllabus"
+    }
+  ],
+  "assignments": [
+    {
+      "id": "ws1",
+      "title": "Transport Worksheet 1",
+      "unitOrder": 1,
+      "filePaths": [
+        "worksheets/Transport Worksheet 1.pdf"
+      ]
+    },
+    {
+      "id": "ws2",
+      "title": "Transport Worksheet 2",
+      "unitOrder": 2,
+      "filePaths": [
+        "worksheets/Transport Worksheet 2.pdf"
+      ]
+    },
+    {
+      "id": "ws3",
+      "title": "Transport Worksheet 3",
+      "unitOrder": 3,
+      "filePaths": [
+        "worksheets/Transport Worksheet 3.pdf"
+      ],
+      "dueOffsetDays": 4
+    },
+    {
+      "id": "ws4",
+      "title": "Transport Worksheet 4",
+      "unitOrder": 4,
+      "filePaths": [
+        "worksheets/Transport Worksheet 4.pdf"
+      ],
+      "dueOffsetDays": 11
+    }
+  ]
+}

@@ -1,8 +1,8 @@
-# Phase 5 — LMS
+# Phase 5 — Course sources
 
-**Purpose.** Get a real course into Albert: a Moodle site with a believable Calculus II course on it, an adapter that pulls its outline, files and due dates with a student's own login, a manual upload path for when Moodle is not available, and the worksheet page the student works on.
+**Purpose.** Import a configured GitHub course manifest at one immutable commit, cache the original PDFs and normalized outline, and support a later manual upload fallback and worksheet page.
 
-**Done looks like.** Enter the Moodle address and the demo student's login, see "Calculus II" in the list, and have Albert hold every lecture PDF, worksheet and due date for it. Or drop the same PDFs into the upload form and get the same result.
+**Done looks like.** Import the configured public course repository, see its actual title and units, and open originals from the Repo cache without GitHub access. Source import does not build teaching cards or mark ingestion complete.
 
 | | |
 |---|---|
@@ -16,13 +16,12 @@ Read first: [`contracts.md`](./contracts.md) §6, §10, §11, [`decisions.md`](.
 ```
 seed/calc2/                 # the course content, as markdown with LaTeX
 src/lib/lms/
-  adapter.ts                # LmsAdapter, LmsError
-  moodle.ts                 # MoodleAdapter
+  adapter.ts                # CourseSourceAdapter, CourseSourceError
+  github.ts                 # GitHubAdapter, explicit snapshot import
   upload.ts                 # UploadAdapter
-  canvas.ts                 # CanvasAdapter (stub)
   classify.ts               # file name → kind guess          (pure)
   index.ts                  # getAdapter(connection)
-fixtures/moodle/            # recorded web-service replies
+fixtures/github/            # synthetic transport fixtures + separate live manifest/PDF recording
 ```
 
 ---
@@ -68,7 +67,7 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 
 **Build.**
 1. Write the content as markdown with LaTeX under `seed/calc2/`: `syllabus.md`, `unit-1/lecture-05.md` … `unit-3/lecture-10.md`, and `unit-1/worksheet-1.md` … `unit-4/worksheet-4.md`. Write it in your own words; do not copy a textbook. Two to three pages per lecture is plenty. Lectures 9 and 10 need the most care.
-2. Write `seed/calc2/answers.md` with a final answer for every worksheet problem. This file is never uploaded to Moodle; it is used to check the eval cases.
+2. Write `seed/calc2/answers.md` with a final answer for every worksheet problem. This file is never included in a course-source manifest; it is used to check the eval cases.
 3. `scripts/seed-pdf.ts` (`pnpm seed:pdf`): render each markdown file to HTML with MathJax, and print it to PDF with Playwright into `seed/calc2/pdf/`. Keep every PDF under 4 MB and under 10 pages.
 4. `seed/calc2/manifest.json`: for each PDF its unit order, kind, title, and for worksheets the due date as an offset in days from "demo day", so the dates can be regenerated.
 
@@ -80,79 +79,46 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 
 ---
 
-### P5.2 — The Moodle site
+### P5.2 — The GitHub course manifest
 
-**Goal.** The course exists on *Albert and Einstein Academy* and a student account can reach it through web services.
+**Goal.** An explicitly mapped, reviewable manifest in `Azrkiel/albert-files`, plus offline recordings. The real course and P5.1 synthetic course are separate sources; marker facts belong only to the synthetic course.
 
-**Build.** This is done in the Moodle admin screens. Tick each line in `status.md` as it is done.
-1. Sign in as administrator. Turn on web services for mobile devices (Site administration → Mobile app → Mobile settings, or Advanced features, depending on the Moodle version). This enables the built-in mobile service, which is what lets an ordinary user get a token with their own login.
-2. Create the course **Calculus II**, short name `CALC2`, topics format, five sections named exactly as in the table above ("Unit 1 — Integration by Parts", …).
-3. In the general section at the top, add `syllabus.pdf` as a File resource named "Syllabus".
-4. In each of Units 1 to 3, add that unit's lecture PDFs as File resources named "Lecture 9 — Trigonometric Substitution I" and so on.
-5. In each of Units 1 to 4, add an **Assignment** named "Worksheet N", attach the worksheet PDF under *Additional files*, and set the due date from the manifest. Leave Units 4 and 5 without lecture notes.
-6. Create a user for the demo student (for example `ada`), with a password, and enrol them in the course as a Student.
-7. Check access from a terminal, replacing the capitals:
-   ```bash
-   # a token for the student
-   curl -s -X POST "https://SITE/login/token.php" \
-     -d "username=ada" -d "password=PASSWORD" -d "service=moodle_mobile_app"
-   # → {"token":"…","privatetoken":…}
-
-   # who am I
-   curl -s -X POST "https://SITE/webservice/rest/server.php" \
-     -d "wstoken=TOKEN" -d "moodlewsrestformat=json" -d "wsfunction=core_webservice_get_site_info"
-   # my courses
-   curl -s -X POST "https://SITE/webservice/rest/server.php" \
-     -d "wstoken=TOKEN" -d "moodlewsrestformat=json" \
-     -d "wsfunction=core_enrol_get_users_courses" -d "userid=USERID"
-   # the course outline
-   curl -s -X POST "https://SITE/webservice/rest/server.php" \
-     -d "wstoken=TOKEN" -d "moodlewsrestformat=json" \
-     -d "wsfunction=core_course_get_contents" -d "courseid=COURSEID"
-   # assignments and due dates
-   curl -s -X POST "https://SITE/webservice/rest/server.php" \
-     -d "wstoken=TOKEN" -d "moodlewsrestformat=json" \
-     -d "wsfunction=mod_assign_get_assignments" -d "courseids[0]=COURSEID"
-   ```
-8. Save each JSON reply under `fixtures/moodle/` (`token.json` with the token replaced by `"REDACTED"`, `site_info.json`, `courses.json`, `contents.json`, `assignments.json`). These recordings are the adapter's test data.
-9. Download one file to confirm file access: take a `fileurl` from `contents.json`, append `?token=TOKEN` (or `&token=TOKEN` if it already has a query), and check that a PDF comes back.
-10. Put `MOODLE_BASE_URL` in `.env.local`. Keep the student password out of the repo.
+**Build.**
+1. Inspect the real repository and PDFs; propose root `manifest.json` using `CourseManifestSchema` and existing PDF paths. Preserve PDFs. Obtain course-owner confirmation of subset, teaching order, lecture labels and worksheet links before treating it as authoritative. Omit unknown dates and syllabus. Do not derive teaching order from filenames alone or invent marker facts.
+2. Prepare a review branch/diff in the content repository. Do not merge either main. Publication and live-import evidence remain pending until that manifest is published and pinned.
+3. Record synthetic and live manifests separately. Synthetic transport-only PDFs are explicitly labelled placeholders until the P5.1 owner provides verified manifest/PDF artifacts; never create a competing seed course. Record all selected PDFs at one SHA, including paths with spaces. Never include evaluation answers.
+4. Persist demo day (`YYYY-MM-DD`) for reproducible due offsets; dates are 23:59:59 UTC.
 
 **Acceptance**
-- [ ] **P5.2-AC1** — The student can get a token. *Verify:* the first `curl` returns a `token`.
-- [ ] **P5.2-AC2** — The outline shows five sections, six lecture files and four assignments. *Verify:* `contents.json` and `assignments.json` contain them.
-- [ ] **P5.2-AC3** — A lecture PDF downloads with the token. *Verify:* step 9 saves a file that opens.
-- [ ] **P5.2-AC4** — Five recordings are in `fixtures/moodle/` with no real token in them. *Verify:* `grep -R "wstoken\|\"token\":\"[a-f0-9]\{20,\}" fixtures/moodle` finds nothing.
+- [ ] **P5.2-AC1** — Synthetic and live manifests validate separately. Synthetic counts: five units, six lectures, four worksheet assignments, one syllabus. P5.1 verified artifact integration remains required.
+- [x] **P5.2-AC2** — Every selected live PDF downloads at the pinned SHA, including paths with spaces.
+- [ ] **P5.2-AC3** — Identical SHA/demo-day imports produce identical outlines and dates.
+- [ ] **P5.2-AC4** — Recorded imports run without networking or credentials and exclude answer files.
 
-**Fallback.** If web services cannot be enabled on the site's plan, or the token request is refused and cannot be fixed in 30 minutes: skip to P5.4. The upload path feeds Phase 6 the same PDFs. Come back to Moodle if time allows.
+**Fallback.** Continue adapter/tests on clearly identified synthetic transport fixtures while mapping, publication or P5.1 artifacts are pending. Keep those dependencies unticked.
 
 ---
 
-### P5.3 — The Moodle adapter
+### P5.3 — The GitHub source adapter
 
-**Goal.** `MoodleAdapter` turns Moodle's replies into the `CourseOutline` the rest of Albert uses.
+**Goal.** Implement the shared `CourseSourceAdapter` and reproducible cache-only reads.
 
 **Build.**
-1. `adapter.ts`: the `LmsAdapter` interface from `contracts.md` §10 and `class LmsError extends Error { code: "auth" | "not_found" | "forbidden" | "unavailable" | "bad_reply" }`.
-2. `moodle.ts`:
-   - `static async connect(baseUrl, username, password)`: normalise the URL (add `https://`, strip trailing slash and any path after the host unless the site lives in a sub-folder), POST to `/login/token.php` with `service=moodle_mobile_app`, and return the token. The password is used once and never stored or logged.
-   - `call(fn, params)`: POST form-encoded to `/webservice/rest/server.php` with `wstoken`, `wsfunction`, `moodlewsrestformat=json`. Arrays are sent as `name[0]=…`. **Moodle reports errors with HTTP 200** and a body like `{ exception, errorcode, message }`; detect that shape and throw an `LmsError`.
-   - `listCourses()`: `core_webservice_get_site_info` for the user id, then `core_enrol_get_users_courses`.
-   - `getOutline(courseId)`: `core_course_get_contents` and `mod_assign_get_assignments`. Sections after the general one become units, in order. `resource` and `folder` modules contribute their file contents. Assignments contribute their attached files and due dates, matched to a unit by the section their module sits in. Files in the general section have no unit.
-   - `downloadFile(ref)`: fetch the URL with the token added as a query parameter. Reject a reply whose content type is JSON (that is an error body, not a file).
-3. `classify.ts`: `guessKind(title, mime)` → `lecture_notes` for /lecture|notes/i, `worksheet` for /worksheet|problem set|homework|\bhw\b|assignment/i, `syllabus` for /syllabus/i, `slides` for /slides/i or a presentation mime type, else `other`.
-4. Routes:
-   - `POST /api/lms/connect`: connect, read the site info, save an `LmsConnection` for `DEMO_STUDENT_ID`, reply with the site and user names. The token is not in the reply.
-   - `GET /api/lms/courses`: list courses through the saved connection, marking which are already ingested.
-   - `GET /api/files/[fileId]`: stream a cached course file to the browser (used by the worksheet page). It serves only files already stored in the `Repo`.
-5. `scripts/smoke.ts` gains an `lms` line when `MOODLE_BASE_URL` and `MOODLE_TOKEN` are set.
+1. `adapter.ts`: `CourseSourceError` codes `not_found`, `forbidden`, `rate_limited`, `unavailable`, `bad_reply`. Sanitize errors; never expose tokens, upstream bodies or URLs containing credentials.
+2. `github.ts`: resolve configured ref once through GitHub's commits endpoint. Read manifest and listed PDFs through contents endpoints at that exact SHA. Validate schema, paths and references; encode each path segment. Require PDF MIME and `%PDF-` bytes; reject answer files and non-PDFs. Never follow temporary download URLs.
+3. Save snapshot, original manifest, normalized outline and original PDF bytes through the existing Repo. Snapshot-qualified stable course/file/assignment/unit ids and idempotent upserts; preserve ingestion state on reimport. Import is not P6 ingestion. Convert due offsets at 23:59:59 UTC from persisted demo day. Preserve empty units, course-wide files and lecture labels.
+4. `getAdapter(courseId)` reads stored source; `getOutline` and `downloadFile` use Repo only. Tutoring never fetches GitHub. `classify.ts` implements the documented filename/MIME helper.
+5. `POST /api/source/connect` explicitly imports configured source; `GET /api/source/courses` reads saved connection/course and ingestion status; `GET /api/files/[fileId]` serves only cached bytes. Tokens stay server-side. Do not build P5.4/P5.5 UI or P6 ingestion.
+6. `scripts/smoke.ts` preserves database, model, vision and snapshot checks and adds source smoke when configured; `--no-source` skips it. Report actual title and unit count, SHA and persisted demo day.
 
 **Acceptance**
-- [ ] **P5.3-AC1** — The recordings parse into the right outline. *Verify:* `tests/unit/moodle.test.ts` feeds `fixtures/moodle/*.json` through the adapter with a fake transport and asserts: five units in order with the right titles; lecture files attached to units 1 to 3; four assignments with due dates; the syllabus has no unit.
-- [ ] **P5.3-AC2** — Moodle's error-in-200 replies become `LmsError`s. *Verify:* unit test with `{ "exception": "…", "errorcode": "invalidtoken", "message": "…" }` → code `auth`.
-- [ ] **P5.3-AC3** — The password is never stored or logged. *Verify:* unit test spies on the `Repo` and the logger during `connect`; neither receives the password string.
-- [ ] **P5.3-AC4** — URL normalisation handles what people type. *Verify:* unit test: `site.moodlecloud.com`, `https://site.moodlecloud.com/`, `https://site.moodlecloud.com/my/` all resolve to the same base.
-- [ ] **P5.3-AC5** — It works against the live site. *Verify:* `pnpm smoke` prints `lms ok  Calculus II  5 units`.
+- [ ] **P5.3-AC1** — Recorded data maps to correct units, labels, assignments and exact dates.
+- [ ] **P5.3-AC2** — Moving branches cannot mix revisions; repeated imports create no duplicates.
+- [ ] **P5.3-AC3** — Cached outline/PDF reads and a mocked hint work with transport disabled and zero GitHub calls.
+- [ ] **P5.3-AC4** — Invalid paths/references, non-PDF content, 404, quota and network failures yield specified errors; no ingestion-complete flag or token leakage.
+- [ ] **P5.3-AC5** — After confirmed manifest publication, live smoke prints `source ok` with actual title/unit count; snapshot records SHA/demo day.
+
+**Verify.** `pnpm verify`, offline `pnpm e2e`, recorded import tests and confirmed published-manifest live smoke. Fake transport tests alone do not complete this subphase.
 
 ---
 
@@ -161,33 +127,29 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 **Goal.** A student with no LMS access can still give Albert their course by dropping files.
 
 **Build.**
-1. `/` gets a second option under the Moodle form: "No LMS access? Upload your notes and worksheets."
+1. `/` gets a second option under the configured-source import button: "No LMS access? Upload your notes and worksheets."
 2. After files are dropped, show a table: one row per file with an editable unit number, a kind (guessed with `guessKind`), and for worksheets an optional due date. Unit numbers are pre-filled from file names where they contain a number after "unit", "week" or "lecture". One text field per unit for its title.
-3. `POST /api/lms/upload`: store each file through the `Repo`, create a `Course` with source `upload`, and save a `CourseOutline` so that `UploadAdapter.getOutline` can return it later.
+3. `POST /api/source/upload`: store each file through the `Repo`, create a `Course` with source `upload`, and save a `CourseOutline` so that `UploadAdapter.getOutline` can return it later.
 4. `upload.ts`: `UploadAdapter` serves that stored outline and reads files from the `Repo`.
 5. `getAdapter(connection)` in `index.ts` returns the adapter for a course's source. Nothing downstream knows which one it got.
 
 **Acceptance**
-- [ ] **P5.4-AC1** — Uploading the seed PDFs yields the same outline as Moodle. *Verify:* `tests/unit/upload.test.ts` builds an outline from the manifest and compares unit titles, file kinds and due dates with the outline from the Moodle recordings.
+- [ ] **P5.4-AC1** — Uploading the seed PDFs yields the same outline as GitHub. *Verify:* `tests/unit/upload.test.ts` builds an outline from the manifest and compares unit titles, file kinds and due dates with the outline from the GitHub recordings.
 - [ ] **P5.4-AC2** — File name guesses are right for the seed set. *Verify:* unit test over the manifest's file names.
 - [ ] **P5.4-AC3** — The flow works in the browser. *Verify:* `tests/e2e/upload.spec.ts` uploads three seed PDFs and lands on `/courses` with one course listed.
 
 ---
 
-### P5.5 — Connect and choose
+### P5.5 — Import and choose (separate owner)
 
-**Goal.** The first two screens of the demo.
+**Goal.** A configured-source import button and course picker, without credentials in the browser.
 
-**Build.**
-1. `/`: the name and tagline, one sentence on what Albert does, and the connect form: site address, username, password, and a line under it: "Albert swaps this for an access key and does not keep your password." On success go to `/courses`.
-2. `/courses`: the student's courses as cards. A course that has not been ingested shows **Learn this course**, which starts ingestion (Phase 6) and shows the run panel. An ingested course shows **Open**, which goes to `/course/[courseId]`.
-3. Errors are stated plainly next to the form: wrong login, site not reachable, web services not enabled on this site (with the suggestion to use upload).
-4. A connected state is remembered, so reloading `/` goes straight to `/courses`.
+**Build.** `/` imports via `POST /api/source/connect`; `/courses` lists saved courses via `GET /api/source/courses`. Not-ingested courses offer **Learn this course** (P6); ingested courses offer **Open**. Display plain source errors and remember the saved connection. No GitHub token input or LMS login.
 
 **Acceptance**
-- [ ] **P5.5-AC1** — A wrong password shows the wrong-login message and stays on the form. *Verify:* e2e test with a mocked connect route.
-- [ ] **P5.5-AC2** — A good login lists Calculus II. *Verify by hand* against the live site; and an e2e test with the adapter replaced by the recordings.
-- [ ] **P5.5-AC3** — The token is not in any response or in page source. *Verify:* e2e test inspects network responses for the token string from the mock.
+- [ ] **P5.5-AC1** — Source failure stays on the import screen with a useful message (mocked route e2e).
+- [ ] **P5.5-AC2** — Successful import lists the actual course (recorded e2e and live by hand).
+- [ ] **P5.5-AC3** — No token appears in responses or page source (e2e).
 
 ---
 
@@ -210,29 +172,16 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 
 ---
 
-### P5.7 — The Canvas stub
+### P5.7 — LMS sync (post-hackathon)
 
-**Goal.** Show that a second LMS is a matter of writing one more adapter, without writing it.
-
-**Build.**
-1. `canvas.ts`: `CanvasAdapter implements LmsAdapter`. Each method throws `LmsError("unavailable")` with the message "Canvas support is planned". A doc comment on each method names the Canvas REST endpoint it would call: list courses (`GET /api/v1/courses`), modules and items (`GET /api/v1/courses/:id/modules`), files (`GET /api/v1/courses/:id/files`), assignments (`GET /api/v1/courses/:id/assignments`), authenticated with a bearer token.
-2. On `/`, a disabled "Canvas — coming soon" option beside Moodle.
-
-**Acceptance**
-- [ ] **P5.7-AC1** — The stub satisfies the interface. *Verify:* it type-checks, and a unit test asserts each method rejects with code `unavailable`.
-
-**Time box.** 15 minutes. This exists for the pitch, not for use.
+Moodle/Canvas integration and automatic refresh are deferred. No LMS credential routes or stubs are needed for this lane.
 
 ---
 
 ## Phase exit
 
-```bash
-pnpm verify      # moodle parsing, classify, upload, seed marker facts
-pnpm e2e         # upload flow, worksheet page, connect errors
-pnpm smoke       # lms ok
-```
-
-- [ ] By hand: on a clean browser profile, connect to the live Moodle site as the demo student, see Calculus II, open Worksheet 3 (seeded), and write under problem 1.
-- [ ] By hand: do the same through upload with the seed PDFs.
-- [ ] `status.md` records the Moodle site address (not the password), the demo username, and which path the demo will use.
+- [ ] `pnpm verify` and offline `pnpm e2e` pass.
+- [ ] Published, confirmed manifest passes live source smoke.
+- [ ] By hand: import the real configured source and open an original PDF from cache.
+- [ ] By hand: upload fallback works (P5.4 owner).
+- [ ] Status records source SHA/demo day and distinguishes synthetic golden evidence from real-course evidence.

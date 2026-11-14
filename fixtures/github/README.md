@@ -1,0 +1,7 @@
+# GitHub transport recordings
+
+`manifest.json`, `commit.json`, and `files/synthetic/` are explicitly synthetic transport fixtures. They contain no teaching content or marker facts and are not a competing seed course. Counts exercise five units, six lectures, four assignments and a syllabus. Replace/augment their integration evidence with the P5.1 owner's verified manifest/PDF artifacts when available. P5.1 is still pending in this workspace.
+
+`live-manifest.json` is a separate proposed root manifest for Azrkiel/albert-files. The user confirmed the subset, teaching order, Section 7.1–7.4 labels and worksheet links in this session on November 14, 2026. Four units map existing notes to worksheets 7.1a, 7.2, 7.3a, 7.4a. No due dates, syllabus, synthetic marker facts or answers are invented. `files/live/` contains byte-for-byte copies from content commit `6b0f4dd35dfa6d2dc7a29da1753ace79d1b638dd`. The notes' first-page headings were checked against the proposed units. That content commit has no manifest; this is a proposed mapping, not evidence of published-manifest import.
+
+Publication and live source smoke remain pending. All existing PDFs are preserved. Recorded tests require no network or credentials. The transport uses the fixture commit only as synthetic metadata; it is not a real content SHA. Live downloads must use the real content SHA above (or a later manifest publication SHA) and encoded path segments.

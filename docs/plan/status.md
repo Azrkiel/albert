@@ -130,8 +130,8 @@ Record the real values as they are decided. Later phases and the write-up read t
 | Done | Subphase | Criteria | Owner | Evidence |
 |---|---|---|---|---|
 | [ ] | P5.1 The seed course | 4 | | |
-| [ ] | P5.2 The Moodle site | 4 | | |
-| [ ] | P5.3 The Moodle adapter | 5 | | |
+| [ ] | P5.2 The GitHub course manifest | 4 | Codex | P5.2 manifest commit · pnpm verify: 422 passed, 16 live Mongo skipped. Separate synthetic/live schema tests; transport placeholders clearly marked (verified P5.1 artifacts pending). User confirmed four-unit Section 7.1–7.4 mapping and worksheet links Nov 14. AC2: all eight real PDFs downloaded through SHA-pinned encoded contents paths at 6b0f4dd35dfa6d2dc7a29da1753ace79d1b638dd; byte-for-byte matches recorded files. Manifest-only content branch codex/p5-course-manifest prepared; publication/live manifest import pending. AC3/AC4 await adapter checks. |
+| [ ] | P5.3 The GitHub source adapter | 5 | Codex | Implementation next; live smoke waits on manifest publication. |
 | [ ] | P5.4 The upload path | 3 | | |
 | [ ] | P5.5 Connect and choose | 3 | | |
 | [ ] | P5.6 The worksheet page | 4 | | |
@@ -205,3 +205,5 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 | Nov 13 | Codex | Completed P1.3 only. Added brand constants, five stub pages, paper-white shared layout using INK through the contracts barrel, and a status dot reading the five-key health route. Tests first confirmed missing pages/health; the real browser run then caught an explicit runtime export incompatible with the scaffold's cacheComponents setting, fixed by using Next.js's default Node runtime. Final verify and real e2e passed; curl confirmed the placeholders. Local code/security/cleanup review found no remaining issues. P1.1/P1.1a/P1.2 implementation and evidence preserved, existing local plan edits retained. No dependencies added, no database/model/source access, no albert-files requests or PDFs read; manifest remains P5.2 and P1.4+ remains unstarted. |
 | Nov 13 | Codex | Completed P1.1a then P1.2 only. P1.1 evidence preserved. Added GitHub source env/folders and 47 runtime contracts; service interfaces stay compile-time only. Tests first exposed missing schemas, then an import-order cycle; fixed with lazy schema construction and verified 138 tests. Local code/security/cleanup review: no remaining findings. No albert-files requests or PDF bodies read; manifest creation remains P5.2. Existing pnpm installation used through a local PATH shim; no dependency changes |
 | Nov 13 | — | Plan written. Repo contains the plan only; no code yet |
+
+| Nov 14 | Codex | P5 course-source plan reconciliation on isolated origin/main e55ad38: current contracts already specify GitHub; phase-5/D9/main/phase-6/phase-8 were stale Moodle text. Reconciled against current contracts and user instructions. Windows dirty checkout is inaccessible from Cloud; user directed this lane to GitHub, so no claim of reading uncommitted Windows revisions. Existing main status/evidence preserved; no shared-contract shapes or database implementation changed. P2.8/P3.2 and P5.1 owners retain their files. |
