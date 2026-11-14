@@ -213,6 +213,43 @@ src/lib/canvas/
 
 ---
 
+### P2.5b — Side work beside a divider
+
+**Goal.** A student can draw a long vertical line and do side work next to the main column, and the side work gets its own lines even at the same height as main work.
+
+**Depends on.** P2.5a (free layout). User request, Nov 14.
+
+**Build.**
+1. `src/lib/canvas/shapes.ts` (pure): `isDivider(stroke)`. A pen stroke is a divider when it is at least `LINE.DIVIDER_MIN_HEIGHT` tall, no wider than `LINE.DIVIDER_MAX_WIDTH_RATIO` × its height, and nearly straight: path length ≤ `LINE.DIVIDER_MAX_PATH_RATIO` × the distance between its ends. Real integrals measured 1.17–1.55 on that ratio, a hand-drawn straight line about 1.0–1.05. `FRACTION_BAR_MIN_ASPECT` and `isFlat` move here too, shared by clusters and lines.
+2. `lines.ts`:
+   - A stroke cannot join ink on the other side of a live divider when the divider's height covers both strokes' centres. Side work therefore starts its own lines, and below the divider's end the page is one column again.
+   - A divider gets a row of its own. It is not numbered, has no clusters, and comes after every other row, so P2.4's erase and undo still find it.
+   - Numbering: the main column top to bottom, then each side column (right of a divider that spans the line) top to bottom.
+   - A row's box spans its column, from the divider on its left to the one on its right.
+3. `clusterRow` ignores dividers in both layouts: they are page structure, not symbols.
+4. Clear-row numbers sit at each row's own left edge, so side lines are numbered beside the side work.
+
+**Acceptance**
+- [ ] **P2.5b-AC1** — Dividers and side lines come out right. *Verify:* `tests/unit/side-work.test.ts`:
+  - divider detection: a straight line, a slanted wobbly line, too short, a wide diagonal, a tall thin hooked integral;
+  - side work at the same height as two main lines gives four lines, numbered main then side, with column boxes;
+  - main work continued left of the divider joins its line;
+  - below the divider's end the page is one column again;
+  - the divider is unnumbered, last and has no clusters;
+  - erasing and undoing a divider keeps P2.4 history valid;
+  - the ruled layout keeps dividers out of clusters.
+- [ ] **P2.5b-AC2** — The page behaves. *Verify:* `tests/e2e/side-work.spec.ts`. Main work, a divider, side work at the same height and more main work give two numbered lines (the side number to the right) plus the divider's row, three line bands and three cluster boxes.
+- [ ] **P2.5b-AC3** — Real side work. *Verify by hand:* with `?layout=free&dev=1`, write two lines of main work, draw a long line down the page, do side work beside it at the same heights, then continue main work below. Each side line is its own band and the main lines are unchanged. Tune the `DIVIDER_*` values if not.
+
+**Known limits.**
+- Only strokes written after the divider are split by it. Assignment is incremental (P2.5a).
+- A divider must be one stroke.
+- Side work without a divider is still grouped with main work at the same height.
+
+**Downstream notes (later phases).** P4.x: two lines can now share a height, so Albert's margin notes must stack. P2.7: tag each line at its own `bbox.x`.
+
+---
+
 ### P2.6 — Stuck detection
 
 **Goal.** Notice when the student is stuck, from the event stream alone, and offer help without interrupting.

@@ -1,7 +1,7 @@
 import { STUCK, type BBox, type Cluster, type Stroke } from "../contracts";
+import { FRACTION_BAR_MIN_ASPECT, isDivider } from "./shapes";
 
-/** A fraction bar is a stroke at least this many times wider than it is tall. */
-export const FRACTION_BAR_MIN_ASPECT = 3;
+export { FRACTION_BAR_MIN_ASPECT };
 
 type Group = Stroke[];
 
@@ -104,9 +104,9 @@ function segment(strokes: Stroke[]): Group[] {
   return gapGroups(sorted);
 }
 
-/** Live pen strokes of one row as numbered clusters (contracts.md §2). Pure. */
+/** Live pen strokes of one row as numbered clusters (contracts.md §2). Dividers are page structure, not symbols. Pure. */
 export function clusterRow(strokes: Stroke[], rowId: string): Cluster[] {
-  const live = strokes.filter((stroke) => stroke.rowId === rowId && stroke.tool === "pen" && stroke.erasedAt === undefined);
+  const live = strokes.filter((stroke) => stroke.rowId === rowId && stroke.tool === "pen" && stroke.erasedAt === undefined && !isDivider(stroke));
   return segment(live).map((group, index) => ({
     id: `${rowId}/c${index + 1}`, rowId, label: index + 1,
     strokeIds: group.map((stroke) => stroke.id),

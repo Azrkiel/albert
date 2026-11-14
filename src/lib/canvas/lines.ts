@@ -1,15 +1,27 @@
 import { LINE, PAGE, type BBox, type Row, type Stroke } from "../contracts";
-import { FRACTION_BAR_MIN_ASPECT } from "./clusters";
+import { isDivider, isFlat } from "./shapes";
 
-/** Lines inferred from ink (contracts.md §2, Line assignment). Pure: no DOM, clock or IO. */
+/** Lines inferred from ink (contracts.md §2, Line assignment; dividers P2.5b). Pure: no DOM, clock or IO. */
 
-type Band = { rowId: string; n: number; top: number; bottom: number; strokes: Stroke[] };
+type Band = { rowId: string; n: number; top: number; bottom: number; left: number; right: number; strokes: Stroke[] };
 
 const bottomOf = (box: BBox) => box.y + box.h;
 const rightOf = (box: BBox) => box.x + box.w;
 const centerX = (box: BBox) => box.x + box.w / 2;
+const centerY = (box: BBox) => box.y + box.h / 2;
 const isLive = (stroke: Stroke) => stroke.tool === "pen" && stroke.erasedAt === undefined;
-const isFlat = (box: BBox) => box.w > 0 && box.w >= FRACTION_BAR_MIN_ASPECT * box.h;
+
+/** Live dividers of a problem. */
+function dividersOf(strokes: Stroke[], problemId: string): Stroke[] {
+  return strokes.filter((s) => s.problemId === problemId && isLive(s) && isDivider(s));
+}
+
+/** A divider between the two strokes' centres whose height covers both of them. */
+function separated(a: Stroke, b: Stroke, dividers: Stroke[]): boolean {
+  const [lo, hi] = [Math.min(centerX(a.bbox), centerX(b.bbox)), Math.max(centerX(a.bbox), centerX(b.bbox))];
+  return dividers.some((d) => d.id !== a.id && d.id !== b.id && centerX(d.bbox) > lo && centerX(d.bbox) < hi
+    && [a, b].every((s) => centerY(s.bbox) >= d.bbox.y && centerY(s.bbox) <= bottomOf(d.bbox)));
+}
 
 /** The creation number in `${problemId}/r${n}`; ids are opaque elsewhere, so unknown shapes sort last. */
 function lineNumber(rowId: string): number {
@@ -22,10 +34,11 @@ function verticalGap(a: BBox, b: BBox): number {
   return Math.max(0, Math.max(a.y, b.y) - Math.min(bottomOf(a), bottomOf(b)));
 }
 
+/** Line bands from ordinary ink (dividers excluded). */
 function bands(strokes: Stroke[], problemId: string, live: boolean): Band[] {
   const byRow = new Map<string, Stroke[]>();
   for (const stroke of strokes) {
-    if (stroke.problemId !== problemId || !stroke.rowId || stroke.tool !== "pen") continue;
+    if (stroke.problemId !== problemId || !stroke.rowId || stroke.tool !== "pen" || isDivider(stroke)) continue;
     if (live && stroke.erasedAt !== undefined) continue;
     byRow.set(stroke.rowId, [...(byRow.get(stroke.rowId) ?? []), stroke]);
   }
@@ -33,6 +46,8 @@ function bands(strokes: Stroke[], problemId: string, live: boolean): Band[] {
     rowId, n: lineNumber(rowId), strokes: members,
     top: Math.min(...members.map((s) => s.bbox.y)),
     bottom: Math.max(...members.map((s) => bottomOf(s.bbox))),
+    left: Math.min(...members.map((s) => s.bbox.x)),
+    right: Math.max(...members.map((s) => rightOf(s.bbox))),
   }));
 }
 
@@ -50,9 +65,15 @@ function glyphHeight(line: Band): number {
   return heights.length ? heights[Math.floor(heights.length / 2)]! : line.bottom - line.top;
 }
 
-/** A finished pen stroke's line: an existing line's id, or a new one. Decided once; never revisited. */
+/**
+ * A finished pen stroke's line: an existing line's id, or a new one. Decided once; never revisited.
+ * A divider gets a row of its own. Ink on the other side of a divider (within its height) is ignored,
+ * so side work at the same height as the main column starts its own lines.
+ */
 export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
-  const lines = bands(strokes.filter((s) => s.id !== stroke.id), stroke.problemId, true);
+  const dividers = dividersOf(strokes, stroke.problemId);
+  const visible = isDivider(stroke) ? [] : strokes.filter((s) => s.id !== stroke.id && !separated(stroke, s, dividers));
+  const lines = bands(visible, stroke.problemId, true);
   const box = stroke.bbox;
   const middle = box.y + box.h / 2;
   const nearer = (a: Band, b: Band) =>
@@ -88,26 +109,46 @@ export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
 }
 
 /**
- * Rows for the free layout, in problem order then index. Lines with live ink are numbered 1..k top
- * to bottom; lines whose ink is all erased keep a row (so undo can restore them) and come after.
+ * Rows for the free layout, in problem order then index. Lines with live ink are numbered 1..k: the
+ * main column top to bottom, then each side column (right of a divider that spans the line) top to
+ * bottom. Lines whose ink is all erased keep a row (so undo can restore them) and come after; divider
+ * rows come last. A row's box spans its column: from the divider on its left to the one on its right.
  */
 export function lineRows(problemIds: string[], strokes: Stroke[]): Row[] {
   return problemIds.flatMap((problemId) => {
+    const dividers = dividersOf(strokes, problemId);
+    const spanning = (band: Band) => dividers.filter((d) => d.bbox.y < band.bottom && bottomOf(d.bbox) > band.top);
+    const column = (band: Band) => spanning(band).filter((d) => centerX(d.bbox) < band.left).length;
     const all = bands(strokes, problemId, false);
     const live = new Map(bands(strokes, problemId, true).map((band) => [band.rowId, band]));
-    const order = (a: Band, b: Band) => a.top - b.top || a.n - b.n;
+    const order = (a: Band, b: Band) => column(a) - column(b) || a.top - b.top || a.n - b.n;
     const ordered = [...all.filter((b) => live.has(b.rowId)).map((b) => live.get(b.rowId)!).sort(order),
       ...all.filter((b) => !live.has(b.rowId)).sort(order)];
-    return ordered.map((band, i) => ({
-      id: band.rowId, problemId, index: i + 1,
-      bbox: { x: PAGE.studentCol.x, y: band.top - LINE.PAD, w: PAGE.studentCol.w, h: band.bottom - band.top + 2 * LINE.PAD },
-    }));
+    const rows: Row[] = ordered.map((band, i) => {
+      const xs = spanning(band).map((d) => centerX(d.bbox));
+      const left = Math.max(PAGE.studentCol.x, ...xs.filter((x) => x <= band.left));
+      const right = Math.min(PAGE.studentCol.x + PAGE.studentCol.w, ...xs.filter((x) => x >= band.right));
+      return { id: band.rowId, problemId, index: i + 1,
+        bbox: { x: left, y: band.top - LINE.PAD, w: right - left, h: band.bottom - band.top + 2 * LINE.PAD } };
+    });
+    const seen = new Set(rows.map((row) => row.id));
+    const dividerRows = new Map<string, Stroke[]>();
+    for (const s of strokes) {
+      if (s.problemId !== problemId || !s.rowId || seen.has(s.rowId) || s.tool !== "pen" || !isDivider(s)) continue;
+      dividerRows.set(s.rowId, [...(dividerRows.get(s.rowId) ?? []), s]);
+    }
+    const extra = [...dividerRows].sort(([a], [b]) => lineNumber(a) - lineNumber(b)).map(([id, members], i) => {
+      const top = Math.min(...members.map((m) => m.bbox.y)), bottom = Math.max(...members.map((m) => bottomOf(m.bbox)));
+      const left = Math.min(...members.map((m) => m.bbox.x)), right = Math.max(...members.map((m) => rightOf(m.bbox)));
+      return { id, problemId, index: rows.length + i + 1, bbox: { x: left, y: top, w: right - left, h: bottom - top } };
+    });
+    return [...rows, ...extra];
   });
 }
 
-/** Rows that currently hold live ink. */
+/** Rows that currently hold live ink a student would number (dividers are not lines of work). */
 export function inkedRowIds(strokes: Stroke[]): Set<string> {
-  return new Set(strokes.filter(isLive).flatMap((s) => (s.rowId ? [s.rowId] : [])));
+  return new Set(strokes.filter((s) => isLive(s) && !isDivider(s)).flatMap((s) => (s.rowId ? [s.rowId] : [])));
 }
 
 /** Free layout keeps a blank page to start and two line heights of space below the lowest ink. */
