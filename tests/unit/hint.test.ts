@@ -21,7 +21,10 @@ const valid = (): AlbertReply => ({
 const response = (args: AlbertReply) => new AIMessage({ content: "", tool_calls: [{ name: "albert_reply", args, id: "call1", type: "tool_call" }] });
 const collect = async (deps: HintDeps, req = request) => {
   const events: HintEvent[] = [];
-  for await (const event of runHint(req, deps)) events.push(HintEventSchema.parse(event));
+  for await (const event of runHint(req, deps)) {
+    HintEventSchema.parse(event);
+    events.push(event); // Assert privacy against raw events, before zod can strip fields.
+  }
   return events;
 };
 let repo: MemoryRepo;
@@ -144,6 +147,142 @@ describe("P3.3 runHint", () => {
     expect(events.filter((event) => event.type === "hint")).toEqual([expect.objectContaining({ kind: "reread" })]);
     expect(events.filter((event) => event.type === "mark")).toEqual([]);
     expect(await repo.listEvidence("demo", "calc2")).toEqual([]);
+  });
+});
+
+describe("P3.8 server failure behaviour", () => {
+  const noNotes = "Your notes for this unit aren't posted yet, so I can't tell how your teacher does this.";
+  const logRequest = { ...request, image: { ...request.image, marked: "SECRET_IMAGE", clean: "SECRET_CLEAN_IMAGE" } };
+  function expectLog(log: ReturnType<typeof vi.fn>, events: HintEvent[], status: string, retryCount: number) {
+    expect(log).toHaveBeenCalledTimes(1);
+    const line = log.mock.calls[0]![0];
+    expect(Object.keys(line).sort()).toEqual(["case", "hintId", "ms", "retryCount", "rung", "status"]);
+    const terminal = events.at(-1)!;
+    expect(line).toEqual({
+      hintId: expect.any(String),
+      case: { worksheetId: request.worksheetId, problemId: request.problemId, rowId: request.rowId },
+      status, rung: request.rung, retryCount,
+      ms: terminal.type === "done" ? { firstEvent: terminal.ms.firstEvent, total: expect.any(Number) } : expect.any(Number),
+    });
+    expect(line.hintId).toBe("hintId" in terminal ? terminal.hintId : undefined);
+    if (typeof line.ms === "number") expect(line.ms).toBeGreaterThanOrEqual(0);
+    else {
+      expect(line.ms.firstEvent).toBeGreaterThanOrEqual(0);
+      expect(line.ms.total).toBeGreaterThanOrEqual(line.ms.firstEvent);
+      if (terminal.type === "done") expect(line.ms.total).toBeGreaterThanOrEqual(terminal.ms.total);
+    }
+    const serialized = JSON.stringify(line);
+    for (const secret of [privateNote, "privateNote", "SECRET_IMAGE", "SECRET_CLEAN_IMAGE", "You are Albert", "What does dx become?", "PROVIDER_SECRET"]) {
+      expect(serialized).not.toContain(secret);
+    }
+  }
+
+  it.each(["calc2/u4", "unknown-unit"])("passes only public deferral fields for %s, with a scope title only when known", async (unitId) => {
+    const reply = valid();
+    reply.diagnosis.easierOutOfScope = { methodName: "Partial fractions", unitId };
+    const scope = await getScopeBundle(request.worksheetId, request.problemId, repo);
+    // The lookup is by unitId, not the first upcoming method or a model-provided title.
+    scope.upcomingMethods = [
+      { name: "Other method", unitId: "other-unit", unitTitle: "Wrong title" },
+      { name: "Partial fractions", unitId: "calc2/u4", unitTitle: "Partial Fractions" },
+    ];
+    const events = await collect({ model: { invoke: async () => response(reply) }, repo, scopeLoader: async () => scope });
+    const diagnosis = events.find((event) => event.type === "diagnosis");
+    expect(diagnosis).toMatchObject({ status: "error", inScope: true });
+    if (unitId === "calc2/u4") expect(diagnosis).toHaveProperty("deferredMethod", {
+      name: "Partial fractions", unitId, unitTitle: "Partial Fractions",
+    });
+    else expect(diagnosis).not.toHaveProperty("deferredMethod");
+    expect(events.at(-1)?.type).toBe("done");
+    expect(JSON.stringify(events)).not.toContain(privateNote);
+    expect(JSON.stringify(events)).not.toContain("privateNote");
+    expect(JSON.stringify(events)).not.toContain("easierOutOfScope");
+  });
+
+  it.each([1, 2, 3] as const)("AC4: no notes at rung %s bypasses the model, stores nothing and logs once", async (rung) => {
+    const scope = await getScopeBundle(request.worksheetId, request.problemId, repo);
+    scope.taught = false;
+    scope.card.taught = false;
+    await repo.createSession({ id: request.sessionId, studentId: "demo", courseId: "calc2", worksheetId: request.worksheetId, startedAt: new Date().toISOString() });
+    const invoke = vi.fn(async () => response(valid()));
+    const saveHint = vi.spyOn(repo, "saveHint");
+    const addEvidence = vi.spyOn(repo, "addEvidence");
+    const log = vi.fn();
+    const events = await collect({ model: { invoke }, repo, scopeLoader: async () => scope, log }, { ...request, rung });
+    expect(invoke).not.toHaveBeenCalled();
+    expect(events.map((event) => event.type)).toEqual(["started", "diagnosis", "hint", "done"]);
+    expect(events[1]).toEqual({ type: "diagnosis", status: "stalled", inScope: true });
+    expect(events.filter((event) => event.type === "hint")).toEqual([
+      { type: "hint", kind: "reread", segments: [{ type: "text", text: noNotes }] },
+    ]);
+    expect(events.filter((event) => event.type === "mark")).toEqual([]);
+    expect(saveHint).not.toHaveBeenCalled();
+    expect(addEvidence).not.toHaveBeenCalled();
+    expect(await repo.listHints({})).toEqual([]);
+    expect(await repo.listEvidence("demo", "calc2")).toEqual([]);
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log.mock.calls[0]![0]).toMatchObject({ status: "done", rung, retryCount: 0 });
+    if (rung === 1) expectLog(log, events, "done", 0);
+  });
+
+  it.each([
+    { outcome: "success", status: "done", retryCount: 0 },
+    { outcome: "repair", status: "done", retryCount: 1 },
+    { outcome: "invalid", status: "bad_model_output", retryCount: 1 },
+    { outcome: "throws", status: "model_unavailable", retryCount: 0 },
+    { outcome: "repair-throws", status: "model_unavailable", retryCount: 1 },
+    { outcome: "timeout", status: "timeout", retryCount: 0 },
+  ])("writes one safe log line for $outcome", async ({ outcome, status, retryCount }) => {
+    vi.useFakeTimers(); vi.stubEnv("HINT_TIMEOUT_MS", "20");
+    const scope = await getScopeBundle(request.worksheetId, request.problemId, repo);
+    let calls = 0;
+    const invoke = vi.fn(async () => {
+      calls++;
+      if (outcome === "throws" || (outcome === "repair-throws" && calls === 2)) throw new Error("PROVIDER_SECRET");
+      if (outcome === "timeout") return new Promise<never>(() => {});
+      if (outcome === "invalid" || ((outcome === "repair" || outcome === "repair-throws") && calls === 1)) return { tool_calls: [] };
+      return response(valid());
+    });
+    const log = vi.fn();
+    const pending = collect({ model: { invoke }, repo, scopeLoader: async () => scope, log }, logRequest);
+    if (outcome === "timeout") await vi.advanceTimersByTimeAsync(21);
+    const events = await pending;
+    expectLog(log, events, status, retryCount);
+    expect(invoke).toHaveBeenCalledTimes(retryCount + 1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("defaults to one console.info call containing a single JSON line", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const events = await collect({ model: { invoke: async () => response(valid()) }, repo }, logRequest);
+    expect(info).toHaveBeenCalledTimes(1);
+    expect(info.mock.calls[0]).toHaveLength(1);
+    const serialized = info.mock.calls[0]![0] as string;
+    expect(serialized).not.toContain("\n");
+    const captured = vi.fn(); captured(JSON.parse(serialized));
+    expectLog(captured, events, "done", 0);
+  });
+
+  it("includes persistence time in the successful log's total", async () => {
+    let now = Date.parse("2026-11-14T16:00:00Z");
+    const save = repo.saveHint.bind(repo);
+    vi.spyOn(repo, "saveHint").mockImplementation(async (hint) => { now += 200; await save(hint); });
+    const log = vi.fn();
+    const events = await collect({ model: { invoke: async () => response(valid()) }, repo, clock: () => now, log });
+    expectLog(log, events, "done", 0);
+    expect(log.mock.calls[0]![0].ms).toEqual({ firstEvent: 0, total: 200 });
+  });
+
+  it.each(["scope", "storage"])("logs one safe failure if %s throws", async (stage) => {
+    const log = vi.fn();
+    const scope = await getScopeBundle(request.worksheetId, request.problemId, repo);
+    if (stage === "storage") vi.spyOn(repo, "saveHint").mockRejectedValue(new Error("PROVIDER_SECRET"));
+    const events = await collect({
+      model: { invoke: async () => response(valid()) }, repo, log,
+      scopeLoader: async () => { if (stage === "scope") throw new Error("PROVIDER_SECRET"); return scope; },
+    });
+    expect(events.at(-1)).toMatchObject({ type: "error", code: "model_unavailable" });
+    expectLog(log, events, "model_unavailable", 0);
   });
 });
 
