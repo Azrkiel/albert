@@ -8,13 +8,14 @@ import { buildHintRequest, clearRow, createSessionState, detectStuck, eraseGestu
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock, type HintRequested } from "./ProblemBlock";
+import { useSessionSync } from "./useSessionSync";
 
 /** P2.7 dev hook: snapshot of the current state; problem and marked default to the row's problem and true. */
 type SnapshotHook = (args: { upToRowId: string; problemId?: string; marked?: boolean }) => Promise<Snapshot>;
 type HintRequestHook = (rowId: string, rung: Rung, trigger: StuckSignal["kind"]) => Promise<HintRequest>;
 
 declare global {
-  interface Window { __albert?: { state: SessionState; replayDone: boolean; renderSnapshot?: SnapshotHook; buildHintRequest?: HintRequestHook } }
+  interface Window { __albert?: { state: SessionState; replayDone: boolean; renderSnapshot?: SnapshotHook; buildHintRequest?: HintRequestHook; sessionId?: string; flushSession?: () => Promise<boolean> } }
 }
 
 /** The latest row of the problem written in last: what the dev Snapshot button shows. */
@@ -55,7 +56,12 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const [replayDone, setReplayDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const sessionId = useId();
+  // P2.8: the store's session id once POST /api/session has answered; the local id until then.
+  const fallbackSessionId = useId();
+  const [serverSessionId, setServerSessionId] = useState<string>();
+  const sessionId = serverSessionId ?? fallbackSessionId;
+  const sync = useSessionSync(worksheetId, setServerSessionId);
+  const { push: syncPush, restart: syncRestart } = sync;
   const hint = useHint();
   const [hintTarget, setHintTarget] = useState<{ problemId: string; rowId: string } | null>(null);
   const sendHint = hint.requestHint;
@@ -69,12 +75,17 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const detect = useCallback((at: number) => {
     const s = current.current;
     const signal = detectStuck(s.events, at, s.rows, listClusters(s));
-    if (signal) replace(reduceSessionEvent(s, { type: "stuck", at, signal }));
-  }, [replace]);
+    if (signal) {
+      const event: SessionEvent = { type: "stuck", at, signal };
+      replace(reduceSessionEvent(s, event));
+      syncPush(event);
+    }
+  }, [replace, syncPush]);
   const sink = useCallback((event: SessionEvent) => {
     replace(reduceSessionEvent(current.current, event));
+    syncPush(event);
     if (!seeking.current) detect(event.at);
-  }, [replace, detect]);
+  }, [replace, detect, syncPush]);
   // P2.6 can call this same entry point through the canvas ref. P2.7 will
   // replace the placeholder PNG and empty cluster lists with a real snapshot.
   const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual") => {
@@ -160,8 +171,8 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     setError("");
     setReplayDone(false);
     setRevision((value) => value + 1); // Discard in-flight pointer drafts on replacement.
-    const reset = () => replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.layout ?? "ruled"),
-      durationMs: rec.durationMs, ...(rec.notes === undefined ? {} : { notes: rec.notes }) });
+    const reset = () => { syncRestart(); replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.layout ?? "ruled"),
+      durationMs: rec.durationMs, ...(rec.notes === undefined ? {} : { notes: rec.notes }) }); };
     reset();
     origin.current = performance.now() - rec.durationMs;
     replayClock.current = { started: performance.now(), speed: playbackSpeed === "4" ? 4 : 1,
@@ -181,7 +192,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       done();
     }
     else void next.play().then(done, () => { if (player.current === next) setError("Could not replay recording."); });
-  }, [replace, sink, detect]);
+  }, [replace, sink, detect, syncRestart]);
 
   useEffect(() => {
     if (!devBuild || !fixture) return;
@@ -211,9 +222,10 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     buildHintRequest(current.current, rowId, rung, trigger, { sessionId }), [sessionId]);
   useEffect(() => {
     if (!devBuild) return;
-    window.__albert = { state, replayDone: replayDone && !loading, renderSnapshot: snapshotHook, buildHintRequest: hintRequestHook };
+    window.__albert = { state, replayDone: replayDone && !loading, renderSnapshot: snapshotHook, buildHintRequest: hintRequestHook,
+      ...(serverSessionId === undefined ? {} : { sessionId: serverSessionId }), flushSession: sync.flush };
     return () => { delete window.__albert; };
-  }, [state, replayDone, loading, snapshotHook, hintRequestHook]);
+  }, [state, replayDone, loading, snapshotHook, hintRequestHook, serverSessionId, sync.flush]);
 
   function openSnapshot() {
     const rowId = latestRow(current.current);
@@ -255,6 +267,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       <button type="button" aria-pressed={tool === "eraser"} onClick={() => setTool("eraser")}>Eraser</button>
       <button type="button" disabled={!state.undoStack.length} onClick={() => history("undo")}>Undo</button>
       <button type="button" disabled={!state.redoStack.length} onClick={() => history("redo")}>Redo</button>
+      <button type="button" disabled={sync.status === "ending" || sync.status === "ended"} onClick={() => void sync.end()}>End session</button>
     </div>
     {devTools && <DevToolbar speed={speed} onSpeed={setSpeed}
       onLoad={(file) => void load(file)} onExport={download} onPlay={() => start(loaded.current ?? snapshot(), speed)}
@@ -265,6 +278,8 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
         const problem = state.problems[0];
         if (problem) void requestHint(problem.id, `${problem.id}/r3`, 1);
       }}>Request mock hint</button>}
+    {sync.status === "ended" && <p role="status">Session ended. Your work is saved.</p>}
+    {sync.status === "error" && <p role="alert">Could not save your session. Check your connection and try again.</p>}
     {error && <p role="alert">{error}</p>}
     {state.problems.map((problem) => {
       const rows = state.rows.filter((row) => row.problemId === problem.id);
