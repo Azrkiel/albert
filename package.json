@@ -12,7 +12,7 @@
     "test": "vitest run tests/unit --passWithNoTests",
     "verify": "pnpm typecheck && pnpm lint && pnpm test",
     "e2e": "playwright test",
-    "smoke": "node -e \"console.log('not built yet (Phase 1)')\" --",
+    "smoke": "tsx scripts/smoke.ts",
     "eval:hints": "node -e \"console.log('not built yet (Phase 3)')\" --",
     "agent:ingest": "node -e \"console.log('not built yet (Phase 6)')\" --",
     "agent:replan": "node -e \"console.log('not built yet (Phase 6)')\" --",
@@ -22,6 +22,10 @@
     "check:tracks": "node -e \"console.log('not built yet (Phase 8)')\" --"
   },
   "dependencies": {
+    "@langchain/anthropic": "^1.6.5",
+    "@langchain/aws": "^1.5.2",
+    "@langchain/core": "^1.4.1",
+    "@langchain/xai": "^1.5.6",
     "nanoid": "^6.0.2",
     "next": "16.4.6",
     "react": "19.3.0",
