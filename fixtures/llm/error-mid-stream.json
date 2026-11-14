@@ -1,0 +1,54 @@
+{
+  "fixtureId": "error-mid-stream",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-error-mid-stream",
+      "at": 0
+    },
+    {
+      "type": "reading",
+      "rows": [
+        {
+          "rowId": "calc2-ws3/p1/r3",
+          "latex": "int \frac{1}{16sin^2\thetacdot4cos\theta}",
+          "confidence": "high"
+        }
+      ]
+    },
+    {
+      "type": "mark",
+      "mark": {
+        "type": "circle",
+        "rowId": "calc2-ws3/p1/r3",
+        "clusterIds": [
+          "calc2-ws3/p1/r3/c1",
+          "calc2-ws3/p1/r3/c2"
+        ]
+      }
+    },
+    {
+      "type": "hint",
+      "kind": "question",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Partial hint that must not stay visible?"
+        }
+      ]
+    },
+    {
+      "type": "error",
+      "hintId": "mock-error-mid-stream",
+      "code": "timeout",
+      "message": "Mock: the stream stopped after partial output."
+    }
+  ],
+  "delaysMs": [
+    150,
+    200,
+    200,
+    200,
+    1500
+  ]
+}

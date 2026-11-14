@@ -111,7 +111,7 @@ Record the real values as they are decided. Later phases and the write-up read t
 | [ ] | P3.5 Choose the model and the image mode | 2 | | |
 | [ ] | P3.6 Streaming | 4 | | |
 | [ ] | P3.7 Check | 3 | | |
-| [ ] | P3.8 Failure behaviour | 4 | | |
+| [ ] | P3.8 Failure behaviour | 4 | Claude | client half (items 1–2, AC1–AC2): branch p3.8-client-errors · AC1 tests/e2e/hint-errors.spec.ts (error mocks fixtures/llm/error-*.json) · AC2 tests/unit/hint-client.test.ts (createHintRunner) · server half (items 3–5, AC4) waits for P3.3 · needs human: P3.8-AC3 |
 
 ### Phase 4 — Ink · [`phase-4-ink.md`](./phase-4-ink.md)
 
@@ -184,6 +184,7 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 14 | Claude | P3.8 client half only (items 1–2, AC1–AC2); P3.8 stays unticked. Error codes map to plain notes in src/lib/tutor/error-notes.ts; client failures map HTTP 400 → bad_request, other non-2xx/network/truncated → model_unavailable, invalid line → bad_model_output; raw messages are never shown. useHint logic extracted into createHintRunner for the AC2 unit test. Error mocks fixtures/llm/error-*.json end in `error`, so the P3.1-AC1 contract test now expects `error` as the last event for error-* files. Server half (deferredMethod, hint log line, taught:false reply, AC4) waits for P3.3; AC3 needs a person. |
 | Nov 14 | Codex | P3.3 timeout follow-up: user reported one live invocation, no repair, timeout/exit 1; AC3 remains NEEDS HUMAN with known live budget 1/10 (Cloud 0). CLI now prints elapsedMs/effective timeoutMs on failures and accepts a process-local --timeout-ms override for one diagnostic run; app default remains 12000 ms. pnpm verify 641 passed/16 skipped; local fake HTTP/2 Bedrock endpoint checks verify timeout and successful output with zero actual AWS calls. No prompt, model, application deadline or acceptance rule changed. |
 | Nov 14 | Codex | P3.3 on p3.3-prompt: forced described reply tool, stable prose/scope blocks, image-first request, pure rule checks, one repair, model deadline, mapped targets and private StoredHint. Plan reconciled with injected dependencies, non-streamed timeout, fixture CLI and persistence before done; preserve P7.1 with the complete live diagnosis and keep route reconstruction mock-only. User approved the one obsolete hint-route unit-test replacement outside the initial ownership list. verify 641 passed/16 skipped; offline e2e 57 passed/5 skipped; build and all 4 production gates passed. AC3 NEEDS HUMAN (exact Windows command in the P3.3 row); snapshot inspected before any live call, expected R3 clusters {2,8}; live calls 0. P3.3 remains unticked; P3.4/P3.5/P3.6/P3.8 deferred. |
 | Nov 14 | Claude | P4.1 was already merged (PR #26); this branch adds one test-only P4.1 commit, then P4.2. Font Kalam (OFL). MathJax 4.1.3 moved to dependencies and imported on demand; v4 needs `linebreaks: { inline: false }` or inline math splits into several SVGs. `mathToSvg`/`renderSegment` also return `baseline` because layout aligns items by top edge: P4.4 should align math and text baselines. Formulas needing a MathJax font extension at run time fall back to text (no browser asyncLoad). Plan note added under P4.2. |

@@ -1,0 +1,20 @@
+{
+  "fixtureId": "error-bad_request",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-error-bad_request",
+      "at": 0
+    },
+    {
+      "type": "error",
+      "hintId": "mock-error-bad_request",
+      "code": "bad_request",
+      "message": "Mock: the request was not a valid HintRequest."
+    }
+  ],
+  "delaysMs": [
+    150,
+    300
+  ]
+}

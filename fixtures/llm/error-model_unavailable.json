@@ -1,0 +1,20 @@
+{
+  "fixtureId": "error-model_unavailable",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-error-model_unavailable",
+      "at": 0
+    },
+    {
+      "type": "error",
+      "hintId": "mock-error-model_unavailable",
+      "code": "model_unavailable",
+      "message": "Mock: the model could not be reached."
+    }
+  ],
+  "delaysMs": [
+    150,
+    300
+  ]
+}

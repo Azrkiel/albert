@@ -1,13 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HintEventSchema, type HintEvent, type HintRequest } from "../contracts";
+import { CLIENT_FAILURE_CODES, type ClientHintFailure } from "./error-notes";
 
 export type HintStatus = "idle" | "streaming" | "done" | "error";
 export type HintParserState = { buffer: string; events: HintEvent[]; status: HintStatus };
 
-function failed(state: HintParserState, message: string): HintParserState {
-  return { buffer: "", events: [...state.events, { type: "error", code: "bad_model_output", message }], status: "error" };
+const failureMessages: Record<ClientHintFailure, string> = {
+  http_400: "The hint route rejected the request.",
+  http_error: "The hint route returned an error status.",
+  network: "The hint request failed before it finished.",
+  truncated: "The hint stream ended early.",
+  invalid_line: "The hint stream had an invalid line.",
+};
+
+// The message is for logs only; the page shows the note for `code` (error-notes.ts).
+function failed(state: HintParserState, failure: ClientHintFailure): HintParserState {
+  return {
+    buffer: "", status: "error",
+    events: [...state.events, { type: "error", code: CLIENT_FAILURE_CODES[failure], message: failureMessages[failure] }],
+  };
 }
 
 // Pure incremental parser: callers own decoding bytes and storing the next state.
@@ -26,54 +39,79 @@ export function parseHintChunk(state: HintParserState, chunk: string, final = fa
       else if (event.type === "done") next.status = "done";
       if (next.status === "error") return next;
     } catch {
-      return failed(next, "Albert returned an invalid hint stream.");
+      return failed(next, "invalid_line");
     }
   }
-  if (final && next.status !== "done") next = failed(next, "Albert's hint stream ended early.");
+  if (final && next.status !== "done") next = failed(next, "truncated");
   return next;
 }
 
-export function useHint() {
-  const [state, setState] = useState<HintParserState>({ buffer: "", events: [], status: "idle" });
-  const active = useRef<AbortController | null>(null);
-  const cancel = useCallback(() => {
-    active.current?.abort();
-    active.current = null;
-    setState((previous) => ({ ...previous, status: "idle" }));
-  }, []);
-  useEffect(() => () => { active.current?.abort(); active.current = null; }, []);
+export type HintFetch = (input: string, init: RequestInit) => Promise<Response>;
+export type HintRunner = {
+  request: (request: HintRequest) => Promise<void>;
+  cancel: () => void;
+  dispose: () => void;
+};
 
-  const requestHint = useCallback(async (request: HintRequest) => {
-    active.current?.abort();
+/**
+ * The request logic behind `useHint`, free of React so it can be unit tested (P3.8-AC2).
+ * One stream at a time: a new request aborts the one in flight, and only the current
+ * request may publish. A superseded request never publishes its events or its error.
+ */
+export function createHintRunner(fetchHint: HintFetch, publish: (state: HintParserState) => void): HintRunner {
+  let active: AbortController | null = null;
+  let latest: HintParserState = { buffer: "", events: [], status: "idle" };
+  const show = (state: HintParserState) => { latest = state; publish(state); };
+
+  const request = async (hintRequest: HintRequest) => {
+    active?.abort();
     const controller = new AbortController();
-    active.current = controller;
+    active = controller;
+    const current = () => active === controller && !controller.signal.aborted;
     let parsed: HintParserState = { buffer: "", events: [], status: "streaming" };
-    setState(parsed);
+    show(parsed);
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     try {
-      const response = await fetch("/api/hint", {
+      const response = await fetchHint("/api/hint", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request), signal: controller.signal,
+        body: JSON.stringify(hintRequest), signal: controller.signal,
       });
-      if (!response.ok || !response.body) throw new Error("Hint request failed.");
+      if (!current()) return;
+      if (!response.ok || !response.body) {
+        show(failed(parsed, response.status === 400 ? "http_400" : "http_error"));
+        return;
+      }
       reader = response.body.getReader();
       const decoder = new TextDecoder();
       while (true) {
         const { value, done } = await reader.read();
-        if (active.current !== controller) break;
+        if (!current()) break;
         parsed = parseHintChunk(parsed, done ? decoder.decode() : decoder.decode(value, { stream: true }), done);
-        setState(parsed);
+        show(parsed);
         if (done || parsed.status === "error") break;
       }
     } catch {
-      if (active.current === controller && !controller.signal.aborted) {
-        setState(failed(parsed, "Albert could not finish this hint. Try again."));
-      }
+      if (current()) show(failed(parsed, "network"));
     } finally {
       await reader?.cancel().catch(() => {});
       reader?.releaseLock();
-      if (active.current === controller) active.current = null;
+      if (active === controller) active = null;
     }
-  }, []);
-  return { events: state.events, status: state.status, requestHint, cancel };
+  };
+
+  const cancel = () => {
+    active?.abort();
+    active = null;
+    show({ ...latest, status: "idle" });
+  };
+  const dispose = () => { active?.abort(); active = null; };
+  return { request, cancel, dispose };
+}
+
+export function useHint() {
+  const [state, setState] = useState<HintParserState>({ buffer: "", events: [], status: "idle" });
+  // The whole page shares one runner, so a request on any problem cancels the one in flight.
+  const runner = useMemo(() => createHintRunner((input, init) => fetch(input, init), setState), []);
+  useEffect(() => () => runner.dispose(), [runner]);
+  return { events: state.events, status: state.status, requestHint: runner.request, cancel: runner.cancel };
 }
