@@ -65,6 +65,26 @@ class Surface extends EventTarget {
   }
 }
 
+it("latches stylus eraser bit 32 or the selected eraser for a gesture, then returns to pen", () => {
+  const surface = new Surface();
+  const strokes: Stroke[] = [];
+  let tool: Stroke["tool"] = "pen";
+  const detach = attachCapture(surface as unknown as SVGSVGElement, {
+    problemId: "p1", sessionStart: 0, now: () => 50, getTool: () => tool,
+    onPreview: () => {}, onStroke: (stroke) => strokes.push(stroke),
+  });
+  surface.emit("pointerdown", { buttons: 32, button: 5 });
+  surface.emit("pointerup", { buttons: 0 });
+  surface.emit("pointerdown", { buttons: 1 });
+  surface.emit("pointerup");
+  tool = "eraser";
+  surface.emit("pointerdown", { pointerType: "mouse", buttons: 1 });
+  tool = "pen"; // Do not turn an in-flight eraser gesture into ink.
+  surface.emit("pointerup", { pointerType: "mouse" });
+  expect(strokes.map((stroke) => stroke.tool)).toEqual(["eraser", "pen", "eraser"]);
+  detach();
+});
+
 function setup() {
   const surface = new Surface();
   const strokes: Stroke[] = [];
