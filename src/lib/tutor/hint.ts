@@ -12,6 +12,7 @@ import { getHintModel } from "./tools";
 /** The injected model is already bound to albert_reply, just like getHintModel(). */
 export type HintModel = {
   invoke(messages: BaseMessage[], options: { signal: AbortSignal }): Promise<unknown>;
+  dispose?: () => void;
 };
 export type HintDeps = {
   model?: HintModel;
@@ -31,6 +32,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
   const start = clock();
   const hintId = randomUUID();
   const controller = new AbortController();
+  let model = deps.model;
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const timeout = timeoutSetting.parse(process.env.HINT_TIMEOUT_MS || 12_000);
@@ -41,7 +43,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     const withinDeadline = <T>(work: Promise<T>) => Promise.race([work, expired]);
     const repo = deps.repo ?? getRepo();
     const scope = await withinDeadline((deps.scopeLoader ?? getScopeBundle)(request.worksheetId, request.problemId, repo));
-    const model = deps.model ?? getHintModel();
+    model ??= getHintModel();
     const messages = buildMessages(request, scope);
     let reply: AlbertReply | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -104,5 +106,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
       : { type: "error", hintId, code: "model_unavailable", message: "Albert could not finish this hint. Try again." };
   } finally {
     clearTimeout(timer);
+    controller.abort();
+    model?.dispose?.();
   }
 }
