@@ -1,13 +1,14 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import { INK, PAGE, type Row, type Stroke, type Worksheet } from "@/lib/contracts";
+import { INK, PAGE, type CanvasLayout, type Row, type Stroke, type Worksheet } from "@/lib/contracts";
+import { freeSurfaceHeight, inkedRowIds } from "@/lib/canvas";
 import { WorkSurface } from "./WorkSurface";
 
 // Phase 5 owns loading/typesetting. Accept its existing contract metadata directly.
 type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLatex">;
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay }: {
+export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, layout = "ruled" }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
@@ -19,16 +20,21 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   hintRowId?: string;
   /** SVG drawn above the ink (the ?dev=1 cluster overlay); omitted in normal use. */
   devOverlay?: ReactNode;
+  /** "free": rows are inferred lines, drawn without rules; only lines with live ink get a number. */
+  layout?: CanvasLayout;
 }) {
   const headingId = useId();
-  const height = Math.max(...rows.map((row) => row.bbox.y + row.bbox.h));
+  const free = layout === "free";
+  const height = free ? freeSurfaceHeight(rows) : Math.max(...rows.map((row) => row.bbox.y + row.bbox.h));
+  const inked = inkedRowIds(strokes);
+  const numbered = free ? rows.filter((row) => inked.has(row.id)) : rows;
 
   return (
     <section data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }}>
       {/* HTML controls stay accessible outside the SVG's atomic img role. */}
       <WorkSurface problemId={problem.id} height={height} strokes={strokes}
         onStroke={onStroke} getSessionStart={getSessionStart} tool={tool} svgOverlay={devOverlay}
-        overlay={onClearRow && rows.map((row) => <button key={row.id} type="button" data-row-number=""
+        overlay={onClearRow && numbered.map((row) => <button key={row.id} type="button" data-row-number=""
           aria-label={`Clear row ${row.index} of problem ${problem.label}`}
           title={`Clear row ${row.index}`} onClick={() => onClearRow(row.id)}
           style={{ position: "absolute", left: "0.5%", top: `${(row.bbox.y + 2) / height * 100}%`,
@@ -54,10 +60,10 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
               <p data-problem-statement="" style={{ fontSize: 18 }}>{problem.statementLatex}</p>
             </div>
           </foreignObject>
-          {rows.map((row) => (
+          {numbered.map((row) => (
             <g key={row.id} data-row-id={row.id}>
-              <line x1={row.bbox.x} x2={row.bbox.x + row.bbox.w}
-                y1={row.bbox.y + row.bbox.h} y2={row.bbox.y + row.bbox.h} stroke="#e7e5df" strokeWidth={1} />
+              {!free && <line x1={row.bbox.x} x2={row.bbox.x + row.bbox.w}
+                y1={row.bbox.y + row.bbox.h} y2={row.bbox.y + row.bbox.h} stroke="#e7e5df" strokeWidth={1} />}
               {!onClearRow && <text data-row-number="" x={row.bbox.x + 8} y={row.bbox.y + PAGE.rowPaddingTop + 12}
                 fill="#aaa69e" fontSize={14}>{row.index}</text>}
             </g>

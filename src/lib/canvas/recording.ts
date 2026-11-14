@@ -9,10 +9,12 @@ export function parseRecording(input: unknown): SessionRecording {
   const rows = new Map(rec.rows.map((row) => [row.id, row]));
   if (problems.size !== rec.problems.length || rows.size !== rec.rows.length) invalid();
   for (const row of rec.rows) if (!problems.has(row.problemId)) invalid();
-  for (const id of problems) if (!rec.rows.some((row) => row.problemId === id)) invalid();
+  const layout = rec.layout ?? "ruled";
+  // Ruled problems always have bands; free-layout rows exist only where there is ink.
+  if (layout === "ruled") for (const id of problems) if (!rec.rows.some((row) => row.problemId === id)) invalid();
   const strokes = new Set<string>();
   let previous = 0;
-  let state = createSessionState(rec.problems, rec.worksheetId, rec.rows);
+  let state = createSessionState(rec.problems, rec.worksheetId, rec.rows, layout);
   for (const event of rec.events) {
     if (event.at < previous || event.at > rec.durationMs) invalid();
     previous = event.at;
@@ -37,7 +39,8 @@ export function parseRecording(input: unknown): SessionRecording {
 export function exportRecording(state: SessionState, name: string): SessionRecording {
   return parseRecording({ version: 1, name, worksheetId: state.worksheetId, problems: state.problems,
     rows: state.rows, events: state.events, durationMs: state.durationMs,
-    ...(state.notes === undefined ? {} : { notes: state.notes }) });
+    ...(state.notes === undefined ? {} : { notes: state.notes }),
+    ...(state.layout === "free" ? { layout: "free" as const } : {}) });
 }
 
 type ReplayOptions = { speed?: number; reset?: () => void };

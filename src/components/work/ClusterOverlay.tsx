@@ -1,11 +1,16 @@
 "use client";
 
-import { INK, type Cluster } from "@/lib/contracts";
+import { INK, type Cluster, type Row } from "@/lib/contracts";
 
 /** Dev-only (?dev=1) view of each cluster's box and label, for tuning STUCK.CLUSTER_GAP. Never intercepts input. */
-export function ClusterOverlay({ clusters }: { clusters: Cluster[] }) {
+/** With `lines` (free layout), each inferred line's band is outlined too. */
+export function ClusterOverlay({ clusters, lines }: { clusters: Cluster[]; lines?: Row[] }) {
   return (
     <g data-cluster-overlay="" pointerEvents="none" style={{ pointerEvents: "none" }} aria-hidden="true">
+      {lines?.map((line) => (
+        <rect key={line.id} data-line-band={line.id} x={line.bbox.x + 1} y={line.bbox.y} width={line.bbox.w - 2} height={line.bbox.h}
+          fill="none" stroke="#9aa0a6" strokeWidth={1} strokeDasharray="1 4" />
+      ))}
       {clusters.map((cluster) => (
         <g key={cluster.id} data-cluster-id={cluster.id}>
           <rect data-cluster-box="" x={cluster.bbox.x - 2} y={cluster.bbox.y - 2}
