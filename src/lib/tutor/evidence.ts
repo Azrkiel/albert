@@ -10,7 +10,9 @@ function event(session: EvidenceContext, problemId: string, subskillId: string, 
 function known(id: string, session: EvidenceContext): boolean {
   return session.subskillIds.includes(id);
 }
-const fresh = (events: EvidenceEvent[], session: EvidenceContext) => events.filter(e => !session.evidence.some(old => old.id === e.id));
+const fresh = (events: EvidenceEvent[], session: EvidenceContext) => events.filter(e => !session.evidence.some(old =>
+  old.id === e.id || (old.studentId === e.studentId && old.courseId === e.courseId && old.sessionId === e.sessionId &&
+    old.problemId === e.problemId && old.subskillId === e.subskillId && old.outcome === e.outcome && old.errorType === e.errorType)));
 const belongs = (hint: StoredHint, session: Session) => hint.sessionId === session.id && hint.courseId === session.courseId;
 
 export function evidenceFromHint(hint: StoredHint, session: EvidenceContext): EvidenceEvent[] {

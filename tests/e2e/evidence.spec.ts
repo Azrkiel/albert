@@ -16,6 +16,9 @@ test("hint route persists one missing_dx event across rungs", async ({ request }
     expect(await response.text()).toContain('"type":"done"');
   }
   const events = await (await request.get(`/api/dev/evidence?studentId=${session.studentId}&courseId=${session.courseId}`)).json();
+  const progress = await request.get(`/api/progress/${session.courseId}`);
+  expect(progress.ok()).toBeTruthy();
+  expect(await progress.json()).toMatchObject({ skills: expect.arrayContaining([{ studentId: "demo", courseId: session.courseId, subskillId: card.subskills[0]!.id, unitId: card.unitId, level: 1, evidenceIds: [], recentErrorTypes: ["missing_dx"], updatedAt: expect.any(String) }]), recentErrors: expect.arrayContaining([expect.objectContaining({ errorType: "missing_dx", subskillId: card.subskills[0]!.id })]) });
   expect(events.filter((e: { sessionId: string }) => e.sessionId === sessionId)).toMatchObject([{ outcome: "error_made", errorType: "missing_dx" }]);
 });
 

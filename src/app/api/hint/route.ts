@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { getRepo } from "../../../lib/db";
 import { recordHintEvidence } from "../../../lib/tutor/record-evidence";
 import { StoredHintSchema } from "../../../lib/contracts";
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
             const hint = collected.find(e => e.type === "hint");
             if (diagnosis && reading && hint) {
               const stored = StoredHintSchema.parse({
-                id: JSON.stringify([input.sessionId, hintId]), sessionId: session.id, courseId: session.courseId,
+                id: JSON.stringify([input.sessionId, hintId, randomUUID()]), sessionId: session.id, courseId: session.courseId,
                 problemId: input.problemId, rowId: input.rowId, rung: input.rung,
                 reading: { rows: reading.rows.map(row => ({ index: input.rows.find(r => r.rowId === row.rowId)?.index ?? 1, latex: row.latex, confidence: row.confidence })) },
                 // Public mock streams omit the private note. P3.3 should pass its full reply to recordHintEvidence.

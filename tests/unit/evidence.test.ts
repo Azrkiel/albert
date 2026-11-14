@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { SessionSchema, StoredHintSchema, TeachingCardSchema, WorksheetSchema, type CheckResponse } from "../../src/lib/contracts";
 import { examples } from "./contracts.examples";
 import { evidenceFromHint, evidenceFromCheck, evidenceFromSessionEnd, type EvidenceContext } from "../../src/lib/tutor/evidence";
-import { recordHintEvidence, recordCheckEvidence } from "../../src/lib/tutor/record-evidence";
+import { recordHintEvidence, recordCheckEvidence, recordSessionEndEvidence } from "../../src/lib/tutor/record-evidence";
 import { MemoryRepo } from "../../src/lib/db/memory";
 const session = SessionSchema.parse(examples.Session.valid);
 const card = TeachingCardSchema.parse(examples.TeachingCard.valid);
@@ -15,6 +15,7 @@ describe("P7.1-AC1", () => {
   it("records one error across all rungs and retries", () => {
     const first = evidenceFromHint(hint, ctx);
     expect(first).toMatchObject([{ outcome: "error_made", errorType: "missing_dx", hintId: hint.id }]);
+    expect(evidenceFromHint(hint, { ...ctx, evidence: first.map(e => ({ ...e, id: "imported-event-id" })) })).toEqual([]);
     for (const rung of [1, 2, 3] as const) expect(evidenceFromHint({ ...hint, rung }, { ...ctx, evidence: first })).toEqual([]);
   });
   it.each(["on_track", "stalled", "unreadable"] as const)("ignores %s", status => {
@@ -50,6 +51,9 @@ it("persists hints and deduplicated evidence through the route integration funct
   await recordHintEvidence(repo, { ...hint, id: "r2", rung: 2 }, session);
   await recordCheckEvidence(repo, check, problem, session, ctx.at);
   expect(await repo.listHints({ sessionId: session.id })).toHaveLength(2);
+  expect(await repo.listEvidence(session.studentId, session.courseId)).toHaveLength(3);
+  expect((await repo.listSkills(session.studentId, session.courseId)).find(s => s.subskillId === "sk1")).toMatchObject({ level: 2 });
+  await recordSessionEndEvidence(repo, session, [{ type: "check_result", at: 1, problemId: problem.id, verdict: "correct" }], ctx.at);
   expect(await repo.listEvidence(session.studentId, session.courseId)).toHaveLength(3);
 });
 it("resolves persisted sessions without exposing mutable state", async () => {

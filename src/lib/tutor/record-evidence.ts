@@ -1,3 +1,4 @@
+import { recomputeSkills } from "../progress";
 import type { Repo, Session, StoredHint, CheckResponse, Worksheet, SessionEvent } from "@/lib/contracts";
 import { evidenceFromHint, evidenceFromCheck, evidenceFromSessionEnd } from "./evidence";
 
@@ -11,15 +12,18 @@ export async function recordHintEvidence(repo: Repo, hint: StoredHint, session: 
   if (hint.diagnose.subskillId && !ctx.subskillIds.includes(hint.diagnose.subskillId)) console.warn("Unknown hint subskill", hint.diagnose.subskillId);
   const events = evidenceFromHint(hint, ctx);
   await repo.addEvidence(events);
+  if (events.length) await recomputeSkills(session.studentId, session.courseId, repo, hint.at);
   return events;
 }
 export async function recordCheckEvidence(repo: Repo, check: CheckResponse, problem: Worksheet["problems"][number], session: Session, at: string) {
   const events = evidenceFromCheck(check, problem, await repo.listHints({ sessionId: session.id }), await context(repo, session, at));
   await repo.addEvidence(events);
+  if (events.length) await recomputeSkills(session.studentId, session.courseId, repo, at);
   return events;
 }
 export async function recordSessionEndEvidence(repo: Repo, session: Session, checks: SessionEvent[], at: string) {
   const events = evidenceFromSessionEnd(await context(repo, session, at), await repo.listHints({ sessionId: session.id }), checks);
   await repo.addEvidence(events);
+  if (events.length) await recomputeSkills(session.studentId, session.courseId, repo, at);
   return events;
 }
