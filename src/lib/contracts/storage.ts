@@ -43,6 +43,8 @@ export interface Repo {
   getWorksheet(id: string): Promise<Worksheet | null>;
   putFile(meta: CourseFile, bytes: Uint8Array): Promise<void>;
   getFile(id: string): Promise<{ meta: CourseFile; bytes: Uint8Array } | null>;
+  putText(id: string, text: string): Promise<void>;
+  getText(id: string): Promise<string | null>;
   getSession(id: string): Promise<Session | null>;
   createSession(s: Session): Promise<void>;
   appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;

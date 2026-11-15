@@ -88,6 +88,8 @@ describe("contract completeness", () => {
     const doc = readFileSync(resolve("docs/plan/contracts.md"), "utf8");
     const blocks = [...doc.matchAll(/interface (?:Repo|CourseSourceAdapter) \{[\s\S]*?^\}/gm)].map((m) => m[0]);
     expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toContain("putText(id: string, text: string): Promise<void>");
+    expect(blocks[0]).toContain("getText(id: string): Promise<string | null>");
     const dir = mkdtempSync(join(resolve("tests/unit"), ".contract-types-"));
     try {
       const file = join(dir, "interfaces.ts");

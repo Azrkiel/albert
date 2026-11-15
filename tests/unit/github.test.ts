@@ -32,7 +32,9 @@ it.each([false, true])("maps recorded units, lecture labels, assignment links an
   }
   expect(fetch).not.toHaveBeenCalled();
   vi.unstubAllGlobals();
-});
+  // The live=true case imports every recorded albert-files PDF from disk and
+  // takes ~4.9 s on Windows under full-suite load, past vitest's 5 s default.
+}, 30_000);
 
 it("pins every request, encodes each path segment, and never mixes a moving branch's revisions", async () => {
   const repo = new MemoryRepo();

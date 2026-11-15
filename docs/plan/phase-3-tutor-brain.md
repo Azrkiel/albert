@@ -114,18 +114,22 @@ scripts/eval-hints.ts
 
    Implementation: `runHint(request, deps?)` accepts an already-bound model, Repo, scope loader and clock for offline tests. Its model deadline includes scope loading and the one repair attempt, and aborts at `HINT_TIMEOUT_MS` (default 12000). The validated reply is emitted in the order above; persistence completes before `done`. For an active matching session, pass the complete stored diagnosis through `recordHintEvidence` to preserve P7.1. The route's existing stream-to-storage reconstruction remains mock-only, so it cannot duplicate a live hint or lose its private note. The `MOCK_LLM=1` fixture branch is unchanged.
 
+   Bind with `maxRetries: 0`: LangChain otherwise defaults to six transport retries, which are separate from the one permitted reply-validation repair and were invisible to the original CLI counter. The installed Bedrock adapter already sets SDK `maxAttempts` to one. Each hint owns its model; `getHintModel` supplies an idempotent `dispose`, and `runHint` aborts and disposes in `finally` on success or failure. An injected model may supply `dispose` as well. The CLI forwards it rather than dropping lifecycle cleanup.
+
    Before P3.4 exists, `pnpm exec tsx scripts/build-eval-request.ts` runs the offline dev page headlessly and saves `fixtures/eval/requests/missing-dx-r1-snapshot.json` through the real request builder. Keep the original placeholder request intact. Decode and inspect the snapshot before any live call, then use `scripts/hint-once.ts <request.json>` to print public results, timing and repair count. This one-off check seeds a memory Repo and uses only the live model; it does not write demo data into MongoDB.
 
    The CLI prints `elapsedMs` and the effective `timeoutMs` even when no hint returns. For a timeout investigation, append `--timeout-ms 30000` for one diagnostic invocation; this changes only that CLI process, not the app's 12000 ms default. A timeout with zero repairs means the first invocation did not return in time; it is not evidence of a ladder violation. Count the diagnostic invocation (and any repair) against the ten-call live budget.
 
+   To investigate a connection without spending a model call, run `node --env-file=../albert-p1.4/.env.local --import tsx scripts/hint-once.ts --check-connection --timeout-ms 5000`. This checks TLS and HTTP/2 ALPN at the configured Bedrock endpoint with certificate verification enabled, sends no HTTP request or credentials, closes the socket on all outcomes, and reports `liveCalls: 0`. A successful connection does not verify AWS permissions or model availability. For real model failures, the CLI reports only whitelisted error names/codes and numeric HTTP status; never raw provider messages. `retries` counts reply repairs; `transportRetries` is now explicitly zero. Prior runs' counters cannot establish their actual underlying HTTP-attempt count.
+
 5. `ladder.ts` — implement the checks as pure functions over `WriteHint` and `Diagnose`, each returning a list of violations with messages written so they can be fed straight back to the model.
 
 **Acceptance**
-- [ ] **P3.3-AC1** — The rule checks catch what they should. *Verify:* `tests/unit/ladder.test.ts`: a rung 1 hint without a question mark fails; one with 30 words fails; a rung 2 hint containing `dx = 4\cos\theta\,d\theta` fails; a hint naming "partial fractions" fails unless the sentence defers it; an unknown `subskillId` fails; an `unreadable` status with marks fails.
-- [ ] **P3.3-AC2** — Unknown cluster labels do not break anything. *Verify:* unit test: a `mark` naming cluster 99 becomes a whole-row mark.
-- [ ] **P3.3-AC3** — A live call on the main case is right. *Verify:* `pnpm eval:hints --case missing-dx-r1` (built in P3.4; until then a one-off script) prints: status `error`, row 3, clusters overlapping the expected ones, a question, no `4\cos` anywhere in the hint.
-- [ ] **P3.3-AC4** — A retry repairs a bad reply. *Verify:* unit test with a fake model that first returns an over-long rung 1 hint and then a valid one: one `hint` event, no `error` event, and the second prompt contains the violation text.
-- [ ] **P3.3-AC5** — `privateNote` is never in the stream. *Verify:* unit test asserting no emitted event contains the string.
+- [x] **P3.3-AC1** — The rule checks catch what they should. *Verify:* `tests/unit/ladder.test.ts`: a rung 1 hint without a question mark fails; one with 30 words fails; a rung 2 hint containing `dx = 4\cos\theta\,d\theta` fails; a hint naming "partial fractions" fails unless the sentence defers it; an unknown `subskillId` fails; an `unreadable` status with marks fails.
+- [x] **P3.3-AC2** — Unknown cluster labels do not break anything. *Verify:* unit test: a `mark` naming cluster 99 becomes a whole-row mark.
+- [x] **P3.3-AC3** — A live call on the main case is right. *Verify:* `pnpm eval:hints --case missing-dx-r1` (built in P3.4; until then a one-off script) prints: status `error`, row 3, clusters overlapping the expected ones, a question, no `4\cos` anywhere in the hint.
+- [x] **P3.3-AC4** — A retry repairs a bad reply. *Verify:* unit test with a fake model that first returns an over-long rung 1 hint and then a valid one: one `hint` event, no `error` event, and the second prompt contains the violation text.
+- [x] **P3.3-AC5** — `privateNote` is never in the stream. *Verify:* unit test asserting no emitted event contains the string.
 
 ---
 

@@ -35,9 +35,11 @@ describe("P3.3 runHint", () => {
   it("emits the event order, saves a valid StoredHint with privateNote, and never streams it (AC5)", async () => {
     let now = Date.parse("2026-11-14T16:00:00Z");
     const invoke = vi.fn(async () => { now += 100; return response(valid()); });
-    const events = await collect({ model: { invoke }, repo, clock: () => now++ });
+    const dispose = vi.fn();
+    const events = await collect({ model: { invoke, dispose }, repo, clock: () => now++ });
     expect(events.map((event) => event.type)).toEqual(["started", "reading", "diagnosis", "mark", "hint", "done"]);
     expect(invoke).toHaveBeenCalledTimes(1);
+    expect(dispose).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(events)).not.toContain(privateNote);
     expect(events[2]).toMatchObject({ status: "error", rowId: request.rowId, clusterIds: [`${request.rowId}/c1`], inScope: true });
     const stored = StoredHintSchema.parse((await repo.listHints({ sessionId: request.sessionId }))[0]);
@@ -106,11 +108,13 @@ describe("P3.3 runHint", () => {
     vi.useFakeTimers(); vi.stubEnv("HINT_TIMEOUT_MS", "200");
     const scope = await getScopeBundle(request.worksheetId, request.problemId, repo);
     let signal: AbortSignal | undefined;
-    const model: HintModel = { invoke: async (_messages, options) => { signal = options.signal; return new Promise(() => {}); } };
+    const dispose = vi.fn();
+    const model: HintModel = { invoke: async (_messages, options) => { signal = options.signal; return new Promise(() => {}); }, dispose };
     const pending = collect({ model, repo, scopeLoader: async () => scope });
     await vi.advanceTimersByTimeAsync(201);
     expect(await pending).toEqual([expect.objectContaining({ type: "error", code: "timeout" })]);
     expect(signal?.aborted).toBe(true);
+    expect(dispose).toHaveBeenCalledTimes(1);
     expect(await repo.listHints({})).toEqual([]);
   });
   it("uses one deadline across the retry", async () => {
@@ -127,10 +131,12 @@ describe("P3.3 runHint", () => {
   });
   it("returns a generic model_unavailable on transport errors, without a repair or exception details", async () => {
     const invoke = vi.fn(async () => { throw new Error(privateNote); });
-    const events = await collect({ model: { invoke }, repo });
+    const dispose = vi.fn();
+    const events = await collect({ model: { invoke, dispose }, repo });
     expect(events).toEqual([expect.objectContaining({ type: "error", code: "model_unavailable" })]);
     expect(JSON.stringify(events)).not.toContain(privateNote);
     expect(invoke).toHaveBeenCalledTimes(1);
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
   it("preserves P7.1 evidence integration and saves the full diagnosis exactly once", async () => {
     await repo.createSession({ id: request.sessionId, studentId: "demo", courseId: "calc2", worksheetId: request.worksheetId, startedAt: new Date().toISOString() });
@@ -310,8 +316,10 @@ describe("prompt and forced tool", () => {
   it("uses the installed Bedrock binding to force exactly the named tool without sampling options or network", () => {
     const model = new ChatBedrockConverse({ model: "us.anthropic.claude-sonnet-4-6", region: "us-east-1", credentials: { accessKeyId: "fake", secretAccessKey: "fake" } });
     const bind = vi.spyOn(model, "bindTools");
-    expect(getHintModel(model)).toBeDefined();
-    expect(bind).toHaveBeenCalledExactlyOnceWith([albertReplyTool], { tool_choice: "albert_reply" });
+    const destroy = vi.spyOn(model.client, "destroy");
+    const bound = getHintModel(model);
+    expect(bound).toBeDefined();
+    expect(bind).toHaveBeenCalledExactlyOnceWith([albertReplyTool], { tool_choice: "albert_reply", maxRetries: 0 });
     expect(Object.keys(albertReplyTool.schema.shape)).toEqual(["reading", "diagnosis", "marks", "hint"]);
     const schema = z.toJSONSchema(albertReplyTool.schema);
     function checkFields(node: unknown): void {
@@ -324,5 +332,8 @@ describe("prompt and forced tool", () => {
     }
     checkFields(schema);
     expect(albertReplyTool.schema.parse(valid())).toEqual(valid());
+    bound.dispose();
+    bound.dispose();
+    expect(destroy).toHaveBeenCalledTimes(1);
   });
 });

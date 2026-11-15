@@ -13,6 +13,6 @@ export default defineConfig({
       : "pnpm dev --hostname localhost --port 3000",
     url: "http://localhost:3000",
     reuseExistingServer: false,
-    env: { MOCK_LLM: "1", STORE: "memory", LLM_PROVIDER: "bedrock" },
+    env: { MOCK_LLM: "1", STORE: "memory", LLM_PROVIDER: "bedrock", COURSE_GITHUB_TOKEN: "p55-server-only-token-sentinel" },
   },
 });
