@@ -9,8 +9,6 @@ import { fixtureManifest } from "./github-fixtures";
 
 const state = vi.hoisted(() => ({ repo: null as Repo | null }));
 vi.mock("../../src/lib/db", () => ({ getRepo: () => state.repo }));
-// Route handlers call connection() to opt out of prerendering; tests run them outside a request.
-vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), connection: async () => {} }));
 // Route handlers call connection(), which needs a Next request scope; tests call them directly.
 vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), connection: async () => {} }));
 import { POST as connect } from "../../src/app/api/source/connect/route";
