@@ -33,8 +33,17 @@ Record the result: the agent writes the check-in commit in `status.md` (Phase 2 
 
 ## Gate G2 — live hint in ink
 
-(Agents add P4.4-AC6 and the `hint-live.png` screenshot here when P4.4 lands.)
-
+- [ ] **P4.4-AC6 — live hint in ink (gate G2), three times in a row.** In Git Bash from a checkout of main (not `~/albert`):
+  `set -a; . ../albert-p1.4/.env.local; set +a; STORE=memory pnpm dev` (live model, credentials passed through the
+  environment; never copy the file). Open `http://localhost:3000/work/calc2-ws3`. With the pen, write the missing-dx work:
+  row 1 the integral of dx / (x squared times the square root of 16 minus x squared), row 2 `x = 4 sin(theta)`, row 3 the
+  integral rewritten in theta with the denominator substituted but **no** dx (that is the error; same as
+  `fixtures/sessions/missing-dx.json`). Pause 8 s until "Need a hint?" appears and tap it. Pass if the red circle lands on
+  the integrand, the arrow draws from the margin and the question writes itself, with first ink about 3 s after the tap.
+  Time tap to first ink (the circle starting to draw) with a stopwatch or a screen recording. Do it three times in a row
+  (press "Clear Albert's notes" and tap **I'm stuck** again, or reload and re-write). Record the three first-ink times in the
+  "Live first-ink times, three runs" row of the Numbers table in `status.md` and in the P4.4 row, set `INK_LEVEL` to 0 in
+  Settings, and save a screenshot of one live hint as `docs/tracks/img/hint-live.png`.
 - [ ] **P4.3-AC4 — it looks drawn.** Mocked app: `STORE=memory MOCK_LLM=1 pnpm dev`, open
   `http://localhost:3000/work/calc2-ws3?replay=missing-dx&speed=instant&dev=1`, wait for the "Need a hint?" mark in row 3
   (about 8 s) and tap it. Watch the first second after the tap: the red circle should visibly trace around the integral

@@ -6,4 +6,5 @@ export { loadMath, mathToSvg, type MathSvg } from "./math";
 export { preloadInk, renderSegment, prepareMeasure } from "./text";
 export { revealMs, revealWipe, revealStroke, type Skip } from "./animate";
 export { hashSeed, circleMark, underlineMark, crossOutMark, arrowMark } from "./marks";
-export { createConductor, type Conductor, type ConductorHost, type HintContext } from "./conductor";
+export { createConductor, type Conductor, type ConductorHost, type HintContext, type ProblemInk } from "./conductor";
+export { spaceSegments, mathAsText, breakLongWords, wrapLines } from "./segments";
