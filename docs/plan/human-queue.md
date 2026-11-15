@@ -33,8 +33,13 @@ Record the result: the agent writes the check-in commit in `status.md` (Phase 2 
 
 ## Gate G2 — live hint in ink
 
-(Agents add P4.3-AC4, P4.4-AC6 and the `hint-live.png` screenshot here when P4.3/P4.4 land.)
+(Agents add P4.4-AC6 and the `hint-live.png` screenshot here when P4.4 lands.)
 
+- [ ] **P4.3-AC4 — it looks drawn.** Mocked app: `STORE=memory MOCK_LLM=1 pnpm dev`, open
+  `http://localhost:3000/work/calc2-ws3?replay=missing-dx&speed=instant&dev=1`, wait for the "Need a hint?" mark in row 3
+  (about 8 s) and tap it. Watch the first second after the tap: the red circle should visibly trace around the integral
+  (not pop in), then the arrow shaft should draw from the margin before its small head appears. Record pass/fail in the
+  P4.3 row of `status.md`.
 - [ ] **P3.8-AC3 — model unreachable.** Start the live app with `LLM_PROVIDER=bedrock` and `AWS_REGION=invalid-region-1`
   (all other variables from `.env.local`). Open `/work/demo`, write a row, tap **I'm stuck**. The plain note must appear
   within `HINT_TIMEOUT_MS` (12 s) and you can keep writing while it waits. Record pass/fail and the seconds in the P3.8
