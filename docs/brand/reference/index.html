@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Albert's local design-system reference: reusable navigation, forms, feedback, tables, dialogs, and page patterns.">
+  <title>Albert — Website design system</title>
+  <link rel="stylesheet" href="../tokens/albert.fonts.css">
+  <link rel="stylesheet" href="../tokens/albert.css">
+  <link rel="stylesheet" href="../tokens/albert.components.css">
+  <link rel="stylesheet" href="../tokens/albert.web.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="logic.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+<noscript><p class="notice">The interactive examples need JavaScript. The Markdown specifications and PDF references remain available from this folder.</p></noscript>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="catalog-header">
+  <a class="brand" href="#overview" aria-label="Albert design system"><img src="../assets/logos/vector/albert-wordmark-primary.svg" alt="Albert" width="2172" height="724"></a>
+  <span class="catalog-label">Website system <span class="badge">v1.2</span></span>
+  <button id="navigation-toggle" class="albert-button albert-button--secondary albert-button--small" type="button" aria-expanded="false" aria-controls="catalog-navigation">Sections</button>
+</header>
+<div class="catalog-shell">
+<aside id="catalog-navigation" class="catalog-navigation" aria-label="Reference navigation">
+  <nav aria-label="Design-system sections">
+    <p class="nav-label">THE SYSTEM</p>
+    <a href="#overview">01 · Overview</a>
+    <a href="#navigation">02 · Navigation</a>
+    <a href="#forms">03 · Forms &amp; upload</a>
+    <a href="#data">04 · Content &amp; data</a>
+    <a href="#feedback">05 · Feedback &amp; status</a>
+    <a href="#overlays">06 · Dialogs &amp; disclosure</a>
+    <a href="#patterns">07 · Page patterns</a>
+    <a href="#accessibility">08 · Accessibility</a>
+  </nav>
+  <p class="nav-note">A local component reference.<br>Sample data stays in this page.</p>
+  <a class="document-link" href="../WEBSITE_SYSTEMS.md">Read the specifications</a>
+</aside>
+<main id="main" tabindex="-1">
+<section id="overview" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">FROM IDENTITY TO EXPERIENCE</p><h1>A website that feels<br>like a thoughtful tutor.</h1><p class="lead">The building blocks Albert needs to orient, teach, reassure, and help a learner move forward.</p></div>
+  <div class="overview-grid">
+    <div class="intro-copy"><span class="badge badge--success">Implementation reference</span><h2>One consistent language.</h2><p>Navigation, fields, tables, feedback, and page layouts share the same typography, space, and patient voice.</p><div class="albert-actions"><a class="albert-button albert-button--primary" href="#forms">Explore the components</a><a class="albert-button albert-button--secondary" href="#patterns">See page patterns</a></div><p class="muted small">Interactive examples use local sample data. No accounts are created and no files are uploaded.</p></div>
+    <img class="hero-mascot" src="../assets/mascot/normalized/512/albert-guiding.png" alt="" width="1536" height="1024">
+  </div>
+  <dl class="principle-row"><div><dt>Orient</dt><dd>Clear routes and context.</dd></div><div><dt>Support</dt><dd>Useful input and feedback.</dd></div><div><dt>Recover</dt><dd>A next step for every state.</dd></div></dl>
+</section>
+
+<section id="navigation" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">02 / WAYFINDING</p><h2>Make the next place clear.</h2><p>Use links to move between places, tabs for neighboring views, and breadcrumbs to show location.</p></div>
+  <div class="specimen">
+    <nav class="breadcrumbs albert-breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="#patterns">Courses</a></li><li><a href="#data">Algebra I</a></li><li aria-current="page">Linear equations</li></ol></nav>
+    <div class="tabs albert-tabs" role="tablist" aria-label="Course views">
+      <button id="tab-materials" role="tab" aria-selected="true" aria-controls="panel-materials" tabindex="0" type="button">Materials</button>
+      <button id="tab-practice" role="tab" aria-selected="false" aria-controls="panel-practice" tabindex="-1" type="button">Practice</button>
+      <button id="tab-progress" role="tab" aria-selected="false" aria-controls="panel-progress" tabindex="-1" type="button">Progress</button>
+    </div>
+    <div id="panel-materials" class="tab-panel albert-tabpanel" role="tabpanel" aria-labelledby="tab-materials" tabindex="0"><h3>Course materials</h3><p>Keep notes, worksheets, and teacher notation together.</p><a href="#forms">Add course materials</a></div>
+    <div id="panel-practice" class="tab-panel albert-tabpanel" role="tabpanel" aria-labelledby="tab-practice" tabindex="0" hidden><h3>Practice with a purpose</h3><p>Start with a worksheet and ask for a hint when you need one.</p><a href="#patterns">Open the worksheet example</a></div>
+    <div id="panel-progress" class="tab-panel albert-tabpanel" role="tabpanel" aria-labelledby="tab-progress" tabindex="0" hidden><h3>Evidence before a score</h3><p>No completed work yet. Try a worksheet to begin building a skill history.</p></div>
+  </div>
+  <p class="spec-note">Keyboard: Tab enters the tab group; Left/Right, Home, and End change the selected view.</p>
+</section>
+
+<section id="forms" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">03 / INPUT</p><h2>Ask clearly. Help precisely.</h2><p>Persistent labels, useful examples, a clear error summary, and a keyboard-accessible file picker.</p></div>
+  <div class="two-up">
+    <form id="course-form" class="specimen form-stack" novalidate>
+      <h3>Create a course · example</h3>
+      <div id="form-errors" class="notice notice--error" tabindex="-1" hidden><h4>Check these details</h4><ul id="form-error-list"></ul></div>
+      <div class="albert-field"><label for="course-name">Course name <span class="muted">(required)</span></label><input id="course-name" class="albert-input" name="name" autocomplete="off" aria-describedby="course-name-help course-name-error" required><p id="course-name-help" class="field-help">For example, Algebra I.</p><p id="course-name-error" class="field-error" hidden></p></div>
+      <div class="albert-field"><label for="course-email">Learner email <span class="muted">(required)</span></label><input id="course-email" class="albert-input" name="email" type="email" autocomplete="email" aria-describedby="course-email-help course-email-error" required><p id="course-email-help" class="field-help">This example does not send email or store the address.</p><p id="course-email-error" class="field-error" hidden></p></div>
+      <div class="albert-field"><label for="course-method">Add materials <span class="muted">(required)</span></label><select id="course-method" class="albert-input" name="method" aria-describedby="course-method-error" required><option value="">Choose a method</option><option value="upload">Upload worksheets</option><option value="repository">Import a GitHub course</option></select><p id="course-method-error" class="field-error" hidden></p></div>
+      <fieldset><legend>Hint style</legend><label class="check-row"><input type="radio" name="hint-style" value="question" checked> A question first</label><label class="check-row"><input type="radio" name="hint-style" value="step"> One small step when requested</label></fieldset>
+      <label class="check-row"><input id="practice-reminder" type="checkbox"> Include a practice reminder in this example</label>
+      <button class="albert-button albert-button--primary" type="submit">Preview course setup</button>
+      <p id="form-success" class="notice notice--success" role="status" hidden></p>
+    </form>
+    <div class="stack">
+      <div class="specimen form-stack"><h3>Add a worksheet</h3><label for="worksheet-file">Choose a local file</label><p id="file-help" class="muted">PDF, PNG, or JPEG. Maximum 10 MB. Selection is local; nothing is uploaded.</p><input id="worksheet-file" type="file" accept=".pdf,.png,.jpg,.jpeg" aria-describedby="file-help file-result"><p id="file-result" role="status">No file selected.</p></div>
+      <div class="specimen"><h3>Preferences</h3><label class="check-row switch-row"><input id="motion-preference" type="checkbox" role="switch"> Reduce decorative motion in this reference</label><p class="muted">Your operating system’s reduced-motion preference is also respected.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="data" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">04 / CONTENT &amp; DATA</p><h2>Find the right work.</h2><p>A real local search, status filter, sortable column, and pagination over six illustrative worksheets.</p></div>
+  <div class="specimen">
+    <div class="filter-row"><div class="albert-field"><label for="worksheet-search">Search worksheets</label><input id="worksheet-search" class="albert-input" type="search" placeholder="Title or course"></div><div class="albert-field"><label for="status-filter">Material status</label><select id="status-filter" class="albert-input"><option>All</option><option>Ready</option><option>Needs material</option></select></div><button id="clear-filters" class="albert-button albert-button--secondary" type="button">Clear filters</button></div>
+    <p id="table-count" class="muted" role="status"></p>
+    <div class="table-region albert-table-region" role="region" aria-label="Example worksheets, horizontally scrollable" tabindex="0"><table class="albert-table"><caption class="sr-only">Illustrative worksheets</caption><thead><tr><th id="title-sort-header" scope="col" aria-sort="ascending"><button id="sort-title" type="button">Worksheet <span aria-hidden="true">↕</span></button></th><th scope="col">Course</th><th scope="col">Status</th></tr></thead><tbody id="worksheet-rows"></tbody></table></div>
+    <div id="table-empty" class="empty-state" hidden><h3>No worksheets match.</h3><p>Try a broader search or clear the status filter.</p></div>
+    <nav class="pagination albert-pagination" aria-label="Worksheet pages"><button id="previous-page" class="albert-button albert-button--secondary albert-button--small" type="button">Previous</button><span id="page-label"></span><button id="next-page" class="albert-button albert-button--secondary albert-button--small" type="button">Next</button></nav>
+  </div>
+</section>
+
+<section id="feedback" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">05 / FEEDBACK</p><h2>Every state has a next step.</h2><p>Use distinct patterns for confirmation, persistent problems, empty content, and actual processing.</p></div>
+  <div class="two-up">
+    <div class="stack"><div class="notice notice--success"><strong>Step understood.</strong><p>You applied the operation to both sides.</p></div><div id="error-example" class="notice notice--error"><strong>That worksheet could not be opened.</strong><p>This is an error-state example. Try the recovery action.</p><button id="retry-example" class="albert-button albert-button--secondary albert-button--small" type="button">Try again</button></div><div class="specimen"><h3>Nonblocking confirmation</h3><p>A toast should confirm a small action without hiding the task.</p><button id="show-toast" class="albert-button albert-button--secondary" type="button">Show confirmation</button></div></div>
+    <div class="stack"><div class="specimen"><h3>Import-stage specimen</h3><p class="muted">Manual preview of a progress pattern. This does not import files.</p><label id="progress-label" aria-live="polite" for="import-progress">Stage 1 of 3 · Choose materials</label><progress id="import-progress" value="1" max="3">1 of 3</progress><button id="advance-stage" class="albert-button albert-button--secondary albert-button--small" type="button">Preview next stage</button></div><div class="specimen"><h3>Loading shell</h3><p class="muted">Manually preview the loading and ready states.</p><button id="loading-toggle" class="albert-button albert-button--secondary albert-button--small" type="button">Preview loading state</button><p id="loading-status" role="status">Example content is ready.</p><div id="loading-content" aria-busy="false"><div id="loading-skeleton" class="skeleton-group" aria-hidden="true" hidden><span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line skeleton-line--short"></span></div><p id="loading-ready">Linear equations worksheet</p></div></div><div class="empty-state specimen"><img src="../assets/mascot/normalized/512/albert-welcoming.png" alt="" width="1312" height="1199"><h3>Your first worksheet starts here.</h3><p>Add material from your course so Albert can follow its notation.</p><a class="albert-button albert-button--primary" href="#forms">Add materials</a></div></div>
+  </div>
+</section>
+
+<section id="overlays" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">06 / LAYERS &amp; DISCLOSURE</p><h2>Reveal detail deliberately.</h2><p>Keep critical instructions visible. Use a dialog only when the next decision needs attention.</p></div>
+  <div class="two-up"><div class="specimen"><h3>Review a decision</h3><p>This native dialog traps focus, closes with Escape, and returns focus to its trigger.</p><button id="review-trigger" class="albert-button albert-button--primary" type="button">Review example import</button></div><div class="specimen"><h3>Optional detail</h3><details><summary>Why does Albert ask a question first?</summary><p>A targeted question gives the learner a chance to reason before seeing a worked step.</p></details><details><summary>Which methods should a hint use?</summary><p>The methods and notation already introduced in the current course.</p></details><div class="help-example"><button id="help-trigger" class="help-button" type="button" aria-expanded="false" aria-controls="help-content">What does “scope-aware” mean?</button><p id="help-content" class="notice" hidden>Hints stay within the methods your course has covered.</p></div></div></div>
+</section>
+
+<section id="patterns" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">07 / COMPLETE PAGE PATTERNS</p><h2>The pieces become a website.</h2><p>Marketing, onboarding, a learning workspace, and recovery each need a coherent whole-page structure.</p></div>
+  <div class="pattern-selector" role="group" aria-label="Page pattern"><button type="button" data-pattern="marketing" aria-pressed="true">Landing page</button><button type="button" data-pattern="onboarding" aria-pressed="false">Onboarding</button><button type="button" data-pattern="workspace" aria-pressed="false">Worksheet</button><button type="button" data-pattern="recovery" aria-pressed="false">404 / recovery</button></div>
+  <div id="pattern-marketing" class="pattern-preview">
+    <header class="pattern-header"><img class="pattern-brand" src="../assets/logos/vector/albert-wordmark-primary.svg" alt="Albert" width="2172" height="724"><a href="#forms">Try a worksheet</a></header><div class="marketing-hero"><div><p class="eyebrow">A THOUGHTFUL TUTOR, BESIDE YOUR WORK</p><h3>Find your next step.</h3><p>Work by hand. Ask a question. Build understanding one step at a time.</p><a class="albert-button albert-button--primary" href="#forms">Start with your course</a></div><img src="../assets/mascot/normalized/512/albert-guiding.png" alt="" width="1536" height="1024"></div><div class="feature-row"><div><h4>Your notation</h4><p>Guidance follows the course.</p></div><div><h4>A question first</h4><p>Keep the learner thinking.</p></div><div><h4>Practice with purpose</h4><p>Learn from actual work.</p></div></div><footer class="pattern-footer"><a href="#accessibility">Accessibility</a><a href="../WEBSITE_SYSTEMS.md">Product and policy-page requirements</a></footer>
+  </div>
+  <div id="pattern-onboarding" class="pattern-preview" hidden><h3>Set up your study space.</h3><ol class="stepper albert-stepper" aria-label="Setup steps"><li aria-current="step">1 · Course</li><li>2 · Materials</li><li>3 · Ready</li></ol><div id="onboarding-content"><h4>Choose the course.</h4><p>Start with its name and the notation you are using.</p></div><div class="albert-actions"><button id="onboarding-back" class="albert-button albert-button--secondary" type="button" disabled>Back</button><button id="onboarding-next" class="albert-button albert-button--primary" type="button">Preview next step</button></div><p class="muted small">This demonstrates the stepper pattern; it does not create a course.</p></div>
+  <div id="pattern-workspace" class="pattern-preview" hidden><nav class="breadcrumbs albert-breadcrumbs" aria-label="Worksheet breadcrumb"><ol><li>Algebra I</li><li aria-current="page">Linear equations</li></ol></nav><div class="worksheet-layout"><div class="worksheet-paper" aria-label="Example equation"><p>2x + 6 = 14</p><p>2x = 8</p><p>x = ?</p></div><aside class="tutor-example" aria-label="Tutor example"><img id="tutor-pose" src="../assets/mascot/normalized/512/albert-guiding.png" alt="" width="1536" height="1024"><p id="hint-text">What happens if you divide both sides by 2?</p><div class="albert-actions"><button id="show-step" class="albert-button albert-button--secondary albert-button--small" type="button">Show one step</button><button id="let-try" class="albert-button albert-button--primary albert-button--small" type="button">Let me try</button></div><p id="tutor-status" role="status" class="muted small"></p></aside></div></div>
+  <div id="pattern-recovery" class="pattern-preview recovery-preview" hidden><img src="../assets/mascot/normalized/512/albert-encouraging.png" alt="" width="1350" height="1165"><p class="eyebrow">404 / EXAMPLE</p><h3>Let’s find your way back.</h3><p>This page may have moved. Your next step is still nearby.</p><a class="albert-button albert-button--primary" href="#data">Browse worksheets</a></div>
+</section>
+
+<section id="accessibility" class="catalog-section">
+  <div class="section-heading"><p class="eyebrow">08 / QUALITY</p><h2>Usable is part of beautiful.</h2><p>The reference uses semantic controls, visible focus, error associations, reduced-motion preferences, and deliberate responsive reflow.</p></div>
+  <div class="two-up"><div class="specimen"><h3>Keyboard pass</h3><ul class="content-list"><li>Use the skip link to reach main content.</li><li>Arrow through the course tabs.</li><li>Submit the empty form; follow an error link.</li><li>Open the dialog, then close it with Escape.</li><li>Search, filter, sort, and paginate the table.</li></ul></div><div class="specimen"><h3>Before a product release</h3><p>Check the real integrated UI with keyboard, screen reader, zoom, and narrow viewports. Authentication, storage, uploads, authorization, and analytics need real product integration.</p><a href="../PRODUCTION_CHECKLIST.md">Read the release checklist</a></div></div>
+</section>
+<footer class="catalog-footer"><p>Albert · Website design system v1.2</p><a href="#overview">Back to top</a></footer>
+</main>
+</div>
+
+<dialog class="albert-dialog" id="review-dialog" aria-labelledby="dialog-title" aria-describedby="dialog-description"><div class="dialog-content"><h2 id="dialog-title">Ready to add these materials?</h2><p id="dialog-description">This example demonstrates a review dialog. It does not upload or save a real course.</p><dl class="review-list"><div><dt>Course</dt><dd>Algebra I</dd></div><div><dt>Material</dt><dd>Linear equations worksheet</dd></div></dl><form method="dialog" class="albert-actions"><button class="albert-button albert-button--secondary" value="cancel">Go back</button><button class="albert-button albert-button--primary" value="confirm">Confirm example</button></form></div></dialog>
+<div id="toast-region" class="toast-region" role="region" aria-label="Notifications"><div id="toast" class="toast" hidden><p id="toast-text" role="status"></p><button id="dismiss-toast" type="button" aria-label="Dismiss notification">Dismiss</button></div></div>
+</body>
+</html>

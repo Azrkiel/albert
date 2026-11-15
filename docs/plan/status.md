@@ -194,6 +194,8 @@ Record the real values as they are decided. Later phases and the write-up read t
 
 ## Log
 
+| Nov 15 | Codex | P8.5 publication-only, user request: added the complete Albert brand/design kit v1.3 under docs/brand with logos, mascot exports, screen/email templates and prior QA evidence; linked it from README and documented current-scope precedence. This commit (P8.5: publish Albert brand and design system kit). pnpm verify: typecheck/lint pass, 53 files and 810 tests pass, 16 skipped; copied kit helper tests 11/11, package links/HTML and production export checks pass. No application routes/contracts/features or phase acceptance boxes changed. Real screen-reader and email-client checks remain needs human in the kit. |
+
 Newest first. One line per notable event: a gate passed, a fallback taken, a decision changed, something cut.
 
 | When | Who | What |

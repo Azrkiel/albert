@@ -1,0 +1,15 @@
+An update on your Albert support request
+
+Hi {{first_name}},
+
+A little help, right here.
+
+{{support_message}}
+
+View your support request: {{support_url}}
+
+Request reference: {{ticket_reference}}. Reply using the support route provided by your actual account service.
+
+Albert — A thoughtful tutor, beside your work.
+{{footer_address}}
+{{support_contact}}

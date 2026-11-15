@@ -1,0 +1,551 @@
+{
+  "brand": "Albert",
+  "version": "1.3.0",
+  "date": "2026-11-15",
+  "format": "PNG",
+  "vectorManifest": "assets/logos/vector/vector-manifest.json",
+  "alignmentManifest": "assets/mascot/normalized/alignment.json",
+  "assets": [
+    {
+      "path": "assets/icons/apple-touch-icon.png",
+      "width": 180,
+      "height": 180,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/icons/favicon-16.png",
+      "width": 16,
+      "height": 16,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/icons/favicon-32.png",
+      "width": 32,
+      "height": 32,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/icons/favicon-48.png",
+      "width": 48,
+      "height": 48,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/icons/icon-192.png",
+      "width": 192,
+      "height": 192,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/icons/icon-512.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/icons/icon-maskable-192.png",
+      "width": 192,
+      "height": 192,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/icons/icon-maskable-512.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": false
+    },
+    {
+      "path": "assets/layout/buttons.png",
+      "width": 1500,
+      "height": 1080,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/layout/composition.png",
+      "width": 1500,
+      "height": 1080,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/layout/content-slide.png",
+      "width": 1500,
+      "height": 844,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/layout/headers.png",
+      "width": 1500,
+      "height": 1080,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/layout/section-slide.png",
+      "width": 1500,
+      "height": 844,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/layout/spacing.png",
+      "width": 1500,
+      "height": 1080,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/layout/title-slide.png",
+      "width": 1500,
+      "height": 844,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/logos/albert-icon.png",
+      "width": 1402,
+      "height": 1122,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/albert-wordmark.png",
+      "width": 2172,
+      "height": 724,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-icon-mono-ink.png",
+      "width": 1000,
+      "height": 1000,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-icon-mono-paper.png",
+      "width": 1000,
+      "height": 1000,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-icon-primary.png",
+      "width": 1000,
+      "height": 1000,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-icon-reverse.png",
+      "width": 1000,
+      "height": 1000,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-wordmark-mono-ink.png",
+      "width": 2000,
+      "height": 571,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-wordmark-mono-paper.png",
+      "width": 2000,
+      "height": 571,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-wordmark-primary.png",
+      "width": 2000,
+      "height": 571,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/logos/vector/albert-wordmark-reverse.png",
+      "width": 2000,
+      "height": 571,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/albert-celebrating.png",
+      "width": 1295,
+      "height": 1214,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "celebrating",
+      "alt": "Recognizing real progress"
+    },
+    {
+      "path": "assets/mascot/albert-encouraging.png",
+      "width": 1350,
+      "height": 1165,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "encouraging",
+      "alt": "Helping after a mistake"
+    },
+    {
+      "path": "assets/mascot/albert-explaining.png",
+      "width": 1367,
+      "height": 1151,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "explaining",
+      "alt": "Unpacking one small idea"
+    },
+    {
+      "path": "assets/mascot/albert-guiding.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "guiding",
+      "alt": "Pointing to the next move"
+    },
+    {
+      "path": "assets/mascot/albert-listening.png",
+      "width": 1312,
+      "height": 1199,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "listening",
+      "alt": "Taking in your question"
+    },
+    {
+      "path": "assets/mascot/albert-thinking.png",
+      "width": 1312,
+      "height": 1199,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "thinking",
+      "alt": "Working through a step"
+    },
+    {
+      "path": "assets/mascot/albert-waiting.png",
+      "width": 1199,
+      "height": 1312,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "waiting",
+      "alt": "Giving you room to try"
+    },
+    {
+      "path": "assets/mascot/albert-welcoming.png",
+      "width": 1312,
+      "height": 1199,
+      "mode": "RGBA",
+      "transparent": true,
+      "state": "welcoming",
+      "alt": "Starting a study session"
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-celebrating.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-encouraging.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-explaining.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-guiding.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-listening.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-thinking.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-waiting.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/1024/albert-welcoming.png",
+      "width": 1024,
+      "height": 1024,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-celebrating.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-encouraging.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-explaining.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-guiding.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-listening.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-thinking.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-waiting.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/128/albert-welcoming.png",
+      "width": 128,
+      "height": 128,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-celebrating.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-encouraging.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-explaining.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-guiding.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-listening.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-thinking.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-waiting.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/256/albert-welcoming.png",
+      "width": 256,
+      "height": 256,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-celebrating.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-encouraging.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-explaining.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-guiding.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-listening.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-thinking.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-waiting.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/512/albert-welcoming.png",
+      "width": 512,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/mascot/normalized/pose-sheet-512.png",
+      "width": 4096,
+      "height": 512,
+      "mode": "RGBA",
+      "transparent": true
+    },
+    {
+      "path": "assets/reference/brand-identity-board-v1.0.png",
+      "width": 1122,
+      "height": 1402,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/reference/brand-identity-board.png",
+      "width": 1061,
+      "height": 1500,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/reference/mascot-pose-board.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/social/albert-og-1200x630.png",
+      "width": 1200,
+      "height": 630,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/social/albert-square-1080.png",
+      "width": 1080,
+      "height": 1080,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/website/components.png",
+      "width": 1400,
+      "height": 1008,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/website/page-architecture.png",
+      "width": 1400,
+      "height": 1008,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/website/site-anatomy.png",
+      "width": 1400,
+      "height": 1008,
+      "mode": "RGB",
+      "transparent": false
+    },
+    {
+      "path": "assets/website/states.png",
+      "width": 1400,
+      "height": 1008,
+      "mode": "RGB",
+      "transparent": false
+    }
+  ]
+}

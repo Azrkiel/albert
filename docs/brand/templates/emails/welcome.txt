@@ -1,0 +1,15 @@
+Welcome to Albert — find your next step
+
+Hi {{first_name}},
+
+A good place to begin.
+
+Bring a course and a worksheet. Albert will follow your notation and help you reason through one useful next step.
+
+Set up your course: {{course_setup_url}}
+
+You stay in control of your work. Ask for a question, or request one worked step when you need it.
+
+Albert — A thoughtful tutor, beside your work.
+{{footer_address}}
+{{support_contact}}
