@@ -81,6 +81,7 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
   }, [state.surface, state.fileId]);
   const [tool, setTool] = useState<Stroke["tool"]>("pen");
   const current = useRef(state);
+  const [savingPdf, setSavingPdf] = useState(false);
   const origin = useRef<number | null>(null);
   const player = useRef<Replayer | null>(null);
   const loaded = useRef<SessionRecording | null>(null);
@@ -93,7 +94,6 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
   const [replayDone, setReplayDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
   const [pdfEnding, setPdfEnding] = useState(false);
   const [pdfEndRequested, setPdfEndRequested] = useState(false);
   const pdfLocked = useRef(false);
@@ -441,34 +441,36 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
     return exportRecording({ ...current.current,
       durationMs: Math.max(current.current.durationMs, performance.now() - getSessionStart()) }, "session");
   }
+  async function downloadPdf() {
+    if (savingPdf) return;
+    setSavingPdf(true); setError("");
+    try {
+      const [{ captureAlbertPdf }, { buildPdfDownload }] = await Promise.all([
+        import("@/lib/canvas/pdf-export-dom"), import("@/lib/canvas/pdf-download"),
+      ]);
+      conductor.interrupt();
+      await conductor.idle();
+      // Capture state and rendered notes together, after asynchronous preparation has finished.
+      const s = current.current;
+      if (s.surface !== "pdf" || !s.fileId || !root.current) throw new Error("PDF unavailable");
+      const albert = captureAlbertPdf([...root.current.querySelectorAll<SVGSVGElement>("svg[data-page]")]);
+      const [source, font] = await Promise.all([fetch(`/api/files/${encodeURIComponent(s.fileId)}`), fetch("/fonts/Kalam-Regular.ttf")]);
+      if (!source.ok || !font.ok) throw new Error("PDF assets unavailable");
+      const bytes = await buildPdfDownload({ pdf: new Uint8Array(await source.arrayBuffer()), fontBytes: new Uint8Array(await font.arrayBuffer()), strokes: s.strokes, albert });
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url; link.download = `${worksheetTitle ?? worksheetId} — annotated.pdf`;
+      document.body.append(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { setError("Could not save the PDF. Your writing is still here. Try again."); }
+    finally { setSavingPdf(false); }
+  }
+
   function download() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(snapshot(), null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url; link.download = "session.json"; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
-  }
-
-  async function savePdf() {
-    const source = current.current.fileId;
-    if (!source) return;
-    setSaving(true);
-    setError("");
-    try {
-      const response = await fetch(`/api/files/${encodeURIComponent(source)}`);
-      if (!response.ok) throw new Error("Original PDF unavailable");
-      const { exportWorksheetPdf } = await import("@/lib/ink/pdf-export-browser");
-      const annotations = Array.from(root.current?.querySelectorAll<SVGSVGElement>("svg[data-page]") ?? []).flatMap(surface =>
-        Array.from(surface.querySelectorAll<SVGGElement>("[data-albert-layer]")).map(layer => ({ page: Number(surface.dataset.page), svg: layer })));
-      const bytes = await exportWorksheetPdf({ originalPdf: new Uint8Array(await response.arrayBuffer()), strokes: current.current.strokes, annotations });
-      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `${worksheetTitle ?? worksheetId} - annotated.pdf`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch {
-      setError("Could not save the PDF. Your writing is still here. Try again.");
-    } finally { setSaving(false); }
   }
 
   async function endSession() {
@@ -502,7 +504,7 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
       <button type="button" disabled={pdfInputLocked || !historyEvent(state, "redo", state.durationMs, activePage)} onClick={() => history("redo")}>Redo</button>
       <button type="button" disabled={sync.status === "ending" || sync.status === "ended" || pdfInputLocked || (state.surface === "pdf" && hint.status === "streaming")} onClick={() => void endSession()}>End session</button>
       {state.surface === "pdf" && <>
-        <button type="button" disabled={saving || !sync.ready || !pages.length} onClick={() => void savePdf()}>{saving ? "Saving PDF…" : "Save PDF"}</button>
+        <button type="button" disabled={savingPdf || !sync.ready || !pages.length} onClick={() => void downloadPdf()}>{savingPdf ? "Saving PDF…" : "Save PDF"}</button>
         <span role="status">Page {activePage} · {sync.ready ? "Autosave on" : "Opening saved writing…"}</span>
       </>}
     </div>
