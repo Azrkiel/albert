@@ -72,7 +72,8 @@ test("R2.4: helper text/math remain visible on a labelled note page, with origin
       { type: "done", hintId: "pdf-export-hint", ms: { firstEvent: 1, total: 2 } },
     ].map(e => JSON.stringify(e) + "\n").join("") });
   });
-  await open(page); await draw(page, 2, 240);
+  // Work near the foot of page 2 leaves no room under it, so the note falls back to a labelled note page.
+  await open(page); await draw(page, 2, 1440);
   const block = page.locator('[data-pdf-page="2"]');
   await block.getByRole("button", { name: "I'm stuck", exact: true }).click();
   await expect(block.locator("[data-albert-writing] svg[data-ink-math] path").first()).toBeAttached();

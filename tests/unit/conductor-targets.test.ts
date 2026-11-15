@@ -58,12 +58,24 @@ describe("conductor current ink targets", () => {
       await conductor.idle();
       notes.push(conductor.marksOf(context.hintId).find((mark) => mark.spec.type === "writing")!);
     }
-    expect(notes[0]!.bbox.y).toBeGreaterThan(900);
+    // PDF notes sit right under the work when the page has room (not in the band below the page).
+    expect(notes[0]!.bbox.y).toBeGreaterThanOrEqual(row.bbox.y + row.bbox.h);
+    expect(notes[0]!.bbox.y + notes[0]!.bbox.h).toBeLessThan(900);
     expect(notes[1]!.bbox.y).toBeGreaterThanOrEqual(notes[0]!.bbox.y + notes[0]!.bbox.h);
     expect(notes[2]!.bbox.y).toBe(notes[0]!.bbox.y);
     expect(vi.mocked(renderSegment).mock.calls.flatMap(([seg]) => seg.type === "text" ? [seg.text] : [])).toContain("Problem");
     // Store the reply once; replay adds the current label rather than duplicating it.
     expect(notes[0]!.spec).toMatchObject({ segments: [{ type: "text", text: "What changes?" }] });
+  });
+  it("falls back to the band below a PDF page when the work leaves no room under it", async () => {
+    const low: Row = { ...row, page: 1, bbox: { ...row.bbox, y: 820 } };
+    const conductor = createConductor({ geometry: () => ({ rows: [low], clusters: [] }), reducedMotion: () => true, now: () => 0,
+      pageMode: () => true, pageHeight: () => 900, noteLabel: (id) => `Problem ${id}` });
+    conductor.attach(low.problemId, group(), 1);
+    const context = { ...ctx(), hintId: "low", problemId: low.problemId, rowId: low.id };
+    conductor.handle(context, { type: "hint", kind: "question", segments: [{ type: "text", text: "What changes?" }] });
+    await conductor.idle();
+    expect(conductor.marksOf("low").find((mark) => mark.spec.type === "writing")!.bbox.y).toBeGreaterThan(900);
   });
   it.each([undefined, 900])("places the narrow waiting dot below the host's page or current rows: %j", (pageBottom) => {
     const layer = group();

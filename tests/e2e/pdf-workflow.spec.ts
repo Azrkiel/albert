@@ -80,7 +80,7 @@ test("writes on both PDF pages, edits by page, restores and downloads the origin
   expect(pdf.getPages().map(p => p.getSize())).toEqual([{ width: 612, height: 792 }, { width: 612, height: 792 }]);
 });
 
-test("draws hints around current PDF ink, keeps notes below print and exports those notes", async ({ page }) => {
+test("draws hints around current PDF ink, writes notes under the work and exports those notes", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/hint", async route => {
     const req = route.request().postDataJSON();
@@ -101,7 +101,7 @@ test("draws hints around current PDF ink, keeps notes below print and exports th
   const note = await page.locator("[data-albert-writing]").evaluate(el => {
     const box = (el as SVGGElement).getBBox(); return { y: box.y, height: box.height };
   });
-  expect(note.y).toBeGreaterThan(1552);
+  expect(note.y).toBeGreaterThan(420); expect(note.y + note.height).toBeLessThan(1552); // under the work, on the page
   const circle = await page.locator("[data-mark-kind=circle]").evaluate(el => {
     const box = (el as SVGGElement).getBBox(); return { width: box.width, height: box.height };
   });
@@ -110,9 +110,9 @@ test("draws hints around current PDF ink, keeps notes below print and exports th
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save PDF", exact: true }).click();
   const bytes = new Uint8Array(await readFile((await (await download).path())!));
-  expect((await PDFDocument.load(bytes)).getPageCount()).toBe(3);
+  expect((await PDFDocument.load(bytes)).getPageCount()).toBe(2); // on-page note: no appendix page
   const text = await readPdfText(bytes);
-  expect(text[2]!.items.map(item => item.str).join(" ")).toContain("Check the differential");
+  expect(text.map(page => page.items.map(item => item.str).join(" ")).join(" ")).toContain("Check the differential");
   await page.screenshot({ path: ".p57-r21-qa/pdf-page-notes.png", fullPage: true });
 });
 
@@ -227,7 +227,7 @@ test("ending a PDF session keeps visible work immutable and downloadable", async
   const saved = await download;
   expect(saved.suggestedFilename()).toMatch(/annotated\.pdf$/);
   const pdf = await PDFDocument.load(await readFile((await saved.path())!));
-  expect(pdf.getPageCount()).toBe(3); // End session keeps the below-page reply exportable.
+  expect(pdf.getPageCount()).toBe(2); // End session keeps the on-page reply exportable.
   expect(pdf.getPage(0).node.Annots()?.asArray().map(ref => pdf.context.lookup(ref)).some(annotation =>
     annotation instanceof PDFDict && annotation.get(PDFName.of("Subtype")) === PDFName.of("Ink"))).toBe(true);
 });
