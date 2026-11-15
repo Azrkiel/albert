@@ -47,10 +47,11 @@ export interface Repo {
   putText(id: string, text: string): Promise<void>;
   getText(id: string): Promise<string | null>;
   getSession(id: string): Promise<Session | null>;
-  latestOpenSession(studentId: string, worksheetId: string, fileId: string): Promise<Session | null>;
+  /** Latest open worksheet session; a file filter selects only matching PDF sessions. */
+  latestOpenSession(worksheetId: string, filter?: { studentId?: string; fileId?: string }): Promise<Session | null>;
   createSession(s: Session): Promise<void>;
   appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
-  /** Original append order, independent of event timestamps. */
+  /** Stored events ordered by at, then append order. Unknown session: []. */
   listEvents(sessionId: string): Promise<SessionEvent[]>;
   endSession(sessionId: string, at: string): Promise<void>;
   saveHint(h: StoredHint): Promise<void>;

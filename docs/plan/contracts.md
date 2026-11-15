@@ -499,7 +499,7 @@ interface Repo {
   getText(id: string): Promise<string | null>;
   // sessions
   getSession(id: string): Promise<Session | null>;
-  latestOpenSession(studentId: string, worksheetId: string, fileId: string): Promise<Session | null>;
+  latestOpenSession(worksheetId: string, filter?: { studentId?: string; fileId?: string }): Promise<Session | null>;
   listEvents(sessionId: string): Promise<SessionEvent[]>;
   createSession(s: Session): Promise<void>;         appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
   endSession(sessionId: string, at: ISO): Promise<void>;
@@ -598,7 +598,7 @@ Resolve `COURSE_GITHUB_REF` through `GET /repos/{owner}/{repo}/commits/{ref}`, t
 | `/api/files/[fileId]/page/[n]` | GET | — | One PNG, decoded width 1200 px, proportional height; render at 2x then downsample; derived files cached in the Repo by original id/content hash and renderer version |
 | `/api/scope/[worksheetId]` | GET | `?problemId=` | `ScopeBundle` |
 | `/api/session` | POST | `{ worksheetId, surface?: "pdf", fileId?: string }` | `{ sessionId }` |
-| `/api/session/latest` | GET | `?worksheetId=&fileId=` | `{ session: Session \| null, events: SessionEvent[] }`; latest open PDF session for the demo student and matching file |
+| `/api/session/latest` | GET | `?worksheetId=...&fileId=...` (`fileId` optional) | `{ session: Session \| null, events: SessionEvent[] }`; optional file selects PDF-only resume for the demo student; worksheet-only requests retain legacy 404 when no open session exists |
 | `/api/session/[id]/events` | POST | `{ events: SessionEvent[] }` | `{ ok: true }` |
 | `/api/session/[id]/end` | POST | — | `{ evidenceAdded: number; replanRunId?: string }` |
 | `/api/hint` | POST | `HintRequest` | NDJSON of `HintEvent` |
@@ -755,6 +755,6 @@ PDF-backed worksheets default to stacked displayed pages unless a legacy surface
 
 PDF snapshots include the printed problem region as a light grey background beneath ink and include rows from the target page only. Tutor writing uses a below-page band. Empty-row geometry returns no mark, never a page-sized row rectangle. Implicit recorded replies require compatible current target rows/clusters; recorded mode is labelled and does not read handwriting.
 
-Session surface/fileId must occur together. Latest-session lookup precedes creation and restores events locally without syncing them again. A failed lookup disables PDF capture until retry succeeds; legacy sessions and different file ids are excluded. `listEvents` returns deterministic append order, including equal timestamps, without database metadata. Memory storage survives browser reload while the server runs; Mongo provides durable persistence.
+Session surface/fileId must occur together. Latest-session lookup precedes creation and restores events locally without syncing them again. A failed lookup disables PDF capture until retry succeeds; legacy sessions and different file ids are excluded. `listEvents` returns time-ascending events with deterministic append order for equal timestamps, without database metadata. Mongo uses an atomic sequence counter for equal-time ordering across append batches. Worksheet-only latest-session lookup remains compatible with the published server API; file-scoped lookup additionally excludes legacy sessions and other PDFs. Memory storage survives browser reload while the server runs; Mongo provides durable persistence.
 
 PDF download retains original pages, boxes and rotations. Student-only/on-page annotations keep the original page count. Below-page tutor notes are exported as labelled appendix pages, grouped by whole note (text, math and citation), with full-height pagination; an indivisible note too tall to fit returns a visible download error rather than clipping. The planned `@pdf-lib/fontkit` dependency embeds the bundled Kalam font; MathJax and rough marks remain vector paths.

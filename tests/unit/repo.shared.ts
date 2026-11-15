@@ -172,12 +172,37 @@ export function repoBehaviour(name: string, create: () => Promise<RepoHarness>, 
       expect(await harness.readEvents("other")).toEqual([]);
     });
 
+    it("R2.3-AC2: lists events by time then insertion order, across batches and equal timestamps", async () => {
+      await repo.createSession(f.session);
+      const at = (n: number, id: string): SessionEvent => ({ type: "problem_opened", at: n, problemId: id });
+      await repo.appendEvents(f.session.id, [at(5, "a"), at(3, "b"), at(5, "c")]);
+      await repo.appendEvents(f.session.id, [at(5, "d"), at(1, "e"), at(3, "f")]);
+      const listed = await repo.listEvents(f.session.id);
+      expect(listed.map(e => e.type === "problem_opened" && e.problemId)).toEqual(["e", "b", "f", "a", "c", "d"]);
+      expect(await repo.listEvents("other")).toEqual([]);
+      mutate(listed);
+      expect((await repo.listEvents(f.session.id)).map(e => e.at)).toEqual([1, 3, 3, 5, 5, 5]);
+    });
+
+    it("R2.3: latestOpenSession returns the newest open session of a worksheet", async () => {
+      const make = (id: string, startedAt: string, worksheetId = f.session.worksheetId): Session => ({ ...f.session, id, startedAt, worksheetId });
+      expect(await repo.latestOpenSession(f.session.worksheetId)).toBeNull();
+      await repo.createSession(make("old", "2026-01-01T10:00:00.000Z"));
+      await repo.createSession(make("new", "2026-01-01T11:00:00.000Z"));
+      await repo.createSession(make("elsewhere", "2026-01-01T12:00:00.000Z", "other-sheet"));
+      expect((await repo.latestOpenSession(f.session.worksheetId))?.id).toBe("new");
+      await repo.endSession("new", "2026-01-01T11:30:00.000Z");
+      expect((await repo.latestOpenSession(f.session.worksheetId))?.id).toBe("old");
+      await repo.endSession("old", "2026-01-01T10:30:00.000Z");
+      expect(await repo.latestOpenSession(f.session.worksheetId)).toBeNull();
+    });
+
     it("rejects session mutations for unknown sessions", async () => {
       await expect(repo.appendEvents("missing", [f.event])).rejects.toThrow();
       await expect(repo.endSession("missing", f.session.startedAt)).rejects.toThrow();
     });
 
-    it("reads events in append order even when their timestamps tie or decrease", async () => {
+    it("reads events by time with append order breaking ties and isolates returned values", async () => {
       await repo.createSession(f.session);
       const events: SessionEvent[] = [
         { type: "problem_opened", at: 10, problemId: "first" },
@@ -186,16 +211,18 @@ export function repoBehaviour(name: string, create: () => Promise<RepoHarness>, 
       ];
       await repo.appendEvents(f.session.id, events.slice(0, 2));
       await repo.appendEvents(f.session.id, events.slice(2));
-      expect(await repo.listEvents(f.session.id)).toEqual(events);
+      const ordered = [events[2], events[0], events[1]];
+      expect(await repo.listEvents(f.session.id)).toEqual(ordered);
       const read = await repo.listEvents(f.session.id);
       mutate(read);
-      expect(await repo.listEvents(f.session.id)).toEqual(events);
+      expect(await repo.listEvents(f.session.id)).toEqual(ordered);
       expect(await repo.listEvents("missing")).toEqual([]);
     });
 
     it("finds the newest open PDF session for this student, worksheet and file", async () => {
       const base = { ...f.session, surface: "pdf" as const, fileId: "pdf-1", endedAt: undefined };
-      expect(await repo.latestOpenSession(base.studentId, base.worksheetId, base.fileId)).toBeNull();
+      const filter = { studentId: base.studentId, fileId: base.fileId };
+      expect(await repo.latestOpenSession(base.worksheetId, filter)).toBeNull();
       await repo.createSession({ ...base, id: "old", startedAt: "2026-11-13T10:00:00Z" });
       await repo.createSession({ ...base, id: "new", startedAt: "2026-11-13T11:00:00Z" });
       for (const extra of [
@@ -205,12 +232,12 @@ export function repoBehaviour(name: string, create: () => Promise<RepoHarness>, 
         { id: "file", fileId: "other" },
         { id: "legacy", surface: undefined, fileId: undefined },
       ]) await repo.createSession({ ...base, startedAt: "2026-11-13T12:00:00Z", ...extra });
-      const latest = await repo.latestOpenSession(base.studentId, base.worksheetId, base.fileId);
+      const latest = await repo.latestOpenSession(base.worksheetId, filter);
       expect(latest?.id).toBe("new");
       mutate(latest);
-      expect((await repo.latestOpenSession(base.studentId, base.worksheetId, base.fileId))?.id).toBe("new");
+      expect((await repo.latestOpenSession(base.worksheetId, filter))?.id).toBe("new");
       await repo.endSession("new", "2026-11-13T13:00:00Z");
-      expect((await repo.latestOpenSession(base.studentId, base.worksheetId, base.fileId))?.id).toBe("old");
+      expect((await repo.latestOpenSession(base.worksheetId, filter))?.id).toBe("old");
     });
 
     it("saves and isolates hints, replaces by id, combines filters and sorts by time", async () => {

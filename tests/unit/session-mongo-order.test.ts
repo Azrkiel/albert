@@ -8,9 +8,9 @@ it("allocates Mongo append positions and reads ordered events without storage me
   const findOneAndUpdate = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce({ _id: "s", next: 2 });
   const insertMany = vi.fn().mockResolvedValue({});
   const sort = vi.fn().mockReturnValue({ toArray: async () => [
+    { _id: "c", sessionId: "s", sequence: 2, type: "problem_opened", at: 1, problemId: "third" },
     { _id: "a", sessionId: "s", sequence: 0, type: "problem_opened", at: 10, problemId: "first" },
     { _id: "b", sessionId: "s", sequence: 1, type: "problem_opened", at: 10, problemId: "second" },
-    { _id: "c", sessionId: "s", sequence: 2, type: "problem_opened", at: 1, problemId: "third" },
   ] });
   const find = vi.fn().mockReturnValue({ sort });
   const fake = {
@@ -28,7 +28,7 @@ it("allocates Mongo append positions and reads ordered events without storage me
   await repo.appendEvents("s", events.slice(2));
   expect(findOneAndUpdate.mock.calls.map(call => call[1])).toEqual([{ $inc: { next: 2 } }, { $inc: { next: 1 } }]);
   expect(insertMany.mock.calls.flatMap(call => call[0]).map(doc => doc.sequence)).toEqual([0, 1, 2]);
-  expect(await repo.listEvents("s")).toEqual(events);
+  expect(await repo.listEvents("s")).toEqual([events[2], events[0], events[1]]);
   expect(find).toHaveBeenCalledWith({ sessionId: "s" });
-  expect(sort).toHaveBeenCalledWith({ sequence: 1, _id: 1 });
+  expect(sort).toHaveBeenCalledWith({ at: 1, sequence: 1, _id: 1 });
 });

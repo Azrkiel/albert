@@ -27,7 +27,7 @@ failure -> retain ink; show retry; never replace saved work with an empty sessio
 3. Add optional positive page identity to strokes/rows and paired PDF source metadata to recordings/sessions. Partition line/divider inference by page and problem. Assign ownership by ink length within regions, with the picker as fallback.
 4. Accept full-page input. Scope erase and history to the active page. Keep capture stable while annotation display height grows, and reset component state when worksheet/source identity changes.
 5. Include a lightened printed problem crop in snapshots, filtered to the target page. Put labelled tutor notes in a shared below-page band and avoid long arrows across printed content.
-6. Look up the latest open session for the same student/worksheet/PDF before creation. Restore without re-posting events, shift capture time, and resume append order. Failed lookup leaves capture disabled until retry.
+6. Look up the latest open session for the same student/worksheet/PDF before creation. Restore without re-posting events, shift capture time, and resume chronological events with stable append-order ties. Failed lookup leaves capture disabled until retry.
 7. Export perfect-freehand student outlines and SVG tutor paths/text using pdf-lib; embed Kalam with the planned fontkit dependency. Invert displayed CropBox/MediaBox/rotation geometry. Preserve original page geometry; append labelled notes pages only when below-page notes exist. Group text/math/citation together during pagination and fail clearly if one note cannot fit.
 8. Run focused tests, verify, the full browser suite, build and production checks. Review lifecycle/export edge cases independently before commit/merge. Leave physical-device, live Mongo and independent-viewer human gates open where not run.
 
@@ -56,3 +56,7 @@ worktrees. Run unit/contract/browser/build/production checks, get an independent
 review, fix blockers, then commit and merge after checks pass. State human-only
 checks and recorded-preview limitations accurately.
 ```
+
+## Published server integration
+
+PR #58 landed during verification. Preserve its worksheet-only latest-session lookup and no-session 404 response, while accepting an optional student/file filter for PDF restoration. Event reads retain the published chronological order; atomic append sequence breaks equal-time ties. The PDF client continues requesting its exact source and treats an empty scoped result as a new-session case. Main's server tests and the PDF isolation tests run together.

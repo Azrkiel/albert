@@ -104,9 +104,12 @@ export class MongoRepo implements Repo {
   }
 
   async getSession(id: string): Promise<Session | null> { return this.one("sessions", id); }
-  async latestOpenSession(studentId: string, worksheetId: string, fileId: string): Promise<Session | null> {
-    const sessions = await this.list<Session>("sessions", { studentId, worksheetId, surface: "pdf", fileId, endedAt: { $exists: false } }, { startedAt: -1, id: 1 });
-    return sessions[0] ?? null;
+  async latestOpenSession(worksheetId: string, filter: { studentId?: string; fileId?: string } = {}): Promise<Session | null> {
+    const query: Filter<StoredDocument> = { worksheetId, endedAt: { $exists: false } };
+    if (filter.studentId !== undefined) query.studentId = filter.studentId;
+    if (filter.fileId !== undefined) { query.fileId = filter.fileId; query.surface = "pdf"; }
+    const doc = await (await this.collection("sessions")).findOne(query, { sort: { startedAt: -1, _id: 1 } });
+    return doc ? withoutId<Session>(doc) : null;
   }
   async createSession(s: Session): Promise<void> { await (await this.collection("sessions")).insertOne({ ...s, _id: s.id }); }
   async appendEvents(sessionId: string, events: SessionEvent[]): Promise<void> {
@@ -120,8 +123,8 @@ export class MongoRepo implements Repo {
   }
   async listEvents(sessionId: string): Promise<SessionEvent[]> {
     await this.ensureIndexes();
-    // Legacy unsequenced events sort first, retaining their insertion order through ObjectId.
-    return (await this.db.collection("session_events").find({ sessionId }).sort({ sequence: 1, _id: 1 }).toArray())
+    // Time comes first; atomic positions preserve append order for ties. Legacy ties retain ObjectId order.
+    return (await this.db.collection("session_events").find({ sessionId }).sort({ at: 1, sequence: 1, _id: 1 }).toArray())
       .map(event => SessionEventSchema.parse(event));
   }
   async endSession(sessionId: string, at: string): Promise<void> {

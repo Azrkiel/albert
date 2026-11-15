@@ -26,7 +26,8 @@ it("returns validated latest PDF session and its ordered events, excluding ended
 
 it("rejects missing lookup identity and partial PDF metadata", async () => {
   expect((await GET(new Request("http://localhost/api/session/latest"))).status).toBe(400);
-  expect((await GET(new Request("http://localhost/api/session/latest?worksheetId=x"))).status).toBe(400);
+  expect((await GET(new Request("http://localhost/api/session/latest?worksheetId=x"))).status).toBe(404);
+  expect((await GET(new Request("http://localhost/api/session/latest?worksheetId=x&fileId="))).status).toBe(400);
   for (const fields of [{ surface: "pdf" }, { fileId: "pdf" }, { surface: "free", fileId: "pdf" }]) {
     expect((await POST(new Request("http://localhost/api/session", { method: "POST", body: JSON.stringify({ worksheetId: "x", ...fields }) }))).status).toBe(400);
   }
