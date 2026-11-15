@@ -8,11 +8,11 @@ import { mathToSvg, type Conductor } from "@/lib/ink";
  * Albert's ink for one problem: an empty `<g class="albert">` the conductor draws into. It sits above
  * the student's ink and takes no pointer events, so the pen keeps working underneath (P4.3).
  */
-export function AlbertLayer({ problemId, conductor }: { problemId: string; conductor: Conductor }) {
+export function AlbertLayer({ problemId, conductor, page }: { problemId: string; conductor: Conductor; page?: number }) {
   const ref = useCallback((el: SVGGElement | null) => {
-    conductor.attach(problemId, el);
-    return () => conductor.attach(problemId, null);
-  }, [problemId, conductor]);
+    conductor.attach(problemId, el, page);
+    return () => conductor.attach(problemId, null, page);
+  }, [problemId, conductor, page]);
   return <g ref={ref} className="albert" data-albert-layer="" data-albert-problem={problemId} pointerEvents="none" />;
 }
 
@@ -20,12 +20,13 @@ export function AlbertLayer({ problemId, conductor }: { problemId: string; condu
  * The two HTML controls around Albert's ink (P4.4): the "More help" chip under the latest hint and
  * "Clear Albert's notes". Absolutely positioned over the surface (`height` is its logical height).
  */
-export function AlbertControls({ problemId, conductor, height, onMoreHelp }: {
+export function AlbertControls({ problemId, conductor, height, onMoreHelp, rowIds }: {
   problemId: string; conductor: Conductor; height: number;
+  rowIds?: string[];
   onMoreHelp: (rowId: string, rung: number) => void;
 }) {
   const ink = useSyncExternalStore(conductor.subscribe, () => conductor.problemInk(problemId), () => conductor.problemInk(problemId));
-  const { chip } = ink;
+  const chip = ink.chip && (!rowIds || rowIds.includes(ink.chip.rowId)) ? ink.chip : null;
   return <>
     {chip && <button type="button" data-albert-chip="" onClick={() => onMoreHelp(chip.rowId, chip.rung)}
       style={{ position: "absolute", left: `${chip.x / PAGE.width * 100}%`,

@@ -20,7 +20,7 @@ test("P3.1-AC4: replay missing dx, tap the hint mark, see Albert's question", as
 test("dev hint button is opt-in and displays rung 1 in red in the correct column", async ({ page }) => {
   await page.goto("/work/calc2-ws3");
   await expect(page.getByRole("button", { name: "Request mock hint" })).toHaveCount(0);
-  await page.goto("/work/calc2-ws3?dev=1");
+  await page.goto("/work/calc2-ws3?dev=1&surface=ruled");
   await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
   const button = page.getByRole("button", { name: "Request mock hint" });
   await expect(button).toBeVisible();
@@ -44,7 +44,7 @@ for (const scenario of ["non-2xx", "invalid line", "truncated stream"] as const)
       contentType: "application/x-ndjson",
       body: scenario === "invalid line" ? "bad JSON\n" : '{"type":"started","hintId":"partial","at":0}\n',
     }));
-    await page.goto("/work/calc2-ws3?dev=1");
+    await page.goto("/work/calc2-ws3?dev=1&surface=ruled");
     // Wait for hydration: a click on server-rendered markup before React attaches is lost (Nov 14 CI flake).
     await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
     const button = page.getByRole("button", { name: "Request mock hint" });

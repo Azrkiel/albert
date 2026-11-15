@@ -104,18 +104,20 @@ R2.2 onward and every human gate remain open.
 ### R2.2 Writing on the pages
 
 **Build.**
-1. `?surface=pdf` (the default for worksheets that have a `fileId` once R2 passes; `ruled`/`free` stay for the demo
+1. `?surface=pdf` (the default for worksheets that have a `fileId`; explicit `?surface=ruled|free` and legacy `?layout=` opt out; `ruled`/`free` stay for the demo
    worksheet and replays). One `WorkSurface` per PDF page, stacked; the page PNG is an `<image>` under the ink; logical width
    `PAGE.width` (1200), height `1200 × heightPt / widthPt`; free-layout line inference within each page.
 2. **Contract:** optional `page?: number` on `Stroke` and `Row`; `SessionRecording.surface?: "pdf"` plus `fileId`.
-   A stroke's `problemId` is the region holding most of its ink, else the active problem from the picker.
+   A stroke's `problemId` is the page region holding most of its ink length (not sample count), else the active problem from that page's picker. Row/stroke ids and page identity survive recording export and replay.
 3. A compact problem picker above each page ("Problem 1 2 3 4 5") shows the active problem and overrides it.
-4. Albert's column: none on PDF pages (D4 page-mode variant); R3.3 places notes.
+4. Albert's column: none on PDF pages (D4 page-mode variant). The entire page, including its right edge, accepts ink and erasing. Tutor notes use the below-page band (P4.6) at every viewport width.
+5. Pen, eraser, undo and redo use the active page. Erasing ignores the selected problem and finds every problem's intersected ink on that page. Undo/redo preserve the other pages' stacks.
+6. Snapshots include a light-grey problem crop from the page PNG in the visible surface's logical coordinates; line inference and snapshot rows stay within each page. Marks resolve through live target rows; empty/erased/foreign rows draw nothing.
 
 **Acceptance**
-- [ ] **R2.2-AC1** — `tests/e2e/pdf-surface.spec.ts`: on Worksheet 3, synthetic strokes on pages 1 and 2 carry the right page
+- [x] **R2.2-AC1** — `tests/e2e/pdf-surface.spec.ts`: on Worksheet 3, synthetic strokes on pages 1 and 2 carry the right page
   and problem; erase and undo work per page; geometry is identical at two viewport widths and after browser zoom.
-- [ ] **R2.2-AC2** — Snapshots on PDF pages draw the problem's page crop in light grey under the ink (P2.7 renderer takes a
+- [x] **R2.2-AC2** — Snapshots on PDF pages draw the problem's page crop in light grey under the ink (P2.7 renderer takes a
   background image); unit test on the plan, e2e decodes the PNG.
 
 ### R2.3 Save and reload
@@ -152,7 +154,7 @@ The library is pure (bytes in, bytes out; fonts passed in as `fontBytes`; math a
 **Build.** **Contract:** `HintRequest.question?: string` (≤ 200 chars, plain text) and `HintTurn.question?`; the PDF crop
 travels as the snapshot background (R2.2-AC2), not a new field. `prompt.ts`: a question is student data, never instructions;
 answer it at the requested rung under the same ladder and scope rules; a follow-up uses history. Mock fixtures for a question
-(`fixtures/llm/*-question.json`); two eval cases from `missing-dx.json` with questions ("what did I do wrong?" at rung 1, and a
+(`fixtures/llm/*-question.json`); two eval cases from the `missing-dx.json` recording (its `missing-dx-r1` snapshot request) with questions ("what did I do wrong?" at rung 1, and a
 follow-up).
 
 **Acceptance**
@@ -170,6 +172,8 @@ the one in flight (existing runner); the helper's reply is drawn like a hint. Wr
   failing mock leaves ink and saved work usable.
 
 ### R3.3 Notes in the page's white space
+
+**deferred (user, Nov 15): notes use the below-page band**. The following free-space design is retained for a later release, not required or claimed by R2.2.
 
 **Build.** Pure `findFreeSpace(grid, size, anchor)` (`src/lib/ink/free-space.ts`): an 8-px occupancy grid from the page PNG's
 non-white pixels (sampled once per page), student ink boxes and earlier notes, padded 12 px; nearest fully free rectangle

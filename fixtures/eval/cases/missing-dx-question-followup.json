@@ -1,0 +1,47 @@
+{
+  "id": "missing-dx-question-followup",
+  "request": "missing-dx-r1-snapshot.json",
+  "worksheetId": "calc2-ws3",
+  "problemId": "calc2-ws3/p1",
+  "stuckRowIndex": 3,
+  "rung": 1,
+  "question": "is it the dx?",
+  "history": [
+    {
+      "hintId": "eval-mock-q1",
+      "rung": 1,
+      "rowId": "calc2-ws3/p1/r3",
+      "text": "You replaced x. What does dx become?",
+      "studentWroteAfter": false,
+      "question": "what did I do wrong?"
+    }
+  ],
+  "expect": {
+    "status": [
+      "error"
+    ],
+    "stuckRowLatex": "\\int \\frac{1}{16\\sin^2\\theta\\cdot 4\\cos\\theta}",
+    "errorRowIndex": 3,
+    "errorClusterLabels": [
+      2,
+      8
+    ],
+    "errorType": "missing_dx",
+    "citationIncludes": "Lecture 9",
+    "forbiddenMethods": [
+      "partial fractions"
+    ],
+    "kind": [
+      "question",
+      "nudge"
+    ],
+    "mustNotMention": [
+      "4\\cos\\theta\\,d\\theta",
+      "dx=4\\cos",
+      "\\cot\\theta",
+      "\\csc^2\\theta",
+      "\\frac{\\sqrt{16-x^2}}{16x}"
+    ]
+  },
+  "notes": "R3.1: follow-up. The student asked \"what did I do wrong?\", got a rung 1 question, wrote nothing, and now asks a second question. Must still be a rung 1 question or nudge that does not state the fix, and must not repeat the earlier hint."
+}

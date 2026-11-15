@@ -1,0 +1,44 @@
+{
+  "fixtureId": "default-r1-question",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-default-r1-question",
+      "at": 0
+    },
+    {
+      "type": "reading",
+      "rows": []
+    },
+    {
+      "type": "diagnosis",
+      "status": "stalled",
+      "inScope": true
+    },
+    {
+      "type": "hint",
+      "kind": "question",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Compare your last two lines. What changed when you replaced x?"
+        }
+      ]
+    },
+    {
+      "type": "done",
+      "hintId": "mock-default-r1-question",
+      "ms": {
+        "firstEvent": 1350,
+        "total": 1500
+      }
+    }
+  ],
+  "delaysMs": [
+    150,
+    300,
+    300,
+    600,
+    150
+  ]
+}

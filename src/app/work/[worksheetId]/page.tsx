@@ -3,6 +3,7 @@ import Link from "next/link";
 import { connection } from "next/server";
 import { WorksheetCanvas } from "@/components/work/WorksheetCanvas";
 import { WorksheetShell } from "@/components/work/WorksheetShell";
+import { worksheetWithRegions } from "@/lib/lms/pdf-files";
 import { getRepo } from "@/lib/db";
 
 type WorkPageProps = {
@@ -18,6 +19,7 @@ async function WorkProblems({ params, searchParams }: WorkPageProps) {
   let worksheet;
   try {
     worksheet = general ? null : await getRepo().getWorksheet(worksheetId);
+    if (worksheet) worksheet = await worksheetWithRegions(getRepo(), worksheet);
   } catch {
     return <p role="alert">Could not load this worksheet. Try again, or <Link prefetch={false} href="/work/general-calculus">open general calculus</Link>.</p>;
   }
@@ -32,7 +34,7 @@ async function WorkProblems({ params, searchParams }: WorkPageProps) {
   const page = `/work/${encodeURIComponent(worksheetId)}`;
   const worksheetHref = worksheet || (source === "handwriting" && worksheetId !== "general-calculus")
     ? `${page}?source=worksheet` : "/courses";
-  const canvas = <WorksheetCanvas key={`${worksheetId}/${problemSource}`} worksheetId={worksheetId} problems={problems} problemSource={problemSource} />;
+  const canvas = <WorksheetCanvas key={`${worksheetId}/${problemSource}`} worksheetId={worksheetId} problems={problems} fileId={worksheet?.fileId} pdfProblems={worksheet?.problems} problemSource={problemSource} />;
   return <>
     <nav aria-label="Problem source" style={{ display: "flex", gap: 16 }}>
       <Link prefetch={false} href={`${page}?source=handwriting`} aria-current={problemSource === "handwriting" ? "page" : undefined}>General calculus</Link>

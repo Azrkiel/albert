@@ -6,11 +6,13 @@ import { attachCapture, strokePath } from "@/lib/canvas";
 
 const FinishedStroke = memo(function FinishedStroke({ stroke }: { stroke: Stroke }) {
   return <path data-stroke-id={stroke.id} data-row-id={stroke.rowId}
-    data-stroke-problem-id={stroke.problemId} d={strokePath(stroke.points)} fill={INK.student} />;
+    data-stroke-problem-id={stroke.problemId} data-stroke-page={stroke.page} d={strokePath(stroke.points)} fill={INK.student} />;
 });
 
-export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay, albertLayer }: {
+export function WorkSurface({ problemId, page, pageHeight, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay, albertLayer }: {
   problemId: string;
+  page?: number;
+  pageHeight?: number;
   height?: number;
   onStroke?: (stroke: Stroke) => void;
   strokes?: Stroke[];
@@ -48,7 +50,7 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
       frame = null;
     };
     const detach = attachCapture(svg, {
-      problemId, sessionStart: sessionStart.current, getTool: () => toolRef.current,
+      problemId, page, height: pageHeight, sessionStart: sessionStart.current, getTool: () => toolRef.current,
       onPreview(points, previewTool) {
         pending = previewTool === "eraser" ? [] : points;
         if (!pending.length) {
@@ -72,16 +74,16 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
       cancelFrame();
       delete svg.dataset.captureReady;
     };
-  }, [problemId, getSessionStart]);
+  }, [problemId, page, pageHeight, getSessionStart]);
 
   return (
     <div style={{ position: "relative", marginTop: 24 }}>
-      <svg ref={surface} role="img" aria-label="Worksheet work surface"
+      <svg ref={surface} data-page={page} role="img" aria-label="Worksheet work surface"
         viewBox={`0 0 ${PAGE.width} ${height}`}
         style={{ display: "block", width: "100%", height: "auto", background: "#fff", touchAction: "none", userSelect: "none", cursor: tool === "eraser" ? "cell" : "crosshair" }}>
         <defs>
           <clipPath id={clipId}>
-            <rect x={PAGE.studentCol.x} y={0} width={PAGE.studentCol.w} height={height} />
+            <rect x={page === undefined ? PAGE.studentCol.x : 0} y={0} width={page === undefined ? PAGE.studentCol.w : PAGE.width} height={pageHeight ?? height} />
           </clipPath>
         </defs>
         {children}
