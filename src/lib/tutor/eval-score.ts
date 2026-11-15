@@ -139,8 +139,9 @@ export function totals(scores: CaseScore[]): EvalTotals {
   const firstInkP95Ms = percentile(inks, 0.95);
   const b = EVAL_BARS;
   const qualityPass = scores.length > 0 && status >= b.status && (row ?? 1) >= b.row && (clusters ?? 1) >= b.clusters
-    && ladder >= b.ladder && (noAnswer ?? 1) >= b.noAnswer && scope >= b.scope
-    && scores.every((s) => s.differs !== false && s.citation !== false && s.kind !== false && s.read !== false);
+    && (noAnswer ?? 1) >= b.noAnswer && scope >= b.scope;
+  // Ladder (no repair call) is reported, not gated: user decision Nov 14, P3.4-AC3 note. The repair is the
+  // server's safety net; its cost is time, re-checked with P3.5/P3.6. read, differs, citation and kind are per case.
   const timingPass = firstInkMedianMs === null || firstInkP95Ms === null ? null
     : firstInkMedianMs <= b.firstInkMedianMs && firstInkP95Ms <= b.firstInkP95Ms;
   return { cases: scores.length, status, row, clusters, ladder, noAnswer, scope, firstInkMedianMs, firstInkP95Ms, qualityPass, timingPass };
