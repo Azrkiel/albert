@@ -19,6 +19,8 @@ export function toLogicalPoint(sample: PointerSample, inverse: Affine | null, no
 
 type CaptureOptions = {
   problemId: string;
+  page?: number;
+  height?: number;
   sessionStart: number;
   now?: () => number;
   getTool?: () => Stroke["tool"];
@@ -56,7 +58,8 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
     if (event.pointerType === "mouse" && event.button !== 0) return;
     if (event.pointerType !== "mouse" && event.pointerType !== "pen" && event.pointerType !== "touch") return;
     const point = convert(event);
-    if (!point || point.x >= PAGE.albertCol.x) return;
+    if (!point || (options.page === undefined ? point.x >= PAGE.albertCol.x
+      : point.x < 0 || point.x > PAGE.width || point.y < 0 || point.y > (options.height ?? Infinity))) return;
     try { surface.setPointerCapture(event.pointerId); } catch { return; }
     const tool = event.pointerType === "pen" && (event.buttons & 32) !== 0 ? "eraser" : options.getTool?.() ?? "pen";
     active = { pointerId: event.pointerId, pointerType: event.pointerType, tool, points: [point] };
@@ -93,6 +96,7 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
     }
     options.onStroke({
       id: `st_${nanoid()}`, problemId: options.problemId, rowId: null,
+      ...(options.page === undefined ? {} : { page: options.page }),
       pointerType: draft.pointerType, tool: draft.tool, points: draft.points,
       t0: draft.points[0]!.t, t1: draft.points[draft.points.length - 1]!.t,
       bbox: { x: left, y: top, w: right - left, h: bottom - top },

@@ -38,6 +38,8 @@ Each decision has a reason and a trigger that would change it. During the build,
 
 **Page-mode variant (user, Nov 14, P5.8).** When the student writes on the worksheet PDF itself, there is no reserved column: Albert writes in the page's own white space, found by a pure free-space search over the page print, the student's ink and earlier notes. Placement is then a search, so it has a fallback: a band below the page. The ruled, free and whiteboard surfaces keep the margin column.
 
+**Release override (user, Nov 15, R2.2).** The whole PDF page, including the right edge, accepts pen and eraser input. All tutor notes use the below-page band for this release; R3.3 white-space search is deferred.
+
 ## D5 — The model points by cluster number
 
 **Decision.** The browser groups strokes into numbered clusters and draws the numbers on the snapshot. The model names wrong symbols by number. The browser turns numbers into positions from its own stroke data.

@@ -12,6 +12,7 @@ export type BuildHintRequestOptions = {
   problemSource?: HintRequest["problemSource"];
   /** Also render image.clean. General handwriting includes it by default to keep labels out of transcription. */
   clean?: boolean;
+  background?: SnapshotArgs["background"];
   /** Injected in unit tests, which have no canvas. */
   render?: (args: SnapshotArgs) => Promise<Snapshot>;
 };
@@ -65,7 +66,7 @@ export async function buildHintRequest(state: SessionState, rowId: string, rung:
   const row = state.rows.find((r) => r.id === rowId);
   if (!row) throw new Error("Unknown row");
   const render = options.render ?? renderSnapshot;
-  const base = { strokes: state.strokes, rows: state.rows, clusters: listClusters(state), problemId: row.problemId, upToRowId: rowId };
+  const base = { ...(options.background ? { background: options.background } : {}), strokes: state.strokes, rows: state.rows, clusters: listClusters(state), problemId: row.problemId, upToRowId: rowId };
   const marked = await render({ ...base, marked: true });
   const clean = (options.clean ?? options.problemSource === "handwriting") ? await render({ ...base, marked: false }) : undefined;
   const problemOf = (id: string) => state.rows.find((r) => r.id === id)?.problemId;
