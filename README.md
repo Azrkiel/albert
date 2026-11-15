@@ -6,7 +6,7 @@
 
 Albert is a worksheet tutor that works on the page. You open your course worksheet as a PDF and write on it with a pen. When you get stuck, you tap **I'm stuck** or type a short question in the **Ask Albert** field. Albert reads your handwriting, circles the symbols it is talking about, and writes a short hint in red ink next to your work. The hint uses only the methods your class has covered, cites the lecture where your teacher taught them, and does not give the answer. Your work saves and reloads, and **Save PDF** downloads the worksheet with your ink and Albert's.
 
-Code: [`Azrkiel/albert`](https://github.com/Azrkiel/albert). Course files: [`Azrkiel/albert-files`](https://github.com/Azrkiel/albert-files) (a synthetic Calculus II course, hosted on GitHub).
+Live: [learn-albert.fly.dev](https://learn-albert.fly.dev). Code: [`Azrkiel/albert`](https://github.com/Azrkiel/albert). Course files: [`Azrkiel/albert-files`](https://github.com/Azrkiel/albert-files) (a synthetic Calculus II course, hosted on GitHub).
 
 ## What it does
 
