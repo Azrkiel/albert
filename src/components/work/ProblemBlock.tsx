@@ -5,6 +5,7 @@ import { INK, PAGE, type CanvasLayout, type Row, type Stroke, type StuckSignal, 
 import { freeSurfaceHeight, inkedRowIds } from "@/lib/canvas";
 import { pageSvgMarkup } from "@/lib/ink";
 import { WorkSurface } from "./WorkSurface";
+import { StatementMath } from "./StatementMath";
 
 // Phase 5 owns loading/typesetting. Accept its existing contract metadata directly.
 type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLatex">;
@@ -110,7 +111,7 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
           <foreignObject x={PAGE.studentCol.x + 16} y={0} width={PAGE.studentCol.w - 32} height={PAGE.statementMinHeight}>
             <div style={{ paddingTop: PAGE.rowPaddingTop, height: "100%", overflow: "auto" }}>
               <h2 id={headingId} style={{ fontSize: 20, margin: "0 0 8px" }}>Problem {problem.label}</h2>
-              <p data-problem-statement="" style={{ fontSize: 18 }}>{problem.statementLatex}</p>
+              <StatementMath key={problem.statementLatex} source={problem.statementLatex} />
             </div>
           </foreignObject>
           {numbered.map((row) => (

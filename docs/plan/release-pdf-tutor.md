@@ -96,7 +96,7 @@ Contract changes in this phase go in one commit each, with schema, `contracts.md
 **Evidence (Nov 15).** `35fc43d` contains the flagged contract/schema/fixture/test update; `0e6c4ef` adds bounded rendering
 and worksheet integration; `a4962b2` preserves P5.6's published worksheet response contract. Unit/route coverage includes
 the synthetic PDF, no-label fallback, cache replacement, crop/rotation and oversized allocation rejection. Real Next tests
-decode both PNGs and assert all five served regions. Combined R1.1/R1.2 main verify: 61 files, 852 passed / 16 skipped; three completed pre-Learn-integration
+decode both PNGs and assert all five served regions. Combined R1.1/R1.2/P5.6 main verify: 61 files, 852 passed / 16 skipped; three completed pre-Learn-integration
 local full browser suites each 114 passed / 6 skipped; build passed; production PDF/replay 3 passed and production gating
 5 passed. Independent follow-up review found no blocking issue. Live model calls: 0. Final combined-main browser/build/production and CI evidence is recorded in the PR;
 R2.2 onward and every human gate remain open.
