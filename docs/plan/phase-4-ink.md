@@ -163,10 +163,13 @@ const WRITE = {
 - [ ] **P4.4-AC4** — New ink fades the hint. *Verify:* e2e test draws a synthetic stroke in the row and checks opacity.
 - [ ] **P4.4-AC5** — Albert's ink never blocks the pen. *Verify:* e2e test draws a stroke through the circle's location and finds a new student stroke stored.
 - [ ] **P4.4-AC6** — **Gate G2, live.** With the real model: write the missing-`dx` work by hand, tap the mark, and watch the circle land on the integrand and the question write itself, first ink within about three seconds. *Verify by hand,* three times in a row, and note the three times in `status.md`.
+  *Note (Nov 14):* P3.6 streaming is deferred, so until it lands first ink arrives with the whole reply. Record the three times honestly; G2 passes on function, and the ~3 s target is re-checked after P3.6.
 
 ---
 
 ### P4.5 — Handwriting, level 1
+
+**Cut (user, Nov 14).** Level 0 (the web font) plus circles and arrows is the demo.
 
 **Goal.** The note looks written letter by letter instead of wiped in. **Time box: 90 minutes.** Stop when the time is up and keep level 0.
 

@@ -124,6 +124,8 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 
 ### P5.4 — The upload path
 
+**Cut (user, Nov 14).** The pinned GitHub source (P5.2/P5.3) is how a course gets in.
+
 **Goal.** A student with no LMS access can still give Albert their course by dropping files.
 
 **Build.**
@@ -177,6 +179,12 @@ The teacher in this course has habits a generic tutor would not know. Those habi
 ### P5.7 — LMS sync (post-hackathon)
 
 Moodle/Canvas integration and automatic refresh are deferred. No LMS credential routes or stubs are needed for this lane.
+
+**Hackathon scope (user, Nov 14).** Under the import button, `/` lists Canvas, Moodle and Blackboard as plain "coming soon" options: names only (no logos), not clickable, no login flow. It shows the adapter design without pretending to integrate.
+
+### P5.8 — The page: worksheet PDF or open whiteboard (planned)
+
+Planned (user, Nov 14), after G3; spec and a decision first. The student writes on the uploaded worksheet's own pages (each PDF page is the background of the work surface, Albert writes in a margin beside it, and "Save" exports the annotated PDF), or, without a PDF, on a whiteboard as large as needed. Lines, clusters, stuck detection and snapshots carry over; problem regions, the snapshot background and the export are new.
 
 ---
 
