@@ -1,7 +1,10 @@
+import { connection } from "next/server";
 import { getRepo } from "../../../../lib/db";
 import { sourceErrorResponse } from "../../../../lib/lms";
 
 export async function GET() {
+  // Read the store per request: without this, Cache Components prerenders the empty list at build time.
+  await connection();
   try {
     const repo = getRepo();
     const connection = await repo.getConnection(process.env.DEMO_STUDENT_ID || "demo");
