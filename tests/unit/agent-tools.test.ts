@@ -76,6 +76,25 @@ describe("P6.3 agent tools", () => {
     expect(await call(tools.get_due_dates, {})).toEqual([]);
   });
 
+  it("list_cards full returns whole cards for one unit, and a revised card reports worksheets it orphaned", async () => {
+    const { ctx, outline, unit3, card, lectureRefs } = await setup();
+    const tools = createTools(ctx);
+    const draft = { ...toDraft(card, lectureRefs.length), unitId: unit3.sectionId };
+    await call(tools.save_teaching_card, draft);
+    const full = await call(tools.list_cards, { unitId: unit3.sectionId, full: true });
+    expect(full).toHaveLength(1);
+    expect(full[0].methods[0].steps.length).toBeGreaterThan(1);
+    expect(full[0].notation.length).toBeGreaterThan(0);
+    expect(await call(tools.list_cards, { unitId: "other", full: true })).toEqual([]);
+    const fileId = fileIdFromRef(outline.assignments.find((a) => a.unitOrder === 3)!.fileRefs[0]!);
+    await call(tools.save_worksheet, { fileId, title: "W3", problems: [{ label: "1", statementLatex: "x", page: 1, subskillIds: [`${unit3.sectionId}.s5`], methodIds: [] }] });
+    const fewer = { ...draft, subskills: draft.subskills.slice(0, 3), pitfalls: draft.pitfalls.map((p) => ({ ...p, subskillIndex: 0 })) };
+    const revised = await call(tools.save_teaching_card, fewer);
+    expect(revised.ok).toBe(true);
+    expect(revised.staleWorksheets).toEqual([expect.objectContaining({ worksheetId: `${fileId}/worksheet` })]);
+    expect((await call(tools.save_teaching_card, draft)).staleWorksheets).toBeUndefined();
+  });
+
   it("get_progress reports recent errors", async () => {
     const { ctx, repo } = await setup();
     await repo.addEvidence([{ id: "e1", studentId: "ada", courseId: ctx.courseId, subskillId: "u3.s2", problemId: "p1", sessionId: "s1", at: "2026-11-14T10:00:00Z", outcome: "error_made", errorType: "missing_dx" }]);
@@ -124,7 +143,7 @@ describe("P6.3 agent tools", () => {
       expect(events.at(-1)).toMatchObject({ type: "tool", at: NOW.toISOString() });
       expect(events.at(-1)?.label.length).toBeGreaterThan(0);
     }
-    expect(mainTools(ctx).map((t) => t.name)).toEqual(["get_course_outline"]);
+    expect(mainTools(ctx).map((t) => t.name)).toEqual(["get_course_outline", "list_cards"]);
   });
 });
 

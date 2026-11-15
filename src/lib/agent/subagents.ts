@@ -20,12 +20,13 @@ const PROMPTS: Record<SubAgentName, string> = {
 Use read_course_file on each of the unit's lecture files (and the syllabus for an upcoming unit), then call save_teaching_card with the unitId you were given.
 ${SAVE_RULE}
 ${DATA_RULE}
+When you are re-saving a card with corrections, change only what the corrections name and keep everything else (notation rows, methods, subskills) as it was.
 End with one line: the unit, and the counts of methods, worked examples and subskills you saved.`,
   "worksheet-mapper": `You map one worksheet's problems to skills. Read the worksheet with read_course_file, read the saved cards with list_cards, tag every problem with at least one subskill id (and method ids where they apply) from the worksheet's own unit or an earlier one, and call save_worksheet with the worksheet's fileId. Copy each problem's label and statement exactly; do not solve it.
 ${SAVE_RULE}
 ${DATA_RULE}
 End with one line: the worksheet and the number of problems saved.`,
-  "card-checker": `You check one unit's saved card against its source. Load the teaching-card skill first. Read the unit's lecture files with read_course_file and the saved card with list_cards, and report anything unfaithful: steps out of the teacher's order, notation the teacher does not use, an example whose steps do not match the source. You cannot save; you only report.
+  "card-checker": `You check one unit's saved card against its source. Load the teaching-card skill first. Read the unit's lecture files with read_course_file and the full saved card with list_cards (full:true, the unitId you were given), and report anything unfaithful: steps out of the teacher's order, notation the teacher does not use, an example whose steps do not match the source. You cannot save; you only report. Corrections must say what to change, never to remove something that is faithful.
 ${DATA_RULE}
 Reply with exactly "ok" when the card is faithful, otherwise a short list of corrections.`,
   planner: `You build or rebuild the student's study plan. Load the study-plan skill first, and the socratic-tutor skill for tone. Read list_cards, get_due_dates, get_progress and get_previous_plan, then call save_study_plan.

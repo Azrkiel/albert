@@ -114,16 +114,20 @@ export function createTools(ctx: ToolContext): Record<ToolName, StructuredTool> 
     }
     await r.upsertCard(card);
     note(`Saved card: Unit ${unit.order} — ${card.title}`);
-    return json({ ok: true, subskills: card.subskills.map((s) => ({ id: s.id, name: s.name })), methods: card.methods.map((m) => ({ id: m.id, name: m.name })) });
+    // Ids are index based, so a revised card can orphan references in worksheets that were mapped earlier.
+    const cards = await r.listCards(ctx.courseId);
+    const stale = (await r.listWorksheets(ctx.courseId)).map((w) => ({ worksheetId: w.id, problems: validateWorksheet(w, cards) })).filter((w) => w.problems.length);
+    return json({ ok: true, ...(stale.length ? { staleWorksheets: stale } : {}), subskills: card.subskills.map((s) => ({ id: s.id, name: s.name })), methods: card.methods.map((m) => ({ id: m.id, name: m.name })) });
   }, {
     name: "save_teaching_card",
     description: "Validate and save one unit's teaching card. fileIndex values refer to that unit's lectureFiles in get_course_outline; method and subskill indexes are zero-based into the arrays you give. Ids are assigned for you. Returns {ok:true, subskills, methods} or {ok:false, problems}: fix every problem and call again. Nothing is saved while problems remain.",
     schema: CardDraftSchema.extend({ unitId: z.string().describe("unitId from get_course_outline") }),
   });
 
-  const list_cards = tool(async () => {
-    const cards = [...await repo().listCards(ctx.courseId)].sort((a, b) => a.order - b.order);
-    note(`Listed ${cards.length} cards`);
+  const list_cards = tool(async ({ unitId, full }) => {
+    const cards = [...await repo().listCards(ctx.courseId)].filter((c) => !unitId || c.unitId === unitId).sort((a, b) => a.order - b.order);
+    note(full ? `Read full card for ${cards.map((c) => `Unit ${c.order}`).join(", ") || "no unit"}` : `Listed ${cards.length} cards`);
+    if (full) return json(cards);
     return json(cards.map((c) => ({
       unitId: c.unitId, order: c.order, title: c.title, taught: c.taught,
       methods: c.methods.map((m) => ({ id: m.id, name: m.name })),
@@ -132,8 +136,8 @@ export function createTools(ctx: ToolContext): Record<ToolName, StructuredTool> 
     })));
   }, {
     name: "list_cards",
-    description: "List this course's saved teaching cards in compact form: unit, title, taught, method names and ids, subskills with ids, example labels. Returns JSON.",
-    schema: z.object({}),
+    description: "List this course's saved teaching cards in compact form: unit, title, taught, method names and ids, subskills with ids, example labels. Pass full:true (optionally with a unitId) to get the complete cards, including steps and notation, for checking them against the source. Returns JSON.",
+    schema: z.object({ unitId: z.string().optional(), full: z.boolean().optional() }),
   });
 
   const save_worksheet = tool(async ({ fileId, ...draft }) => {
@@ -230,7 +234,8 @@ export function createTools(ctx: ToolContext): Record<ToolName, StructuredTool> 
   return { get_course_outline, read_course_file, save_teaching_card, list_cards, save_worksheet, get_due_dates, get_progress, get_previous_plan, save_study_plan } as unknown as Record<ToolName, StructuredTool>;
 }
 
-/** The main agent's own tools; the sub-agents get theirs in P6.4. */
+/** The main agent's own tools: the outline, and the cards it summarises into /course/scope.md. */
 export function mainTools(ctx: ToolContext): StructuredTool[] {
-  return [createTools(ctx).get_course_outline];
+  const tools = createTools(ctx);
+  return [tools.get_course_outline, tools.list_cards];
 }

@@ -1,15 +1,18 @@
 import { PDFDocument } from "pdf-lib";
-import type { CourseOutline, Repo, TeachingCard, Worksheet } from "../../contracts";
+import type { AgentRun, CourseOutline, Repo, StudyPlan, TeachingCard, Worksheet } from "../../contracts";
 import { validateCard } from "./extract-card";
 import { validateWorksheet } from "./extract-worksheet";
 import { fileIdFromRef } from "./ingest-flat";
+import { planMaxMinutesPerDay, validatePlan } from "./plan";
 import type { FileText } from "./read-file";
 
 export type GoldenCheck = { number: number; status: "pass" | "fail" | "skipped"; detail: string };
-export type IngestData = { outline: CourseOutline; cards: TeachingCard[]; worksheets: Worksheet[]; sources: FileText[] };
+/** Checks 12 and 13 need an agent run; without one they are skipped. `evidenceIds` are the student's evidence ids for validatePlan. */
+export type AgentRunData = { run: AgentRun; scopeText: string | null; plan: StudyPlan | null; evidenceIds: string[] };
+export type IngestData = { outline: CourseOutline; cards: TeachingCard[]; worksheets: Worksheet[]; sources: FileText[]; agent?: AgentRunData };
 
 /** P6.5's synthetic markers only. No model, network, clock or agent runtime. */
-export function checkIngestData({ outline, cards, worksheets, sources }: IngestData): GoldenCheck[] {
+export function checkIngestData({ outline, cards, worksheets, sources, agent }: IngestData): GoldenCheck[] {
   const results: GoldenCheck[] = [];
   const check = (number: number, ok: boolean, detail: string) => results.push({ number, status: ok ? "pass" : "fail", detail });
   const unitCard = (order: number) => cards.find(c => c.unitId === outline.units.find(u => u.order === order)?.sectionId);
@@ -24,8 +27,10 @@ export function checkIngestData({ outline, cards, worksheets, sources }: IngestD
   check(4, !!u3?.methods.some(m => m.steps.length === 5 && /dx/.test(m.steps[1]!) && /triangle/i.test(m.steps[4]!)), "M3 five-step recipe, dx second, triangle fifth");
   const compact = JSON.stringify([u3?.methods, u3?.notation]).replaceAll("\\\\", "\\").replace(/\s|[{}]/g, "");
   check(5, ["a\\sin\\theta", "a\\tan\\theta", "a\\sec\\theta"].every(s => compact.includes(s)), "M4 all three substitution-table rows");
-  const angles = u3?.notation.filter(n => /angle|theta|θ|new variable/i.test(n.concept)) ?? [];
-  check(6, !!u3?.conventions.some(c => /reference triangle/i.test(c)) && angles.length > 0 && angles.every(n => n.teacherWrites.trim() === "\\theta"), "M5 reference triangle and angle theta");
+  // Entries that name the angle symbol itself: a concept naming the angle whose teacherWrites is one symbol (TeX dollars ignored).
+  const bare = (t: string) => t.replace(/[$\s]/g, "");
+  const angles = u3?.notation.filter(n => /\b(angle|new variable)\b/i.test(n.concept) && /^\\?[A-Za-z]+$/.test(bare(n.teacherWrites))) ?? [];
+  check(6, !!u3?.conventions.some(c => /reference triangle/i.test(c)) && angles.length > 0 && angles.every(n => bare(n.teacherWrites) === "\\theta"), "M5 reference triangle and angle theta");
   check(7, !!u3?.workedExamples.some(e => e.label === "Lecture 9, Example 2"), "M6 Lecture 9, Example 2");
   check(8, !!u3?.pitfalls.some(p => p.errorType.includes("dx")), "Unit 3 dx pitfall");
   check(9, !!u4?.methods.some(m => /partial fractions?/i.test(m.name) && m.steps.length === 0), "M8 upcoming partial fractions, no steps");
@@ -40,11 +45,19 @@ export function checkIngestData({ outline, cards, worksheets, sources }: IngestD
     const a = assignment(n), ws = forAssignment(n);
     return !!a?.dueAt && ws.length === 1 && ws[0]!.dueAt === a.dueAt;
   }), "Worksheet 3/4 due dates match pinned outline");
-  for (const number of [12, 13]) results.push({ number, status: "skipped", detail: "agent run, P6.5" });
+  if (!agent) {
+    for (const number of [12, 13]) results.push({ number, status: "skipped", detail: "agent run, P6.5" });
+    return results;
+  }
+  const starts = agent.run.events.filter(e => e.type === "subagent_start").length;
+  const wroteScope = agent.run.events.some(e => e.type === "file" && e.label === "/course/scope.md");
+  check(12, agent.run.events.some(e => e.type === "todo") && starts >= 3 && wroteScope && (agent.scopeText === null || agent.scopeText.trim().length > 0), `Run produced a todo list, ${starts} subagent_start events and ${wroteScope ? "a" : "no"} /course/scope.md write`);
+  const planProblems = agent.plan ? validatePlan(agent.plan, { cards, worksheets, evidenceIds: agent.evidenceIds }, planMaxMinutesPerDay()) : ["No plan saved"];
+  check(13, planProblems.length === 0, planProblems.length ? planProblems.join("; ") : `Plan ${agent.plan!.id} saved and valid (${agent.plan!.items.length} items)`);
   return results;
 }
 
-export async function checkIngest(courseId: string, repo: Repo): Promise<GoldenCheck[]> {
+export async function checkIngest(courseId: string, repo: Repo, agent?: { run: AgentRun; scopeText: string | null; studentId: string }): Promise<GoldenCheck[]> {
   const outline = await repo.getOutline(courseId);
   if (!outline) throw new Error("Missing outline; reimport the course source.");
   const sources: FileText[] = [];
@@ -55,5 +68,10 @@ export async function checkIngest(courseId: string, repo: Repo): Promise<GoldenC
     if (text === null) continue;
     sources.push({ fileId, text, pages: (await PDFDocument.load(file.bytes)).getPageCount() });
   }
-  return checkIngestData({ outline, cards: await repo.listCards(courseId), worksheets: await repo.listWorksheets(courseId), sources });
+  const agentData: AgentRunData | undefined = agent && {
+    run: agent.run, scopeText: agent.scopeText,
+    plan: await repo.latestPlan(agent.studentId, courseId),
+    evidenceIds: (await repo.listEvidence(agent.studentId, courseId)).map(e => e.id),
+  };
+  return checkIngestData({ outline, cards: await repo.listCards(courseId), worksheets: await repo.listWorksheets(courseId), sources, agent: agentData });
 }

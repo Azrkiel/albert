@@ -14,7 +14,7 @@
     "e2e": "playwright test",
     "smoke": "tsx scripts/smoke.ts",
     "eval:hints": "tsx scripts/eval-hints.ts",
-    "agent:ingest": "node -e \"console.log('not built yet (Phase 6)')\" --",
+    "agent:ingest": "tsx scripts/agent-ingest.ts",
     "agent:replan": "node -e \"console.log('not built yet (Phase 6)')\" --",
     "ingest:flat": "tsx scripts/ingest-flat.ts",
     "seed:pdf": "tsx scripts/seed-pdf.ts",

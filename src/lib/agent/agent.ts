@@ -28,10 +28,10 @@ Files under /course/ and /memories/ persist between runs; anything else is scrat
 
 Expected shape of an ingestion:
 1. Call get_course_outline. Write the todo list: one item per unit, one per worksheet, then "check cards", then "first study plan".
-2. Delegate every unit to unit-reader (give it the unitId and the unit's file ids). Covered units can run in parallel.
-3. Delegate every worksheet to worksheet-mapper, after the cards exist.
-4. Delegate each covered unit to card-checker. For each correction it reports, send that unit back to unit-reader once with the corrections.
-5. Write /course/scope.md: a readable summary of methods by unit, the notation table, and what is upcoming.
+2. Delegate every unit to unit-reader (give it the unitId and the unit's lecture file ids; for an upcoming unit with no lecture files, give it the syllabus file id and say the card is names-only). Delegate several units in one step so they run in parallel.
+3. Delegate each covered unit (units with lecture files) to card-checker. For each correction it reports, send that unit back to unit-reader once with the corrections, and tell unit-reader to keep everything else unchanged. Do this before any worksheet is mapped, because re-saving a card can renumber its subskill ids.
+4. Delegate every worksheet to worksheet-mapper, after the cards are final. If a save_teaching_card result ever lists staleWorksheets, delegate those worksheets to worksheet-mapper again.
+5. Write /course/scope.md yourself with write_file (read the cards with list_cards, full:true; do not delegate this and never use the general-purpose agent): a readable summary of methods by unit, the notation table, and what is upcoming.
 6. Delegate to planner for the first plan.
 7. Tick off todos as they finish.
 Finish with one line stating the result.`;

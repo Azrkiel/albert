@@ -53,10 +53,12 @@ export async function runAgent(kind: AgentRun["kind"], courseId: string, message
   return run;
 }
 
+const today = (options: RunOptions) => (options.now ?? (() => new Date()))().toISOString().slice(0, 10);
+
 export function runIngest(courseId: string, options: RunOptions = {}): Promise<AgentRun> {
-  return runAgent("ingest", courseId, `Ingest course ${courseId}: learn every unit, save a teaching card per unit, map each worksheet to skills, then build the first study plan.`, options);
+  return runAgent("ingest", courseId, `Today is ${today(options)}. Ingest course ${courseId}: learn every unit, save a teaching card per unit, map each worksheet to skills, then build the first study plan.`, options);
 }
 
 export function runReplan(courseId: string, trigger: string, options: RunOptions = {}): Promise<AgentRun> {
-  return runAgent("replan", courseId, `Re-plan the study plan for course ${courseId}. Trigger: ${trigger}. Do not re-read course files.`, options);
+  return runAgent("replan", courseId, `Today is ${today(options)}. Re-plan the study plan for course ${courseId}. Trigger: ${trigger}. Do not re-read course files.`, options);
 }
