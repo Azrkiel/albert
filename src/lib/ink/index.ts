@@ -9,3 +9,4 @@ export { hashSeed, circleMark, underlineMark, crossOutMark, arrowMark } from "./
 export { createConductor, type Conductor, type ConductorHost, type HintContext, type ProblemInk } from "./conductor";
 export { pageSvgMarkup } from "./export";
 export { spaceSegments, mathAsText, breakLongWords, wrapLines } from "./segments";
+export { POINTER_MS, pointerAt, pointerSteps, runMarkSteps, targetCentre } from "./pointer";

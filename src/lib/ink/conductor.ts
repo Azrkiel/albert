@@ -1,9 +1,10 @@
 import { pdfNoteBand } from "../canvas/pdf-pages";
 import { PAGE, INK, type AlbertMark, type AlbertMarkSpec, type BBox, type Cluster, type HintEvent, type InkSegment, type Row } from "../contracts";
+import { POINTER_MS, liveMarkTarget, placePenTip, movePenTip, pointerSteps, runMarkSteps, targetCentre, type PenPosition } from "./pointer";
 import { WRITE } from "./constants";
 import { revealMs, revealStroke, revealWipe, type Skip } from "./animate";
 import { measureText, textNode } from "./font";
-import { circleFor, marginAnchor, targetBox } from "./geometry";
+import { circleFor, marginAnchor } from "./geometry";
 import { layoutHint, type LayoutItem } from "./layout";
 import { arrowMark, circleMark, crossOutMark, hashSeed, underlineMark } from "./marks";
 import { breakLongWords, mathAsText, spaceSegments, wrapLines } from "./segments";
@@ -68,12 +69,15 @@ export function createConductor(host: ConductorHost) {
   const cancelled = new Set<string>();
   const pendingReplays = new Map<string, { marks: AlbertMark[]; opts: { instant: boolean; rung: number } }>();
   const dots = new Map<string, SVGElement>();
+  const pointers = new Map<string, SVGGElement>();
+  let pointerPositions = new WeakMap<SVGSVGElement, PenPosition>();
   const skip: Skip = { now: false };
   const listeners = new Set<() => void>();
   const states = new Map<string, ProblemInk>();
   let readings: { rowId: string; latex: string; confidence: string }[] = [];
   let tail: Promise<void> = Promise.resolve();
   let pendingSteps = 0;
+  let generation = 0;
   let version = 0;
 
   const setState = (problemId: string, patch: Partial<ProblemInk>) => {
@@ -89,8 +93,9 @@ export function createConductor(host: ConductorHost) {
   };
   const enqueue = (ctx: HintContext, step: () => Promise<void> | void) => {
     pendingSteps++;
+    const scheduledGeneration = generation;
     tail = tail.then(async () => {
-      try { if (!cancelled.has(ctx.hintId)) await step(); } catch (error) { console.error("Albert ink step failed", error); }
+      try { if (scheduledGeneration === generation && !cancelled.has(ctx.hintId)) await step(); } catch (error) { console.error("Albert ink step failed", error); }
       if (--pendingSteps === 0) skip.now = false;
     });
   };
@@ -126,6 +131,7 @@ export function createConductor(host: ConductorHost) {
     setState(d.ctx.problemId, {});
   };
   const removeDot = (hintId: string) => { dots.get(hintId)?.remove(); dots.delete(hintId); };
+  const removePointer = (hintId: string) => { pointers.get(hintId)?.remove(); pointers.delete(hintId); };
 
   /** Marks other, earlier hints already drew on this row (rung 2 keeps rung 1's circle and arrow). */
   const alreadyDrawn = (ctx: HintContext, kind: string, rowId: string) =>
@@ -135,44 +141,73 @@ export function createConductor(host: ConductorHost) {
   async function drawMark(ctx: HintContext, spec: AlbertMarkSpec) {
     const made = entry(ctx);
     const svg = made?.group.ownerSVGElement;
-    const { rows, clusters } = host.geometry();
     const rowId = spec.type === "arrow" ? spec.toRowId : spec.rowId;
-    const row = rows.find((r) => r.id === rowId);
-    if (!made || !svg || !row || row.problemId !== ctx.problemId
-      || row.page !== rows.find(r => r.id === ctx.rowId)?.page || !clusters.some(c => c.rowId === row.id)) return;
-    if (spec.type === "arrow" && (host.pageMode?.() ?? row.page !== undefined)) return;
     const ids = spec.type === "arrow" ? spec.toClusterIds : spec.clusterIds;
+    const resolveTarget = () => {
+      const { rows, clusters } = host.geometry();
+      return liveMarkTarget(rows, clusters, ctx.problemId, ctx.rowId, rowId, ids);
+    };
+    const target = resolveTarget();
+    if (!made || !svg || !target) return;
+    const { row, box } = target;
+    if (spec.type === "arrow" && (host.pageMode?.() ?? row.page !== undefined)) return;
     const kind = spec.type;
     if (alreadyDrawn(ctx, kind, rowId) || made.kinds.has(kind)) return;
-    const box = targetBox(ids, clusters, row);
-    if (!box) return; // Ink may have been erased while the response was queued.
-    const seed = hashSeed(`${ctx.seedId}/${kind}`);
-    let group: SVGGElement, duration: number;
-    if (spec.type === "circle") { group = circleMark(svg, box, seed); duration = WRITE.circleMs; }
-    else if (spec.type === "underline") { group = underlineMark(svg, box, seed); duration = WRITE.underlineMs; }
-    else if (spec.type === "cross_out") { group = crossOutMark(svg, box, seed); duration = WRITE.crossOutMs; }
-    else {
-      // Point at the circle's edge when this hint (or an earlier rung) circled the same row, else at the clusters.
-      const circled = made.marks.some((m) => m.spec.type === "circle" && m.spec.rowId === rowId) || alreadyDrawn(ctx, "circle", rowId);
-      const c = circleFor(box);
-      let from = marginAnchor(row);
-      let aim: BBox = box;
-      if (ctx.narrow) {
-        // Narrow: the arrow rises from the band under the rows to the bottom of the circle (or the clusters).
-        from = { x: box.x + box.w / 2, y: bandTop(ctx) };
-        aim = circled ? { x: c.cx - c.rx + WRITE.circlePad, y: c.cy - c.ry + WRITE.circlePad, w: 2 * (c.rx - WRITE.circlePad), h: 2 * (c.ry - WRITE.circlePad) } : box;
-      } else if (circled) aim = { x: c.cx - c.rx + WRITE.circlePad, y: c.cy, w: 2 * (c.rx - WRITE.circlePad), h: 0 };
-      group = arrowMark(svg, from, aim, seed).group;
-      duration = WRITE.arrowMs;
-    }
-    group.setAttribute("data-target-row", rowId);
-    made.group.append(group);
-    made.kinds.add(kind);
-    made.rows.add(rowId);
-    const bb = group.getBBox();
-    made.marks.push({ id: `${ctx.hintId}/${kind}${made.marks.length + 1}`, hintId: ctx.hintId, problemId: ctx.problemId, spec,
-      bbox: { x: bb.x, y: bb.y, w: bb.width, h: bb.height }, drawnAt: host.now() });
-    await revealStroke(group, ms(duration, ctx), skip);
+    const drawingGeneration = generation;
+    const first = made.kinds.size === 0;
+    if (first) removeDot(ctx.hintId);
+    try {
+      await runMarkSteps(pointerSteps(first, ms(POINTER_MS, ctx) === 0), {
+        pointer: async () => {
+          const pointer = document.createElementNS(NS, "g");
+          pointer.setAttribute("data-albert-pointer", ctx.hintId);
+          pointer.setAttribute("pointer-events", "none");
+          const tip = document.createElementNS(NS, "path");
+          tip.setAttribute("d", "M 0 0 L -4 -12 L 4 -12 Z"); tip.setAttribute("fill", INK.albert);
+          pointer.append(tip); made.group.append(pointer); pointers.set(ctx.hintId, pointer);
+          await movePenTip(pointer, pointerPositions.get(svg) ?? marginAnchor(row), targetCentre(box), {
+            cancelled: () => gone(ctx) || drawingGeneration !== generation,
+            target: () => { const live = resolveTarget(); return live ? targetCentre(live.box) : null; }, skip: () => skip.now || host.reducedMotion(),
+            onPosition: position => pointerPositions.set(svg, position),
+          });
+        },
+        mark: async () => {
+          if (gone(ctx) || drawingGeneration !== generation) return;
+          const live = resolveTarget();
+          if (!live) return;
+          const { row, box } = live;
+          const pointer = pointers.get(ctx.hintId);
+          if (pointer) { placePenTip(pointer, targetCentre(box)); pointerPositions.set(svg, targetCentre(box)); }
+          const seed = hashSeed(`${ctx.seedId}/${kind}`);
+          let group: SVGGElement, duration: number;
+          if (spec.type === "circle") { group = circleMark(svg, box, seed); duration = WRITE.circleMs; }
+          else if (spec.type === "underline") { group = underlineMark(svg, box, seed); duration = WRITE.underlineMs; }
+          else if (spec.type === "cross_out") { group = crossOutMark(svg, box, seed); duration = WRITE.crossOutMs; }
+          else {
+            // Point at the circle's edge when this hint (or an earlier rung) circled the same row, else at the clusters.
+            const circled = made.marks.some((m) => m.spec.type === "circle" && m.spec.rowId === rowId) || alreadyDrawn(ctx, "circle", rowId);
+            const c = circleFor(box);
+            let from = marginAnchor(row);
+            let aim: BBox = box;
+            if (ctx.narrow) {
+              // Narrow: the arrow rises from the band under the rows to the bottom of the circle (or the clusters).
+              from = { x: box.x + box.w / 2, y: bandTop(ctx) };
+              aim = circled ? { x: c.cx - c.rx + WRITE.circlePad, y: c.cy - c.ry + WRITE.circlePad, w: 2 * (c.rx - WRITE.circlePad), h: 2 * (c.ry - WRITE.circlePad) } : box;
+            } else if (circled) aim = { x: c.cx - c.rx + WRITE.circlePad, y: c.cy, w: 2 * (c.rx - WRITE.circlePad), h: 0 };
+            group = arrowMark(svg, from, aim, seed).group;
+            duration = WRITE.arrowMs;
+          }
+          group.setAttribute("data-target-row", rowId);
+          made.group.append(group);
+          made.kinds.add(kind);
+          made.rows.add(rowId);
+          const bb = group.getBBox();
+          made.marks.push({ id: `${ctx.hintId}/${kind}${made.marks.length + 1}`, hintId: ctx.hintId, problemId: ctx.problemId, spec,
+            bbox: { x: bb.x, y: bb.y, w: bb.width, h: bb.height }, drawnAt: host.now() });
+          await revealStroke(group, ms(duration, ctx), skip);
+        },
+      });
+    } finally { removePointer(ctx.hintId); }
   }
 
   /** Page y under the problem's last row, where the narrow band starts. */
@@ -356,6 +391,7 @@ export function createConductor(host: ConductorHost) {
         // No half-drawn hint survives an error: stop the queue's work on it and remove every mark.
         cancelled.add(ctx.hintId);
         removeDot(ctx.hintId);
+        removePointer(ctx.hintId);
         remove(ctx.hintId);
         setState(ctx.problemId, { chip: null });
         // The partial reading goes too, so no typeset math of a failed hint stays in the row tooltips.
@@ -387,7 +423,7 @@ export function createConductor(host: ConductorHost) {
     },
     /** "Clear Albert's notes": removes everything Albert drew on a problem. */
     clearProblem(problemId: string) {
-      for (const d of [...drawn.values()]) if (d.ctx.problemId === problemId) { cancelled.add(d.ctx.hintId); removeDot(d.ctx.hintId); remove(d.ctx.hintId); }
+      for (const d of [...drawn.values()]) if (d.ctx.problemId === problemId) { cancelled.add(d.ctx.hintId); removeDot(d.ctx.hintId); removePointer(d.ctx.hintId); remove(d.ctx.hintId); }
       setState(problemId, { chip: null });
     },
     pageExtent: (page: number) => Math.max(0, ...[...drawn.values()]
@@ -398,12 +434,16 @@ export function createConductor(host: ConductorHost) {
     version: () => version,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     reset() {
+      generation++;
       cancelled.clear();
       pendingReplays.clear();
       readings = [];
       for (const d of drawn.values()) d.group.remove();
       for (const dot of dots.values()) dot.remove();
       dots.clear();
+      for (const pointer of pointers.values()) pointer.remove();
+      pointers.clear();
+      pointerPositions = new WeakMap();
       drawn.clear();
       const ids = [...states.keys()];
       states.clear();
