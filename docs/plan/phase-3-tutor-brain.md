@@ -189,6 +189,8 @@ scripts/eval-hints.ts
 - [ ] **P3.4-AC3** — The quality bars are met (timing bars are checked in P3.6). *Verify:* the exit code and `last-run.json`.
 - [ ] **P3.4-AC4** — The two 100% bars hold on three consecutive runs. *Verify:* run it three times; paste the three total lines into `status.md`.
 
+**As built (Nov 14).** Scoring is pure in `src/lib/tutor/eval-score.ts` (`scoreCase`, `totals`, `EVAL_BARS`; `tests/unit/eval-score.test.ts`); `scripts/eval-hints.ts` runs the live calls. A case names a snapshot `request` (built from a recording with `scripts/build-eval-request.ts`); the case's `rung` and `history` replace the stored ones. The reader model judges, through a forced yes/no tool, "same expression?" (only when the normalised LaTeX differs) and "does this hint state the corrected step or the final answer?" (rungs 1 and 2). `ladder` means no repair call. Case 11 also needs `differs`: the hint must not repeat the last hint on the row when nothing was written. Optional `notes` in a case file are dropped by the schema. Flags: `--case <id>` (repeatable), `--timing` (enforce the timing bars, after P3.6), `--cards ingested --state <file>` (P6.5-AC4: an `agent:ingest` memory state; the case's worksheet is matched by number and problem label). `fixtures/eval/last-run.json` is output, not a validated fixture. Cases now: 1–3 and 11, from the real `missing-dx.json`; the rest wait on the user's recordings (`human-queue.md`).
+
 **If the bar is missed.** Read the failing cases' `privateNote` and transcription first. If the reading is wrong, the fix is in the image (P3.5) or the handwriting. If the reading is right and the hint is wrong, the fix is in the prompt. Change one thing at a time and re-run.
 
 ---

@@ -1,0 +1,35 @@
+{
+  "id": "missing-dx-r1",
+  "request": "missing-dx-r1-snapshot.json",
+  "worksheetId": "calc2-ws3",
+  "problemId": "calc2-ws3/p1",
+  "stuckRowIndex": 3,
+  "rung": 1,
+  "expect": {
+    "status": [
+      "error"
+    ],
+    "stuckRowLatex": "\\int \\frac{1}{16\\sin^2\\theta\\cdot 4\\cos\\theta}",
+    "errorRowIndex": 3,
+    "errorClusterLabels": [
+      2,
+      8
+    ],
+    "errorType": "missing_dx",
+    "citationIncludes": "Lecture 9",
+    "forbiddenMethods": [
+      "partial fractions"
+    ],
+    "kind": [
+      "question"
+    ],
+    "mustNotMention": [
+      "4\\cos\\theta\\,d\\theta",
+      "dx=4\\cos",
+      "\\cot\\theta",
+      "\\csc^2\\theta",
+      "\\frac{\\sqrt{16-x^2}}{16x}"
+    ]
+  },
+  "notes": "Real handwriting: the user's missing-dx.json recording (snapshot request built by scripts/build-eval-request.ts). History texts, where present, are the recorded MOCK hints (fixtures/llm/calc2-ws3_p1-r1/r2), not live replies."
+}
