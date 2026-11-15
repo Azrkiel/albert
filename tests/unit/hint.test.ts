@@ -90,14 +90,25 @@ describe("P3.3 runHint", () => {
     expect(JSON.stringify(prompts[1])).toContain("at most 18 words; you used 30");
     expect(prompts[0]).toHaveLength(2);
   });
-  it("two rule failures give only one bad_model_output, no persisted hint", async () => {
+  it("an equation that keeps failing is cut to its left side, keeping the model's own question", async () => {
+    const reply = valid();
+    reply.hint.segments = [{ type: "text", text: "What is " }, { type: "math", latex: String.raw`dx = 4\cos\theta\,d\theta` }, { type: "text", text: " in terms of theta?" }];
+    const invoke = vi.fn(async () => response(reply));
+    const events = await collect({ model: { invoke }, repo });
+    expect(invoke).toHaveBeenCalledTimes(2);
+    const hint = events.find((event) => event.type === "hint") as { segments: { type: string; latex?: string }[] };
+    expect(hint.segments.filter((segment) => segment.type === "math").map((segment) => segment.latex)).toEqual(["dx"]);
+    expect(JSON.stringify(events)).not.toContain("cos");
+  });
+  it("two rule failures fall back to a neutral question and never write the rejected words", async () => {
     const reply = valid(); reply.hint.segments = [{ type: "text", text: "No question mark" }];
     const invoke = vi.fn(async () => response(reply));
-    expect(await collect({ model: { invoke }, repo })).toEqual([
-      expect.objectContaining({ type: "error", code: "bad_model_output" }),
-    ]);
+    const events = await collect({ model: { invoke }, repo });
     expect(invoke).toHaveBeenCalledTimes(2);
-    expect(await repo.listHints({})).toEqual([]);
+    expect(events.at(-1)?.type).toBe("done");
+    const hint = events.find((event) => event.type === "hint");
+    expect(hint).toMatchObject({ kind: "question", segments: [{ type: "text", text: "Which part of this line needs another look?" }] });
+    expect(JSON.stringify(events)).not.toContain("No question mark");
   });
   it.each([
     { tool_calls: [] },
@@ -417,7 +428,13 @@ describe("handwriting is the problem source", () => {
     const bad = generalReply(); bad.reading.rows[0]!.index = 999; bad.hint.kind = "worked_step";
     const invoke = vi.fn(async () => response(bad));
     const events = await collect({ model: { invoke }, repo, log: vi.fn() }, generalRequest());
-    expect(events).toEqual([expect.objectContaining({ type: "error", code: "bad_model_output" })]);
     expect(invoke).toHaveBeenCalledTimes(2);
+    // The fallback keeps only rows that exist, draws no marks and writes neutral words with no citation.
+    const reading = events.find((event) => event.type === "reading") as { rows: { rowId: string }[] };
+    expect(reading.rows).toHaveLength(bad.reading.rows.length - 1); // the unknown row R999 is dropped
+    expect(events.filter((event) => event.type === "mark")).toEqual([]);
+    const hint = events.find((event) => event.type === "hint");
+    expect(hint).not.toHaveProperty("citation");
+    expect(events.at(-1)?.type).toBe("done");
   });
 });
