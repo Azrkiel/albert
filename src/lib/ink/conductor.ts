@@ -309,6 +309,8 @@ export function createConductor(host: ConductorHost) {
         removeDot(ctx.hintId);
         remove(ctx.hintId);
         setState(ctx.problemId, { chip: null });
+        // The partial reading goes too, so no typeset math of a failed hint stays in the row tooltips.
+        if (readings.length) { readings = []; version++; listeners.forEach((l) => l()); }
       }
     },
     /**

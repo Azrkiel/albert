@@ -35,6 +35,20 @@ test("P4.6-AC1: the row number shows what Albert read, typeset, with its confide
   await expect(tip).toBeVisible();
 });
 
+test("P4.6-AC1: a failed hint leaves no reading behind", async ({ page }) => {
+  let first = true;
+  await page.route("**/api/hint", async (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    const postData = JSON.stringify(first ? { ...body, fixtureId: "error-mid-stream" } : body);
+    first = false;
+    await route.continue({ postData });
+  });
+  await open(page, "replay=missing-dx&speed=instant");
+  await tapMark(page);
+  await expect(page.locator(`${missingDx} [data-albert-column]`)).toHaveText("That took too long. Try again?", { timeout: 15000 });
+  await expect(page.locator(`${missingDx} [data-reading-tip]`)).toHaveCount(0);
+});
+
 test("P4.6-AC2: a recording with a hint replays with its marks (instant = final state)", async ({ page }) => {
   let hintRequests = 0;
   page.on("request", (r) => { if (r.url().endsWith("/api/hint")) hintRequests++; });
