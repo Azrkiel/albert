@@ -112,7 +112,7 @@ type SessionEvent =
   | { type: "erase"; at: number; strokeIds: string[]; rowId: string }
   | { type: "undo"; at: number; strokeIds: string[]; rowId: string; redo?: true }
   | { type: "stuck"; at: number; signal: StuckSignal }
-  | { type: "hint_requested"; at: number; hintId: string; rowId: string; rung: Rung }
+  | { type: "hint_requested"; at: number; hintId: string; rowId: string; rung: Rung; question?: string; problemId?: string; page?: number }
   | { type: "hint_shown"; at: number; hintId: string; marks: AlbertMark[] }
   | { type: "check_requested"; at: number; problemId: string }
   | { type: "check_result"; at: number; problemId: string; verdict: Verdict }
@@ -138,6 +138,9 @@ const STUCK = {
   CLUSTER_GAP: 4,              // logical px; tuned in P2.5-AC3 (real gaps between symbols were 4–15 px)
 } as const;
 ```
+
+A typed `hint_requested.question` uses the same cleaning and 200-character bound as `HintRequest.question`, and is retained for follow-up history. Optional `problemId`/positive 1-based `page` identify an empty question context before any student ink exists. The reducer can reconstruct that context row on restore; it is not a student stroke and has no clusters. Such context rows keep stable ids and follow actual ink rows in inferred index order. Legacy events omit these fields.
+
 
 **Undo/redo (P2.4).** An ordinary `undo` event reverses the most recent drawing or row erase action; `undo` with `redo: true` reapplies the most recently undone action. Both name exactly that action's stroke IDs and row. Drawing/erasing starts a new edit and clears the redo stack. An empty action emits no event. Undo of drawing sets `erasedAt` to the event time; undo of erasing removes `erasedAt`. Redo of drawing removes it; redo of erasing stamps the redo time. IDs, original points and stroke timing never change, and `stroke_end` is never duplicated. The common reducer derives both stacks during live use and replay. The optional flag disambiguates history direction without introducing a new event type; existing recordings and canonical undo payloads remain valid. Eraser gestures emit one `erase` event per affected row, at the supplied gesture completion time, containing only that row's intersected live pen strokes. Clear row uses the same event with all live pen strokes in the row. Stylus `buttons & 32` selects the eraser for that gesture.
 

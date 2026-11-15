@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { StrokeSchema } from "./strokes";
-import { AlbertMarkSchema, RungSchema } from "./hints";
+import { AlbertMarkSchema, RungSchema, questionField } from "./hints";
 import { VerdictSchema } from "./check";
 
 export const STUCK = {
@@ -23,7 +23,7 @@ export const SessionEventSchema = z.lazy(() => z.discriminatedUnion("type", [
   z.object({ type: z.literal("erase"), at: z.number().nonnegative(), strokeIds: z.array(z.string()), rowId: z.string() }),
   z.object({ type: z.literal("undo"), at: z.number().nonnegative(), strokeIds: z.array(z.string()), rowId: z.string(), redo: z.literal(true).optional() }),
   z.object({ type: z.literal("stuck"), at: z.number().nonnegative(), signal: StuckSignalSchema }),
-  z.object({ type: z.literal("hint_requested"), at: z.number().nonnegative(), hintId: z.string(), rowId: z.string(), rung: RungSchema }),
+  z.object({ type: z.literal("hint_requested"), at: z.number().nonnegative(), hintId: z.string(), rowId: z.string(), rung: RungSchema, question: questionField.optional(), problemId: z.string().optional(), page: z.number().int().positive().optional() }),
   z.object({ type: z.literal("hint_shown"), at: z.number().nonnegative(), hintId: z.string(), marks: z.array(AlbertMarkSchema) }),
   z.object({ type: z.literal("check_requested"), at: z.number().nonnegative(), problemId: z.string() }),
   z.object({ type: z.literal("check_result"), at: z.number().nonnegative(), problemId: z.string(), verdict: VerdictSchema }),

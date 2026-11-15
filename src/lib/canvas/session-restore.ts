@@ -9,6 +9,7 @@ const eventKey = (event: SessionEvent) => JSON.stringify(SessionEventSchema.pars
 export function mergeRestoredEvents(state: SessionState, events: SessionEvent[]): SessionState {
   const legacy = events.some(e => e.type === "stroke_end" && e.stroke.page === undefined)
     || (!events.some(e => e.type === "stroke_end" && e.stroke.page !== undefined)
+      && !events.some(e => e.type === "hint_requested" && e.page !== undefined)
       && events.some(e => e.type === "stuck" || e.type === "hint_requested"));
   if (state.surface === "pdf" && !state.events.length && legacy) {
     // Older sessions did not persist a surface. Preserve their unpaged work on a legacy canvas;
@@ -32,4 +33,3 @@ export function mergeRestoredEvents(state: SessionState, events: SessionEvent[])
     return reduceSessionEvent(next, event);
   }, state);
 }
-

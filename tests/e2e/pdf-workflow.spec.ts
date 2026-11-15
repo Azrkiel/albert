@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-import { PDFDocument } from "pdf-lib";
+import { PDFDocument, PDFName, PDFDict } from "pdf-lib";
 import { readPdfText } from "../../src/lib/lms/pdf";
 
 test.setTimeout(90_000);
@@ -24,9 +24,15 @@ async function draw(page: Page, number: number, x: number, y: number) {
 }
 
 test.beforeEach(async ({ request }) => {
-  const latest = await request.get("/api/session/latest?worksheetId=calc2-ws3&fileId=calc2-worksheet-3");
-  const body = await latest.json();
-  if (body.session) await request.post(`/api/session/${body.session.id}/end`);
+  // Shared memory server: close every prior PDF session, including replaced recording timelines.
+  for (let n = 0; n < 200; n++) {
+    const latest = await request.get("/api/session/latest?worksheetId=calc2-ws3&fileId=calc2-worksheet-3");
+    expect(latest.ok()).toBe(true);
+    const { session } = await latest.json();
+    if (!session) return;
+    expect((await request.post(`/api/session/${session.id}/end`)).ok()).toBe(true);
+  }
+  throw new Error("Too many open PDF sessions");
 });
 
 test("production: PDF writing autosaves, reloads and downloads through the visible controls", async ({ page }) => {
@@ -210,6 +216,7 @@ test("ending a PDF session keeps visible work immutable and downloadable", async
   await expect(page.getByText("Session ended. Your work is saved.", { exact: true })).toBeVisible();
   await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeDisabled();
+  await expect(page.getByPlaceholder("Ask Albert…").first()).toBeDisabled();
   await expect(page.getByRole("button", { name: "I'm stuck", exact: true }).first()).toBeDisabled();
   const count = await page.evaluate(() => window.__albert!.state.events.length);
   await page.clock.install(); await page.clock.fastForward(30_000);
@@ -217,5 +224,10 @@ test("ending a PDF session keeps visible work immutable and downloadable", async
   await expect(page.locator("path[data-stroke-id]")).toHaveCount(1);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save PDF", exact: true }).click();
-  expect((await download).suggestedFilename()).toMatch(/annotated\.pdf$/);
+  const saved = await download;
+  expect(saved.suggestedFilename()).toMatch(/annotated\.pdf$/);
+  const pdf = await PDFDocument.load(await readFile((await saved.path())!));
+  expect(pdf.getPageCount()).toBe(3); // End session keeps the below-page reply exportable.
+  expect(pdf.getPage(0).node.Annots()?.asArray().map(ref => pdf.context.lookup(ref)).some(annotation =>
+    annotation instanceof PDFDict && annotation.get(PDFName.of("Subtype")) === PDFName.of("Ink"))).toBe(true);
 });

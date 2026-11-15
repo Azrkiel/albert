@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "name": "Synthetic PDF question without student ink",
+  "worksheetId": "calc2-ws3",
+  "surface": "pdf",
+  "fileId": "calc2-worksheet-3",
+  "layout": "free",
+  "problems": [
+    {
+      "id": "calc2-ws3/p1",
+      "label": "1",
+      "statementLatex": "Synthetic typed-question context (no student handwriting)"
+    }
+  ],
+  "rows": [
+    {
+      "id": "calc2-ws3/p1/page1/question",
+      "problemId": "calc2-ws3/p1",
+      "page": 1,
+      "index": 1,
+      "bbox": {
+        "x": 0,
+        "y": 0,
+        "w": 1200,
+        "h": 0
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "hint_requested",
+      "at": 100,
+      "hintId": "question-1",
+      "rowId": "calc2-ws3/p1/page1/question",
+      "rung": 1,
+      "question": "Where should I begin?",
+      "problemId": "calc2-ws3/p1",
+      "page": 1
+    }
+  ],
+  "durationMs": 100,
+  "notes": "Synthetic contract fixture; no human handwriting is invented."
+}

@@ -60,7 +60,7 @@ describe("R2.3 restore merge", () => {
   });
   it("restoration never enters sync; only new events are posted", async () => {
     const saved = [event("a"), event("b", 2, 30)].reduce(reduceSessionEvent, initial());
-    const posted = vi.fn(async (_events: SessionEvent[]) => {});
+    const posted = vi.fn(async () => {});
     const sync = createSessionSync(posted);
     const restored = mergeRestoredEvents(initial(), saved.events);
     await sync.flush();

@@ -169,10 +169,10 @@ follow-up).
 
 **Build.** A short text field on the active problem ("Ask Albert…", Enter sends) next to **I'm stuck**; a new request cancels
 the one in flight (existing runner); the helper's reply is drawn like a hint. Writing new ink after a reply sets
-`studentWroteAfter` as today.
+`studentWroteAfter` as today. Typed questions use the existing cleaned 1–200 character contract. Stable empty problem/page contexts allow questions before ink without inventing handwriting; request events retain the question so reloads and follow-ups preserve it. Replacement cancels unfinished rendering as well as the network request, and PDF opening/ended locks disable Ask.
 
 **Acceptance**
-- [ ] **R3.2-AC1** — e2e (mock): ask, see the reply drawn; ask again mid-stream, the first is cancelled and never drawn; a
+- [x] **R3.2-AC1** — e2e (mock): ask, see the reply drawn; ask again mid-stream, the first is cancelled and never drawn; a
   failing mock leaves ink and saved work usable.
 
 ### R3.3 Notes in the page's white space
@@ -197,8 +197,7 @@ then the circle draws; reduced motion skips it. Conductor step only; no Pixie co
 - [x] **R3.4-AC1** — e2e (mock): the pointer element reaches within 12 px of the target centre before the circle group exists.
 
 **Gate R3.** Live, by hand: on the Worksheet 3 PDF, write the missing-dx work, tap **I'm stuck**, see the right cluster
-circled with a Lecture 9 citation and no answer; ask a follow-up. Needs a new real recording in PDF mode
-(`missing-dx-pdf.json`) for the automated replay.
+circled with a Lecture 9 citation and no answer; ask a follow-up. The genuine PDF-mode recording is now supplied as `fixtures/sessions/missing-dx-pdf.json` from the user's handwritten session on main; preserve its recorded data. The live gate and R4 automated release flow remain open.
 
 ---
 

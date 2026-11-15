@@ -122,6 +122,9 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
   useEffect(() => { pdfLocked.current = pdfInputLocked; }, [pdfInputLocked]);
   const [hintTarget, setHintTarget] = useState<{ problemId: string; rowId: string } | null>(null);
   const sendHint = hint.requestHint;
+  const cancelHint = hint.cancel;
+  const pendingHint = useRef<{ hintId: string; shown: boolean } | null>(null);
+  const [preparingHint, setPreparingHint] = useState(false);
   const getSessionStart = useCallback(() => origin.current ??= performance.now(), []);
   const now = useCallback(() => {
     const replay = replayClock.current;
@@ -193,11 +196,18 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
       width: 1200, height: pageHeight(page), crop: region?.page === page.page ? region.bbox : { x: 0, y: 0, w: 1200, h: pageHeight(page) } };
   }, [pdfProblems]);
   // Manual, stuck-mark and ref requests share the real P2.7 snapshot builder
-  const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual") => {
+  const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual", question?: string, page?: number) => {
+    if (isProblemSolved(current.current.events, problemId)) return;
     if (current.current.surface === "pdf" && pdfLocked.current) return;
     const id = ++hintRequestId.current;
-    setError("");
-    sink({ type: "hint_requested", at: now(), hintId: `hint-${sessionId}-${current.current.events.length}`, rowId, rung });
+    cancelHint();
+    if (pendingHint.current && !pendingHint.current.shown) conductor.cancel(pendingHint.current.hintId);
+    setError(""); setPreparingHint(true);
+    const hintId = `hint-${sessionId}-${current.current.events.length}`;
+    pendingHint.current = { hintId, shown: false };
+    const targetPage = page ?? current.current.rows.find(r => r.id === rowId)?.page;
+    sink({ type: "hint_requested", at: now(), hintId, rowId, rung,
+      ...(question === undefined ? {} : { question, problemId, ...(targetPage === undefined ? {} : { page: targetPage }) }) });
     setHintTarget({ problemId, rowId });
     try {
       const request = await buildHintRequest(
@@ -205,16 +215,16 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
         rowId,
         rung,
         trigger,
-        { sessionId, problemSource, background: backgroundFor(rowId) },
+        { sessionId, problemSource, background: backgroundFor(rowId), ...(question === undefined ? {} : { question }) },
       );
       // A slower snapshot from an older click must not replace a newer request.
-      if (id === hintRequestId.current) await sendHint(request);
+      if (id === hintRequestId.current) { setPreparingHint(false); await sendHint(request); }
     } catch {
       if (id === hintRequestId.current) {
         setError("Could not prepare your writing for a hint. Try again.");
       }
-    }
-  }, [sendHint, sessionId, sink, now, problemSource, backgroundFor]);
+    } finally { if (id === hintRequestId.current) setPreparingHint(false); }
+  }, [sendHint, cancelHint, conductor, sessionId, sink, now, problemSource, backgroundFor]);
 
   useImperativeHandle(ref, () => ({
     requestHint,
@@ -224,12 +234,15 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
 
   // A finished hint is part of the session: its drawn marks go in as a hint_shown event (replayed in P4.6).
   useEffect(() => {
-    shownRef.current = (ctx, marks) => sink({
+    shownRef.current = (ctx, marks) => {
+      if (pendingHint.current?.hintId === ctx.hintId) pendingHint.current.shown = true;
+      sink({
       type: "hint_shown",
       at: now(),
       hintId: ctx.hintId,
       marks,
-    });
+      });
+    };
   }, [sink, now]);
 
   useEffect(() => {
@@ -263,8 +276,8 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
   }, [hint.events, conductor]);
   // P3.8: an error shows only its plain note; partial hint text before it is dropped.
   // The writing is drawn as ink once a hint event is in and no error followed; until then the plain text shows.
-  const hintInk = hint.events.some((event) => event.type === "hint") && !hint.events.some((event) => event.type === "error");
-  const hintText = hintMarginText(hint.events) || (hint.status === "streaming" ? "Getting a hint..." : "");
+  const hintInk = !preparingHint && hint.events.some((event) => event.type === "hint") && !hint.events.some((event) => event.type === "error");
+  const hintText = preparingHint ? "Getting a hint..." : hintMarginText(hint.events) || (hint.status === "streaming" ? "Getting a hint..." : "");
   const liveEvents = useCallback((events: SessionEvent[]) => {
     if (current.current.surface === "pdf" && pdfLocked.current) return;
     if (!events.length) return;
@@ -344,6 +357,8 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
     drainingHint.current = false;
     setPdfEnding(false);
     setPdfEndRequested(false);
+    hintRequestId.current++;
+    cancelHint(); pendingHint.current = null; setPreparingHint(false);
     player.current?.cancel();
     loaded.current = rec;
     setError("");
@@ -371,7 +386,7 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
       done();
     }
     else void next.play().then(done, () => { if (player.current === next) setError("Could not replay recording."); });
-  }, [replace, sink, detect, syncRestart, conductor]);
+  }, [replace, sink, detect, syncRestart, conductor, cancelHint]);
 
   useEffect(() => {
     if (!devBuild || !fixture) return;
@@ -482,6 +497,7 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
     setPdfEndRequested(true);
     hintRequestId.current++;
     hint.cancel();
+    setPreparingHint(false);
     player.current?.cancel();
     conductor.interrupt();
     drainingHint.current = true;
@@ -528,7 +544,8 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
         disabled={pdfInputLocked}
         onActivate={() => setActivePage(page.page)} onStroke={capture} getSessionStart={getSessionStart}
         tool={tool} conductor={conductor} hintText={hintText} hintTarget={hintTarget} hintInk={hintInk}
-        hintDisabled={pdfInputLocked || hint.status === "streaming"} onHintRequested={onHintRequested} onMoreHelp={(problemId, rowId, rung) => void requestHint(problemId, rowId, rung)} />)}
+        hintDisabled={pdfInputLocked || hint.status === "streaming"} onHintRequested={onHintRequested} onMoreHelp={(problemId, rowId, rung) => void requestHint(problemId, rowId, rung)}
+        onAsk={(problemId, rowId, question, page) => void requestHint(problemId, rowId, 1, "manual", question, page)} />)}
     </>}
     {state.surface !== "pdf" && state.problems.map((problem) => {
       const rows = state.rows.filter((row) => row.problemId === problem.id);
@@ -539,6 +556,8 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
         stuckMark={state.stuckMarks[problem.id]}
         hintDisabled={hint.status === "streaming" || isProblemSolved(state.events, problem.id)}
         onHintRequested={(request) => onHintRequested(problem.id, request)}
+        onAsk={(question, rowId) => void requestHint(problem.id, rowId, 1, "manual", question)}
+        askDisabled={isProblemSolved(state.events, problem.id)}
         getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear} layout={state.layout}
         albertLayer={<AlbertLayer problemId={problem.id} conductor={conductor} />}
         rowTip={(rowId) => <ReadingTip reading={conductor.latestReading().find((r) => r.rowId === rowId)} />}
