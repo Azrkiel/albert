@@ -19,3 +19,6 @@ export type { AgentRuntime } from "./runtime";
 export { runAgent, runIngest, runReplan } from "./runs";
 export type { RunOptions } from "./runs";
 export { checkIngest, checkIngestData } from "./functions/check-ingest";
+export { createRunRegistry, getRunRegistry } from "./registry";
+export type { LiveRun, RunRegistry } from "./registry";
+export { replayRun, replayDelays, parseStoredRun } from "./mock-run";

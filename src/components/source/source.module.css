@@ -21,3 +21,6 @@
 .soonLabel { margin: 0 0 8px; color: #6b6a66; font-size: 0.9rem; }
 .soon { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; color: #6b6a66; cursor: default; }
 .soon span { margin-left: 8px; font-size: 0.8rem; }
+.learn { display: grid; justify-items: start; gap: 12px; }
+.learn p { margin: 0; }
+.worksheets { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
