@@ -7,6 +7,7 @@ import { AgentRunSchema } from "../../src/lib/contracts";
 import type { AgentEvent } from "../../src/lib/contracts";
 import { MemoryRepo } from "../../src/lib/db/memory";
 import { courseBackend, createCourseAgent, createEventMapper, runAgent, runIngest } from "../../src/lib/agent";
+import { nsPart } from "../../src/lib/agent/agent";
 
 const todos = [{ content: "first", status: "in_progress" }, { content: "second", status: "pending" }];
 const fresh = () => ({ store: new InMemoryStore(), checkpointer: new MemorySaver() });
@@ -108,5 +109,21 @@ describe("P6.2 agent skeleton (fake model)", () => {
     expect(run.threadId).toBe("plan:s:c");
     expect(run.events.at(-1)).toMatchObject({ type: "error" });
     expect((await repo.getRun(run.id))?.status).toBe("failed");
+  });
+});
+
+describe("store namespaces", () => {
+  it("accepts snapshot-qualified course ids (contain / and %) for memory and course files", async () => {
+    const courseId = "github:Azrkiel/albert:seed%2Fcalc2%2Fmanifest.json~calc2:7ce9cd:2026-11-14";
+    const shared = fresh();
+    const backend = courseBackend({ studentId: "demo", courseId }, shared.store);
+    expect((await backend.write("/memories/AGENTS.md", "The student's name is Ada.")).error).toBeUndefined();
+    expect((await backend.write("/course/scope.md", "scope")).error).toBeUndefined();
+    let prompt = "";
+    const model = fakeModel().respond((messages) => { prompt = messages.map(text).join("\n"); return new AIMessage("ok"); });
+    await collect(await createCourseAgent({ studentId: "demo", courseId, emit: () => {}, model: model as never, ...shared }), "ingest:x", "go");
+    expect(prompt).toContain("Ada");
+    // Different ids must not share a namespace.
+    expect(nsPart("a/b")).not.toBe(nsPart("a%2Fb"));
   });
 });

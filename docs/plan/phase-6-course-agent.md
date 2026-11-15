@@ -221,10 +221,12 @@ Every tool calls `ctx.emit({ type: "tool", label })` with a short human label su
    6. Delegate to `planner` for the first plan.
    7. Tick off todos as they finish.
 
+**Implementation notes (Nov 14).** Custom sub-agents do not inherit the main agent's skills, so each sub-agent lists `skills: ["/skills/"]`. Store namespace parts may not contain `.` or `:` (and deepagents limits the character set), so `agent.ts` encodes course and student ids with `nsPart`. `pnpm tsx scripts/agent-unit.ts --course synthetic --unit 3 --source synthetic --state work/course-synthetic.json` is the AC3 command (STORE=memory).
+
 **Acceptance**
-- [ ] **P6.4-AC1** — Three skills exist with valid front matter. *Verify:* `tests/unit/skills.test.ts` parses each `SKILL.md` and checks `name` and `description`; `skills/socratic-tutor/LICENSE.md` exists and contains "MIT".
-- [ ] **P6.4-AC2** — Four sub-agents are defined, each with only its listed tools. *Verify:* unit test over the exported array.
-- [ ] **P6.4-AC3** — One sub-agent works alone. *Verify:* `pnpm tsx scripts/agent-unit.ts --course <id> --unit 3` invokes the agent with "build the card for unit 3 only" and a card for unit 3 is saved, with at least one `subagent_start` event.
+- [x] **P6.4-AC1** — Three skills exist with valid front matter. *Verify:* `tests/unit/skills.test.ts` parses each `SKILL.md` and checks `name` and `description`; `skills/socratic-tutor/LICENSE.md` exists and contains "MIT".
+- [x] **P6.4-AC2** — Four sub-agents are defined, each with only its listed tools. *Verify:* unit test over the exported array.
+- [x] **P6.4-AC3** — One sub-agent works alone. *Verify:* `pnpm tsx scripts/agent-unit.ts --course <id> --unit 3` invokes the agent with "build the card for unit 3 only" and a card for unit 3 is saved, with at least one `subagent_start` event.
 
 ---
 
