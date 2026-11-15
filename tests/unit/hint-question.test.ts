@@ -126,6 +126,9 @@ describe("R3.1 mock selection", () => {
   it.each([1, 2, 3] as const)("a question at rung %i loads the question mock", async (rung) => {
     expect((await loadMockHint({ ...base, problemId: "unknown/p1", rung, question: "why?" })).fixtureId).toBe(`default-r${rung}-question`);
   });
+  it("a question on a recorded problem without a question fixture keeps the problem's own mock", async () => {
+    expect((await loadMockHint({ ...base, problemId: "calc2-ws3/p1", rung: 1, question: "why?" })).fixtureId).toBe("calc2-ws3_p1-r1");
+  });
   it("without a question the plain mock is used", async () => {
     expect((await loadMockHint({ ...base, problemId: "unknown/p1" })).fixtureId).toBe("default-r1");
   });
