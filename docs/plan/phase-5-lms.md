@@ -1,5 +1,7 @@
 # Phase 5 — Course sources
 
+**Current scope override (user, Nov 14).** [current-scope.md](./current-scope.md) promotes P5.8 PDF annotation to core work. It may start during course-context integration; the old wait-until-G3 dependency below is superseded. PDF annotation includes pen, erase, undo, save/reload and annotated PDF download. Standalone whiteboard and upload UI follow the core release.
+
 **Purpose.** Import a configured GitHub course manifest at one immutable commit, cache the original PDFs and normalized outline, and support a later manual upload fallback and worksheet page.
 
 **Done looks like.** Import the configured public course repository, see its actual title and units, and open originals from the Repo cache without GitHub access. Source import does not build teaching cards or mark ingestion complete.

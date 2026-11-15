@@ -1,5 +1,7 @@
 # Human queue
 
+**Current scope (user, Nov 14):** [current-scope.md](./current-scope.md) replaces the study-plan/report G4 with the PDF-helper acceptance checks. Keep live handwriting/citation/placement checks below, and add multi-page pen/erase/undo, save/reload and independent-viewer annotated-PDF inspection before release. The old G3 wait-before-PDF ordering and study-plan/report tasks no longer block this release.
+
 Everything left that only a person can do, ordered by the gate it blocks. Agents add items here when a criterion says
 *Verify by hand* or needs a real recording; people tick them and write the result where each item says.
 

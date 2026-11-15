@@ -1,5 +1,7 @@
 # Phase 6 — Course agent
 
+**Current scope override (user, Nov 14).** [current-scope.md](./current-scope.md) keeps course learning, teaching cards, worksheet context, source citations and compact Learn this course controls. Study planning/re-planning (P6.7/P6.8) are deferred. Remove planner dispatch/tools and plan-required success checks in the implementation change; P6.5's historical golden check 13 is not a release requirement. Do not tick the old full P6.5 criteria merely because context-only acceptance passes. P6.6's full agent replay UI is optional after the compact status flow.
+
 **Purpose.** The deep agent that learns a course and plans a student's study. It reads every unit's notes, writes a teaching card per unit, maps worksheet problems to skills, checks its own work, and builds and rebuilds a study plan from evidence. This is the producing half of *scope-aware*, all of *adaptive*, and the LangChain track.
 
 **Done looks like.** Press **Learn this course** and watch a panel show the agent planning, handing units to sub-agents and saving cards. Afterwards a hint on Worksheet 3 cites "Lecture 9" from a card the agent wrote, and the course page shows a study plan. End a session and the plan changes.

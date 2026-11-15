@@ -2,6 +2,15 @@
 
 The live record of the build. Update it in the same commit as the work it describes.
 
+## Current release scope (Nov 14)
+
+User changed the target to PDF annotation, course learning/context and stroke-aware on-page tutoring, inspired by Pixie's pointing/drawing interaction. [current-scope.md](./current-scope.md) is authoritative. No study plan, re-planning, skill dashboard or tutor report is required for release; the historical G4 below is superseded. Keep old evidence and local work intact. This is a scope change only, not an implementation completion claim.
+
+- [ ] Context-only Learn this course (P6.5 integration + compact P6.6 controls, no planner requirement).
+- [ ] PDF annotation surface, stable page/problem mapping, editable save/reload and annotated PDF export (P5.8 promoted to core).
+- [ ] Page-local helper with course context, stroke targeting, short questions/follow-ups and Pixie-inspired pointing.
+- [ ] Integrated course -> PDF -> handwritten work -> cited help -> saved PDF, verified automatically and by hand as specified in current-scope.md.
+
 **How to use it**
 - Tick a subphase only when **every** acceptance criterion in its phase file has been verified and `pnpm verify` passes.
 - In the Evidence column write the commit and what was run, briefly: `a1b2c3d · pnpm verify, e2e replay`.
@@ -188,6 +197,8 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 14 | Claude (lead) | Phase 2 exit "No flaky e2e" met: after the useHint fix (#47), `pnpm e2e` passed three runs in a row locally on main 2487690 (105 passed each, port 3100), and main CI is green on the first attempt for #43, #46, #47, #48 and #38 (the one red main run, after #41, was the flake #47 fixed). An earlier three-run attempt was stopped by the machine running low on memory and is not counted. |
+| Nov 14 | Claude (lead) | Live-call budget for this run raised from 600 to 800 by the user (Nov 14, 22:25), after P6.5's full ingests (~90 calls each). Used so far: 474 (course lane 435, lead 40, page lane 0 counted). |
 | Nov 14 | Codex | PR #38 final integration also includes concurrent main 77f5119 / PR #48. Kept P3.3 handwritten-source evidence, P3.4 eval evidence and P3.5 local Haiku-trial evidence as single rows, plus every Log line; the incoming rung-1 repair instruction and eval runner are retained. Combined verify: 802 passed / 16 skipped. The previous candidate (7fba709) passed the full browser suite 111 / 6 skipped and both GitHub CI jobs; final-head browser/CI evidence is in PR #38. No human criterion or unfinished P3.4/P3.5/P3.8 box was ticked. |
 | Nov 14 | Codex | PR #38 merge integration on latest main 2487690: kept the real snapshot builder, problemSource, conductor fade/clear hooks and hint_shown replay/stream feed, plus main's Fast Refresh/unmount hint-runner fix. Resolved the remaining status Log conflict by preserving every line from both branches. Fresh verify: 793 passed / 16 skipped; browser/CI integration results recorded in PR #38. P3.5 and P3.8 remain unticked; no human criterion claimed. |
 | Nov 14 | Codex | User approved a shared HintRequest.problemSource contract update after a hidden worksheet problem overrode their handwritten exercise. General calculus now uses the first handwritten problem, no course lookup/citations/subskills/deferred units, and no course hint/evidence storage; worksheet pages show all stored statements and keep existing scope/no-notes behavior. The real snapshot builder sends numbered + clean ink for general practice; with the user's recorded case Haiku read x^2/(3x^3), asked about cancellation, and finished in 3403 ms (safe log 3406 ms, retry 0). Schema, contracts, all request fixtures and examples change together. verify 757 passed / 16 skipped; production build, replay 1, gates 5 and source-mode tests 4 pass. Local full browser reruns are recorded in the P3.3 Evidence row. P3.5 evaluation pending; P3.8 stays unticked, needs human P3.8-AC3. |
