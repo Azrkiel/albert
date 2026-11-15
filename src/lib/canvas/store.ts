@@ -1,4 +1,4 @@
-import type { CanvasLayout, Cluster, Row, SessionEvent, SessionRecording, Stroke, StuckSignal } from "../contracts";
+import { PAGE, type CanvasLayout, type Cluster, type Row, type SessionEvent, type SessionRecording, type Stroke, type StuckSignal } from "../contracts";
 import { assignPageLine, pageRows } from "./pdf-pages";
 import { clusterRow } from "./clusters";
 import { assignLine, lineRows } from "./lines";
@@ -36,6 +36,22 @@ export function createSessionState(problems: string[] | SessionRecording["proble
   const initial = layout === "free" ? [] : rows ? structuredClone(rows) : metadata.flatMap(({ id }) => createRows(id));
   return { worksheetId, layout, problems: metadata, rows: initial,
     strokes: [], clusters: {}, crossOuts: {}, stuckMarks: {}, events: [], durationMs: 0, undoStack: [], redoStack: [] };
+}
+
+/** Preserve stable empty question contexts while real line geometry continues to derive only from ink. */
+function withQuestionRows(state: SessionState, inferred: Row[]): Row[] {
+  const rows = [...inferred];
+  for (const event of state.events) {
+    if (event.type !== "hint_requested" || event.question === undefined || !event.problemId || rows.some(r => r.id === event.rowId)) continue;
+    if (!state.problems.some(p => p.id === event.problemId)) throw new Error("Unknown question problem");
+    const page = state.surface === "pdf" ? event.page : undefined;
+    if (state.surface === "pdf" && page === undefined) throw new Error("PDF question requires a page");
+    const index = Math.max(0, ...rows.filter(r => r.problemId === event.problemId && r.page === page).map(r => r.index)) + 1;
+    rows.push({ id: event.rowId, problemId: event.problemId, ...(page === undefined ? {} : { page }), index,
+      bbox: page === undefined ? { x: PAGE.studentCol.x, y: PAGE.statementMinHeight, w: PAGE.studentCol.w, h: PAGE.rowHeight }
+        : { x: 0, y: 0, w: PAGE.width, h: 0 } });
+  }
+  return rows;
 }
 
 /** Every row's clusters in row order, for detectStuck and renderSnapshot. */
@@ -139,6 +155,11 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     stuckMarks[signal.problemId] = structuredClone(signal);
   } else if (event.type === "hint_requested") {
     const rowId = event.rowId;
+    if (event.question !== undefined && event.problemId) {
+      const existing = rows.find(r => r.id === rowId);
+      if (existing && (existing.problemId !== event.problemId || (state.surface === "pdf" && existing.page !== event.page))) throw new Error("Question context mismatch");
+      rows = withQuestionRows({ ...state, events: [...state.events, event] }, rows);
+    }
     const problemId = rows.find((row) => row.id === rowId)?.problemId;
     if (problemId) delete stuckMarks[problemId];
   } else if (event.type === "check_result" && event.verdict === "correct") delete stuckMarks[event.problemId];
@@ -151,7 +172,8 @@ export function reduceSessionEvent(state: SessionState, event: SessionEvent): Se
   let next = applySessionEvent(state, event);
   if (next === state) return state;
   if (next.layout === "free" && next.strokes !== state.strokes) {
-    next = { ...next, rows: next.surface === "pdf" ? pageRows(next.problems.map(({ id }) => id), next.strokes) : lineRows(next.problems.map(({ id }) => id), next.strokes) };
+    const inferred = next.surface === "pdf" ? pageRows(next.problems.map(({ id }) => id), next.strokes) : lineRows(next.problems.map(({ id }) => id), next.strokes);
+    next = { ...next, rows: withQuestionRows(next, inferred) };
   }
   return reclusterChanged(state, next);
 }

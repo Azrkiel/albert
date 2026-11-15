@@ -139,10 +139,13 @@ strokes (perfect-freehand outlines as SVG paths, logical → PDF points, y flipp
 writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custom font embedding; math as MathJax glyph paths).
 The library is pure (bytes in, bytes out; fonts passed in as `fontBytes`; math as pre-rendered glyph path data, so MathJax stays out of it; `pageTransform` handles CropBox/MediaBox origins and /Rotate). **Save PDF** (the canvas lane) calls it and downloads `<worksheet title> — annotated.pdf`.
 
+**Client decisions (user, Nov 15).** Preserve originals as Edge Draw does. Student pen strokes are native PDF `Ink` annotations with `InkList`, stable stroke ids and pressure-aware vector appearances, so they remain separate from the printed page. The adapter uses the library's crop/rotation transform and keeps original page content streams intact. Albert's marks/math/writing use the foundation export input. Overflow writing is moved to labelled note pages, keeping complete notes together; every original page, MediaBox/CropBox and rotation is retained. With no notes the page count is unchanged; with notes the count is originals plus appendices. This supersedes a total-page-count equality requirement when notes are present. Save captures state and rendered notes synchronously after preparation; failure leaves drawing and saved work usable.
+
 **Acceptance**
-- [x] **R2.4-AC1** — Unit: original pages retain their sizes/order; student-only exports retain the original count, with labelled appendix pages only for below-page notes; each inked page's content stream grew; a stroke's outline lands at
+- [x] **R2.4-AC1** — Unit: original pages retain their sizes/order; student-only exports retain the original count, with labelled appendix pages only for below-page notes; student ink is carried as native annotations with vector appearances; a stroke lands at
   the expected PDF coordinates.
-- [ ] **R2.4-AC2** — By hand: open the download in an independent viewer, inspect several pages (human-queue R4).
+- [ ] **R2.4-AC2** — By hand: open the download in Edge and an independent viewer, inspect original and note pages, select/erase/re-save a student ink annotation in Edge (human-queue Gate R2). Automated annotation/raster checks do not claim this human viewer check.
+- [x] **R2.4-AC3** — Client: pure per-page mapping and complete-note pagination; browser download parses, retains original geometry, has native ink on both original pages and readable labelled note pages; setup/drawing race and failed-save retry preserve work.
 
 **Gate R2.** By hand on the demo device: write, erase, undo on two pages, zoom, reload, download, open the PDF.
 
@@ -166,10 +169,10 @@ follow-up).
 
 **Build.** A short text field on the active problem ("Ask Albert…", Enter sends) next to **I'm stuck**; a new request cancels
 the one in flight (existing runner); the helper's reply is drawn like a hint. Writing new ink after a reply sets
-`studentWroteAfter` as today.
+`studentWroteAfter` as today. Typed questions use the existing cleaned 1–200 character contract. Stable empty problem/page contexts allow questions before ink without inventing handwriting; request events retain the question so reloads and follow-ups preserve it. Replacement cancels unfinished rendering as well as the network request, and PDF opening/ended locks disable Ask.
 
 **Acceptance**
-- [ ] **R3.2-AC1** — e2e (mock): ask, see the reply drawn; ask again mid-stream, the first is cancelled and never drawn; a
+- [x] **R3.2-AC1** — e2e (mock): ask, see the reply drawn; ask again mid-stream, the first is cancelled and never drawn; a
   failing mock leaves ink and saved work usable.
 
 ### R3.3 Notes in the page's white space
@@ -191,11 +194,10 @@ The conductor takes a placement strategy: `column` (ruled/free) or `freeSpace` (
 then the circle draws; reduced motion skips it. Conductor step only; no Pixie code is imported.
 
 **Acceptance**
-- [ ] **R3.4-AC1** — e2e (mock): the pointer element reaches within 12 px of the target centre before the circle group exists.
+- [x] **R3.4-AC1** — e2e (mock): the pointer element reaches within 12 px of the target centre before the circle group exists.
 
 **Gate R3.** Live, by hand: on the Worksheet 3 PDF, write the missing-dx work, tap **I'm stuck**, see the right cluster
-circled with a Lecture 9 citation and no answer; ask a follow-up. Needs a new real recording in PDF mode
-(`missing-dx-pdf.json`) for the automated replay.
+circled with a Lecture 9 citation and no answer; ask a follow-up. The genuine PDF-mode recording is now supplied as `fixtures/sessions/missing-dx-pdf.json` from the user's handwritten session on main; preserve its recorded data. The live gate and R4 automated release flow remain open.
 
 ---
 

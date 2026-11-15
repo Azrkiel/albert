@@ -5,6 +5,7 @@ import { INK, PAGE, type CanvasLayout, type Row, type Stroke, type StuckSignal, 
 import { freeSurfaceHeight, inkedRowIds } from "@/lib/canvas";
 import { pageSvgMarkup } from "@/lib/ink";
 import { WorkSurface } from "./WorkSurface";
+import { AskAlbert } from "./AskAlbert";
 import { StatementMath } from "./StatementMath";
 
 // Phase 5 owns loading/typesetting. Accept its existing contract metadata directly.
@@ -12,7 +13,7 @@ type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLa
 
 export type HintRequested = { rowId: string; rung: 1; trigger: StuckSignal["kind"] };
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, albertLayer, albertExtent, albertOverlay, rowTip, hintInk, onPenDown, layout = "ruled", stuckMark, onHintRequested, hintDisabled }: {
+export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, albertLayer, albertExtent, albertOverlay, rowTip, hintInk, onPenDown, layout = "ruled", stuckMark, onHintRequested, hintDisabled, onAsk, askDisabled }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
@@ -25,6 +26,8 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   stuckMark?: StuckSignal;
   onHintRequested?: (request: HintRequested) => void;
   hintDisabled?: boolean;
+  askDisabled?: boolean;
+  onAsk?: (question: string, rowId: string) => void;
   /** SVG drawn above the ink (the ?dev=1 cluster overlay); omitted in normal use. */
   devOverlay?: ReactNode;
   /** Albert's ink layer (P4.3), drawn above everything else on the surface. */
@@ -65,7 +68,12 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   const manualRow = strokes.findLast((stroke) => stroke.tool === "pen" && stroke.erasedAt === undefined && inked.has(stroke.rowId ?? ""))?.rowId ?? rows[0]?.id;
 
   return (
-    <section ref={section} data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }} onPointerDownCapture={onPenDown}>
+    <section ref={section} data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }} onPointerDownCapture={event => {
+      if ((event.target as Element).closest("svg[data-capture-ready]")) {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        onPenDown?.();
+      }
+    }}>
       {/* HTML controls stay accessible outside the SVG's atomic img role. */}
       <WorkSurface problemId={problem.id} height={height} strokes={strokes}
         onStroke={onStroke} getSessionStart={getSessionStart} tool={tool} svgOverlay={devOverlay} albertLayer={albertLayer}
@@ -127,6 +135,7 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
       <button type="button" data-save-page="" onClick={savePage}>Save page</button>
       <button type="button" disabled={hintDisabled || !manualRow}
         onClick={() => manualRow && onHintRequested?.({ rowId: manualRow, rung: 1, trigger: "manual" })}>I&apos;m stuck</button>
+      {onAsk && <AskAlbert label={problem.label} disabled={askDisabled} onAsk={question => onAsk(question, manualRow ?? `${problem.id}/question`)} />}
       <style>{"[data-row-number]:hover > [data-reading-tip], [data-row-number]:focus > [data-reading-tip], [data-row-number][data-tip-open] > [data-reading-tip] { display: block !important; } @keyframes albert-hint-appear { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-stuck-row] { animation: none !important; } }"}</style>
     </section>
   );

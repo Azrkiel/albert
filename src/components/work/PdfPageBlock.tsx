@@ -3,18 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PAGE, INK, type Rung, type SessionRecording, type Stroke, type Worksheet } from "@/lib/contracts";
-import { pageHeight, problemForStroke, type PdfPage, type SessionState } from "@/lib/canvas";
+import { isProblemSolved, pageHeight, problemForStroke, type PdfPage, type SessionState } from "@/lib/canvas";
 import type { Conductor } from "@/lib/ink";
+import { AskAlbert } from "./AskAlbert";
 import { WorkSurface } from "./WorkSurface";
 import { AlbertControls, AlbertLayer } from "./AlbertLayer";
 import type { HintRequested } from "./ProblemBlock";
 
 /** A printed page owns input; the picker supplies identity where extraction found no region. */
 export function PdfPageBlock({ page, fileId, problems, regions, state, active, disabled = false, onActivate, onStroke, getSessionStart, tool,
-  conductor, hintText, hintTarget, hintInk, hintDisabled, onHintRequested, onMoreHelp }: {
+  conductor, hintText, hintTarget, hintInk, hintDisabled, onHintRequested, onMoreHelp, onAsk }: {
   page: PdfPage; fileId: string; problems: SessionRecording["problems"]; regions: Worksheet["problems"]; state: SessionState;
   active: boolean; onActivate: () => void; onStroke: (stroke: Stroke) => void; getSessionStart: () => number; tool: Stroke["tool"];
   disabled?: boolean;
+  onAsk: (problemId: string, rowId: string, question: string, page: number) => void;
   onMoreHelp: (problemId: string, rowId: string, rung: Rung) => void;
   conductor: Conductor; hintText: string; hintTarget: { problemId: string; rowId: string } | null;
   hintInk: boolean; hintDisabled: boolean; onHintRequested: (problemId: string, request: HintRequested) => void;
@@ -30,19 +32,27 @@ export function PdfPageBlock({ page, fileId, problems, regions, state, active, d
   const latest = inked.toSorted((a, b) => b.t1 - a.t1)[0];
   const signal = state.stuckMarks[selected];
   const stuck = signal && local.some(r => r.id === signal.rowId) ? signal : undefined;
-  const rowId = stuck?.rowId ?? latest?.rowId;
+  const rowId = stuck?.rowId ?? latest?.rowId ?? local.find(r => r.problemId === selected)?.id;
   const height = pageHeight(page);
   const pageProblems = problems.filter(p => local.some(r => r.problemId === p.id));
   const hintedHere = hintTarget && local.some(r => r.id === hintTarget.rowId);
   const extent = Math.max(height + (hintedHere ? 180 : 0), conductor.pageExtent(page.page));
   return <section ref={section} data-highlighted={linked ? "" : undefined} data-pdf-page={page.page} aria-label={`PDF page ${page.page}`} data-active-page={active}
-    onPointerDownCapture={() => { onActivate(); conductor.interrupt(); }} onFocusCapture={onActivate}>
+    onPointerDownCapture={event => {
+      onActivate();
+      if ((event.target as Element).closest("svg[data-capture-ready]")) {
+        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+        conductor.interrupt();
+      }
+    }} onFocusCapture={onActivate}>
     <div role="group" aria-label={`Page ${page.page} problem`} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 24 }}>
       <strong>Page {page.page} · Problem</strong>
       {problems.map(p => <button key={p.id} type="button" aria-pressed={selected === p.id} aria-label={`Problem ${p.label}`}
         onClick={() => setSelected(p.id)}>{p.label}</button>)}
       <button type="button" disabled={hintDisabled || !rowId}
         onClick={() => rowId && onHintRequested(selected, { rowId, rung: 1, trigger: "manual" })}>I&apos;m stuck</button>
+      <AskAlbert key={selected} label={problems.find(p => p.id === selected)?.label ?? selected} disabled={disabled || isProblemSolved(state.events, selected)}
+        onAsk={question => onAsk(selected, rowId ?? `${selected}/page${page.page}/question`, question, page.page)} />
       {stuck && <button type="button" data-stuck-row={stuck.rowId} disabled={hintDisabled}
         onClick={() => onHintRequested(selected, { rowId: stuck.rowId, rung: 1, trigger: stuck.kind })}>Need a hint?</button>}
     </div>
