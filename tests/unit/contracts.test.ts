@@ -29,7 +29,7 @@ function schemaFor(name: string): z.ZodType {
 
 // Exact table from contracts.md §14. Unknown JSON must not silently escape validation.
 function fixtureSchema(path: string): string | null {
-  if (path === "github/commit.json" || path.startsWith("github/files/")) return null;
+  if (path === "github/commit.json" || path.startsWith("github/files/") || path === "eval/last-run.json") return null;
   if ((path === "github/manifest.json" || path === "github/live-manifest.json")) return "CourseManifest";
   const folders: Record<string, string> = {
     sessions: "SessionRecording", llm: "MockHint", "eval/requests": "HintRequest",

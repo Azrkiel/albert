@@ -1,0 +1,48 @@
+{
+  "id": "missing-dx-r3",
+  "request": "missing-dx-r1-snapshot.json",
+  "worksheetId": "calc2-ws3",
+  "problemId": "calc2-ws3/p1",
+  "stuckRowIndex": 3,
+  "rung": 3,
+  "expect": {
+    "status": [
+      "error"
+    ],
+    "stuckRowLatex": "\\int \\frac{1}{16\\sin^2\\theta\\cdot 4\\cos\\theta}",
+    "errorRowIndex": 3,
+    "errorClusterLabels": [
+      2,
+      8
+    ],
+    "errorType": "missing_dx",
+    "citationIncludes": "Lecture 9",
+    "forbiddenMethods": [
+      "partial fractions"
+    ],
+    "kind": [
+      "worked_step"
+    ],
+    "mustNotMention": [
+      "\\frac{\\sqrt{16-x^2}}{16x}",
+      "-\\frac{1}{16}\\cot\\theta"
+    ]
+  },
+  "notes": "Real handwriting: the user's missing-dx.json recording (snapshot request built by scripts/build-eval-request.ts). History texts, where present, are the recorded MOCK hints (fixtures/llm/calc2-ws3_p1-r1/r2), not live replies.",
+  "history": [
+    {
+      "hintId": "eval-mock-r1",
+      "rung": 1,
+      "rowId": "calc2-ws3/p1/r3",
+      "text": "You replaced x. What does dx become?",
+      "studentWroteAfter": false
+    },
+    {
+      "hintId": "eval-mock-r2",
+      "rung": 2,
+      "rowId": "calc2-ws3/p1/r3",
+      "text": "Differentiate your substitution to express dx in terms of theta, then include that differential in the integral.",
+      "studentWroteAfter": false
+    }
+  ]
+}

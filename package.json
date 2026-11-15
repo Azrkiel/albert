@@ -13,7 +13,7 @@
     "verify": "pnpm typecheck && pnpm lint && pnpm test",
     "e2e": "playwright test",
     "smoke": "tsx scripts/smoke.ts",
-    "eval:hints": "node -e \"console.log('not built yet (Phase 3)')\" --",
+    "eval:hints": "tsx scripts/eval-hints.ts",
     "agent:ingest": "node -e \"console.log('not built yet (Phase 6)')\" --",
     "agent:replan": "node -e \"console.log('not built yet (Phase 6)')\" --",
     "ingest:flat": "tsx scripts/ingest-flat.ts",
