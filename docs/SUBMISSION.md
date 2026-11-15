@@ -110,7 +110,7 @@ Derived from `tracks.md` section 10. A tick means the requirement is met and the
 
 **Other.**
 - [ ] Best Rookie: only if every team member qualifies. TODO(owner)
-- [ ] Repository link, demo video link and live link (none deployed as far as `status.md` shows). TODO(owner)
+- [ ] Repository link (https://github.com/Azrkiel/albert) and live link (https://learn-albert.fly.dev, Fly app `learn-albert`) done; demo video link TODO(owner)
 
 ## Still open at the time of writing
 
