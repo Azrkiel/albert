@@ -3,7 +3,7 @@ import type { BaseMessage } from "@langchain/core/messages";
 import { fakeModel } from "@langchain/core/testing";
 import { InMemoryStore, MemorySaver } from "@langchain/langgraph";
 import { describe, expect, it } from "vitest";
-import { createCourseAgent, createEventMapper, SUBAGENT_NAMES, SUBAGENT_TOOLS, subagents } from "../../src/lib/agent";
+import { COURSE_AGENT_PROMPT, createCourseAgent, createEventMapper, ingestSubagents, SUBAGENT_NAMES, SUBAGENT_TOOLS, subagents } from "../../src/lib/agent";
 import type { AgentEvent } from "../../src/lib/contracts";
 import { setup, toDraft } from "./agent-fixtures";
 
@@ -28,6 +28,15 @@ describe("P6.4 sub-agents", () => {
       expect(tools.includes("save_teaching_card"), name).toBe(name === "unit-reader");
       expect(tools.includes("get_course_outline"), name).toBe(false);
     }
+  });
+
+  it("gives the ingest agent no planner and no plan tool (R1.1-AC1)", async () => {
+    const { ctx } = await setup();
+    const ingest = ingestSubagents(ctx);
+    expect(ingest.map((s) => s.name)).toEqual(["unit-reader", "worksheet-mapper", "card-checker"]);
+    expect(ingest.flatMap((s) => s.tools?.map((t) => t.name) ?? [])).not.toContain("save_study_plan");
+    expect(COURSE_AGENT_PROMPT).not.toMatch(/planner|first study plan/);
+    expect(subagents(ctx).map((s) => s.name)).toContain("planner");
   });
 
   it("lets the main agent delegate a unit and the sub-agent saves a validated card (offline AC3)", async () => {

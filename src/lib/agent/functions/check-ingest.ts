@@ -3,13 +3,31 @@ import type { AgentRun, CourseOutline, Repo, StudyPlan, TeachingCard, Worksheet 
 import { validateCard } from "./extract-card";
 import { validateWorksheet } from "./extract-worksheet";
 import { fileIdFromRef } from "./ingest-flat";
-import { planMaxMinutesPerDay, validatePlan } from "./plan";
 import type { FileText } from "./read-file";
 
 export type GoldenCheck = { number: number; status: "pass" | "fail" | "skipped"; detail: string };
-/** Checks 12 and 13 need an agent run; without one they are skipped. `evidenceIds` are the student's evidence ids for validatePlan. */
-export type AgentRunData = { run: AgentRun; scopeText: string | null; plan: StudyPlan | null; evidenceIds: string[] };
+/** Checks 12 and 13 need an agent run; without one they are skipped. `plan` is the student's latest plan, if any: check 13 only cares whether this run saved it. */
+export type AgentRunData = { run: AgentRun; scopeText: string | null; plan: StudyPlan | null };
 export type IngestData = { outline: CourseOutline; cards: TeachingCard[]; worksheets: Worksheet[]; sources: FileText[]; agent?: AgentRunData };
+
+/** Check 13 (R1.1): the ingest leaves usable context and no study plan. Returns the problems found. */
+function contextProblems(cards: TeachingCard[], worksheets: Worksheet[], agent: AgentRunData): string[] {
+  const problems: string[] = [];
+  const subskills = new Set(cards.flatMap(c => c.subskills.map(s => s.id)));
+  const methods = new Set(cards.flatMap(c => c.methods.map(m => m.id)));
+  for (const w of worksheets) for (const p of w.problems) {
+    for (const id of p.subskillIds) if (!subskills.has(id)) problems.push(`${p.id} has unresolved subskill ${id}`);
+    for (const id of p.methodIds) if (!methods.has(id)) problems.push(`${p.id} has unresolved method ${id}`);
+  }
+  for (const c of cards.filter(card => card.taught)) {
+    if (c.sourceFileIds.length === 0) problems.push(`${c.unitId} has no sourceFileIds`);
+    if (!c.workedExamples.some(e => /lecture/i.test(e.label) || c.lectures.some(l => e.label.includes(l.label)))) problems.push(`${c.unitId} has no worked example with a lecture label`);
+  }
+  // A plan from an earlier run is fine; one saved by this run (by event or by timestamp) is not.
+  const savedPlan = agent.run.events.some(e => e.type === "tool" && /^Saved study plan/.test(e.label)) || (!!agent.plan && agent.plan.generatedAt >= agent.run.startedAt);
+  if (savedPlan) problems.push("The run saved a study plan");
+  return problems;
+}
 
 /** P6.5's synthetic markers only. No model, network, clock or agent runtime. */
 export function checkIngestData({ outline, cards, worksheets, sources, agent }: IngestData): GoldenCheck[] {
@@ -52,8 +70,8 @@ export function checkIngestData({ outline, cards, worksheets, sources, agent }: 
   const starts = agent.run.events.filter(e => e.type === "subagent_start").length;
   const wroteScope = agent.run.events.some(e => e.type === "file" && e.label === "/course/scope.md");
   check(12, agent.run.events.some(e => e.type === "todo") && starts >= 3 && wroteScope && (agent.scopeText === null || agent.scopeText.trim().length > 0), `Run produced a todo list, ${starts} subagent_start events and ${wroteScope ? "a" : "no"} /course/scope.md write`);
-  const planProblems = agent.plan ? validatePlan(agent.plan, { cards, worksheets, evidenceIds: agent.evidenceIds }, planMaxMinutesPerDay()) : ["No plan saved"];
-  check(13, planProblems.length === 0, planProblems.length ? planProblems.join("; ") : `Plan ${agent.plan!.id} saved and valid (${agent.plan!.items.length} items)`);
+  const problems = contextProblems(cards, worksheets, agent);
+  check(13, problems.length === 0, problems.length ? problems.join("; ") : `Context coverage: ${worksheets.reduce((n, w) => n + w.problems.length, 0)} problem tags resolve to saved cards, ${cards.filter(c => c.taught).length} taught cards cite sources and a lecture-labelled example, no plan saved by the run`);
   return results;
 }
 
@@ -71,7 +89,6 @@ export async function checkIngest(courseId: string, repo: Repo, agent?: { run: A
   const agentData: AgentRunData | undefined = agent && {
     run: agent.run, scopeText: agent.scopeText,
     plan: await repo.latestPlan(agent.studentId, courseId),
-    evidenceIds: (await repo.listEvidence(agent.studentId, courseId)).map(e => e.id),
   };
   return checkIngestData({ outline, cards: await repo.listCards(courseId), worksheets: await repo.listWorksheets(courseId), sources, agent: agentData });
 }
