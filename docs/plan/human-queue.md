@@ -62,7 +62,7 @@ Record the result: the agent writes the check-in commit in `status.md` (Phase 2 
 
 ## Gate G3 — GitHub course → agent cards → cited hint
 
-(Agents add P5.6-AC3 here.)
+- [ ] **P5.6-AC3 — the original PDF opens in the drawer.** Needs a real imported course (the memory seed has no PDF bytes). `set -a; . ../albert-p1.4/.env.local; set +a; STORE=memory pnpm dev`, import the course (picker on `/courses`), open its Worksheet 3 at `/work/<worksheetId>?source=worksheet`, press **Original**. The drawer opens on the right and shows the worksheet PDF (all pages scrollable); **Close** hides it. Record pass/fail and date in the P5.6 row of `status.md`.
 
 - [ ] **P6.5-AC5 (Gate G3) — import, ingest, hint cites Lecture 9.** Do this after P6.5 is ticked (the agent run must pass first). Setup: `set -a; . ../albert-p1.4/.env.local; set +a`, then `STORE=memory pnpm dev` from a checkout with the P6.5 branch merged, open `http://localhost:3000/courses`.
   1. Import the pinned GitHub source (the P5.5 picker, repository and commit shown there) and choose the course.

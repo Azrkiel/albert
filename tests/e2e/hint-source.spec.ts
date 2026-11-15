@@ -13,7 +13,7 @@ for (const source of ["handwriting", "worksheet"] as const) {
       await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
     } else {
       await expect(statements).toHaveCount(5);
-      await expect(statements.first()).toHaveText(String.raw`$\int \frac{dx}{x^2\sqrt{16-x^2}}$`);
+      await expect(statements.first()).toHaveAttribute("data-latex", String.raw`$\int \frac{dx}{x^2\sqrt{16-x^2}}$`);
       await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
     }
     const sent = page.waitForRequest(request => request.url().endsWith("/api/hint"));
