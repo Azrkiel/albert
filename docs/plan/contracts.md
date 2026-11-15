@@ -606,6 +606,8 @@ All routes run on the Node runtime. The optional GitHub token and model keys nev
 
 PDF page routes only read original bytes already in the Repo. Unknown files and invalid/out-of-range page numbers return 404; non-PDF or unreadable PDF sources return a safe `bad_reply`. Derived metadata and PNG cache entries change when source bytes change. Worksheet regions are optional: detected labels define full-width vertical bands from the label to the next label or page bottom; no detected label leaves the problem picker in charge. PDF.js display coordinates account for crop, page rotation and the PDF-to-canvas y flip before scaling to `PAGE.width`.
 
+Rendering rejects non-finite/non-positive dimensions, dimensions above 16384 px, or more than 16000000 pixels before native canvas allocation, returning safe `bad_reply`. Supported pages retain the 2400→1200 pipeline; P6.1's 3000-px longest-side/3.75-MB reader limits remain unchanged. Normalized text geometry is also cached by original id/content hash and geometry version. Worksheet responses derive regions from that geometry without overwriting stored worksheets. The offline demo seeds the recorded Worksheet 3 original when available and never overwrites existing bytes.
+
 ## 12. Environment
 
 ```bash

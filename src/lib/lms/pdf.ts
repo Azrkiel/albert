@@ -52,7 +52,13 @@ export async function readPdfText(bytes: Uint8Array): Promise<Array<PageSize & {
 async function render(page: PDFPageProxy, scale: number) {
   const canvas = await import("@napi-rs/canvas");
   const viewport = page.getViewport({ scale });
-  const target = canvas.createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
+  const width = Math.ceil(viewport.width), height = Math.ceil(viewport.height);
+  // Bound native memory before allocation; a tiny PDF can describe an extremely tall page.
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 ||
+      width > 16_384 || height > 16_384 || width * height > 16_000_000) {
+    throw new Error("PDF page exceeds the supported rendering dimensions.");
+  }
+  const target = canvas.createCanvas(width, height);
   await page.render({ canvasContext: target.getContext("2d") as unknown as CanvasRenderingContext2D, viewport, canvas: target as unknown as HTMLCanvasElement }).promise;
   return target;
 }

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { loadImage } from "@napi-rs/canvas";
+import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { degrees, PDFDocument } from "pdf-lib";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { CourseFile, Repo } from "../../src/lib/contracts";
@@ -7,6 +7,14 @@ import { MemoryRepo } from "../../src/lib/db/memory";
 
 const state = vi.hoisted(() => ({ repo: null as Repo | null }));
 vi.mock("../../src/lib/db", () => ({ getRepo: () => state.repo }));
+vi.mock("@napi-rs/canvas", async importOriginal => {
+  const actual = await importOriginal<typeof import("@napi-rs/canvas")>();
+  return { ...actual, createCanvas: vi.fn((width: number, height: number) => {
+    // Keep the red test safe: detect allocation attempts without allocating gigabytes.
+    if (width * height > 16_000_000) throw new Error("Test refused an oversized native allocation");
+    return actual.createCanvas(width, height);
+  }) };
+});
 import { GET as pages } from "../../src/app/api/files/[fileId]/pages/route";
 import { GET as page } from "../../src/app/api/files/[fileId]/page/[n]/route";
 
@@ -16,9 +24,21 @@ const request = new Request("http://localhost/api/files/worksheet/pages");
 const params = (n = "1", fileId = meta.id) => ({ params: Promise.resolve({ fileId, n }) });
 
 beforeEach(async () => {
+  vi.mocked(createCanvas).mockClear();
   state.repo = new MemoryRepo();
   await state.repo.putFile(meta, bytes);
   vi.stubGlobal("fetch", vi.fn(() => { throw new Error("Network disabled"); }));
+});
+
+it("rejects an extreme page aspect ratio before attempting any canvas allocation", async () => {
+  const document = await PDFDocument.create();
+  document.addPage([36, 14_400]);
+  const tall = await document.save();
+  await state.repo!.putFile({ ...meta, bytes: tall.length }, tall);
+  const response = await page(request, params());
+  expect(response.status).toBe(502);
+  expect(await response.json()).toMatchObject({ code: "bad_reply" });
+  expect(createCanvas).not.toHaveBeenCalled();
 });
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 

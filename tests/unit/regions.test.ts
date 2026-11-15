@@ -1,7 +1,26 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
+import { degrees, PDFDocument, StandardFonts } from "pdf-lib";
 import { readPdfText } from "../../src/lib/lms/pdf";
 import { regionsFromText } from "../../src/lib/lms/regions";
+
+it("maps a rotated label through a nonzero crop origin into logical page coordinates", async () => {
+  const document = await PDFDocument.create();
+  const font = await document.embedFont(StandardFonts.Helvetica);
+  const page = document.addPage([612, 792]);
+  page.setCropBox(20, 30, 400, 600);
+  page.setRotation(degrees(90));
+  // Displayed point coordinates: x=70-30=40, top y=132-20-12=100.
+  page.drawText("1. Solve", { x: 132, y: 70, size: 12, rotate: degrees(90), font });
+  const [text] = await readPdfText(await document.save());
+  expect([text!.widthPt, text!.heightPt]).toEqual([600, 400]);
+  const [region] = regionsFromText(text!.items, ["1"], text!);
+  expect(region).toMatchObject({ label: "1", page: 1 });
+  expect(region!.bbox.x).toBe(0);
+  expect(region!.bbox.w).toBe(1200);
+  expect(region!.bbox.y).toBeCloseTo(200);
+  expect(region!.bbox.h).toBeCloseTo(600);
+}, 30000);
 
 it("R2.1-AC1: synthetic Worksheet 3 yields five ordered problems on their source pages", async () => {
   const bytes = new Uint8Array(readFileSync("fixtures/github/files/synthetic/pdf/unit-3/worksheet-3.pdf"));
