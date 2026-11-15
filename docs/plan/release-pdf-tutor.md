@@ -36,8 +36,8 @@ evidence and levels (P7.1–P7.2). Not yet: the real worksheet page (P5.6), Lear
 3. `scripts/agent-ingest.ts` unchanged apart from the checks.
 
 **Acceptance**
-- [ ] **R1.1-AC1** — Unit: the ingest agent's sub-agent list has no planner; check 13 passes on a stored ingest and fails when a
-  plan exists or a problem tag is unresolved (`tests/unit/check-ingest-agent.test.ts`).
+- [ ] **R1.1-AC1** — Unit: the ingest agent's sub-agent list has no planner; check 13 passes on a stored ingest and fails when the
+  run saved a plan (a plan from an earlier run is fine) or a problem tag is unresolved (`tests/unit/check-ingest-agent.test.ts`).
 - [ ] **R1.1-AC2** — Live, one run: on the saved P6.5 state, a repeat ingest through the R1.2 route succeeds, golden checks
   1–13 (new 13) pass, card/worksheet ids and counts are unchanged, and `latestPlan` is unchanged. Record calls and time.
 
@@ -96,9 +96,9 @@ Contract changes in this phase go in one commit each, with schema, `contracts.md
 **Evidence (Nov 15).** `35fc43d` contains the flagged contract/schema/fixture/test update; `0e6c4ef` adds bounded rendering
 and worksheet integration; `a4962b2` preserves P5.6's published worksheet response contract. Unit/route coverage includes
 the synthetic PDF, no-label fallback, cache replacement, crop/rotation and oversized allocation rejection. Real Next tests
-decode both PNGs and assert all five served regions. Current-main verify: 59 files, 843 passed / 16 skipped; three completed
+decode both PNGs and assert all five served regions. Combined R1.1/R1.2 main verify: 61 files, 852 passed / 16 skipped; three completed pre-Learn-integration
 local full browser suites each 114 passed / 6 skipped; build passed; production PDF/replay 3 passed and production gating
-5 passed. Independent follow-up review found no blocking issue. Live model calls: 0. CI evidence is recorded in the PR;
+5 passed. Independent follow-up review found no blocking issue. Live model calls: 0. Final combined-main browser/build/production and CI evidence is recorded in the PR;
 R2.2 onward and every human gate remain open.
 
 ### R2.2 Writing on the pages

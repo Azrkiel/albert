@@ -11,6 +11,8 @@ export type RunOptions = {
   studentId?: string;
   threadId?: string;
   onEvent?: (event: AgentEvent) => void;
+  /** Called once, with the stored run, before the agent starts (the route needs the run id early). */
+  onStart?: (run: AgentRun) => void;
   now?: () => Date;
   /** Test and script hooks passed through to createCourseAgent. */
   agent?: Pick<AgentContext, "model" | "tools" | "subagents" | "store" | "checkpointer">;
@@ -34,6 +36,7 @@ export async function runAgent(kind: AgentRun["kind"], courseId: string, message
   const run: AgentRun = { id: nanoid(), kind, courseId, studentId, threadId, status: "running", startedAt: now().toISOString(), events: [] };
   const emit = (event: AgentEvent) => { run.events.push(event); options.onEvent?.(event); };
   await repo.saveRun(run);
+  options.onStart?.(run);
   try {
     const agent = await createCourseAgent({ studentId, courseId, emit, repo, now, trigger: kind === "ingest" ? "ingest" : message.includes("Trigger: session_end") ? "session_end" : "manual", ...options.agent });
     const map = createEventMapper(now);

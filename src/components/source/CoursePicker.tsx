@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LearnPanel } from "./LearnPanel";
 import { useSourceCourses } from "./source-client";
 import styles from "./source.module.css";
 
@@ -20,12 +21,8 @@ export function CoursePicker() {
           {courses.map(course => (
             <li className={styles.course} key={course.id}>
               <h2>{course.title}</h2>
-              {course.ingested
-                ? <Link className={styles.action} href={`/course/${encodeURIComponent(course.id)}`}>Open</Link>
-                : <>
-                  <button className={styles.action} type="button" disabled aria-describedby={`learn-note-${encodeURIComponent(course.id)}`}>Learn this course</button>
-                  <p id={`learn-note-${encodeURIComponent(course.id)}`}>Course learning is not available yet.</p>
-                </>}
+              {course.ingested ? <Link className={styles.action} href={`/course/${encodeURIComponent(course.id)}`}>Open</Link> : null}
+              <LearnPanel courseId={course.id} ingested={course.ingested} />
             </li>
           ))}
         </ul>}

@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   agentRules: false,
   cacheComponents: true,
   partialPrefetching: true,
-  // Keep the native canvas addon and PDF.js's relative worker import in Node.
-  serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"],
+  // Keep the course agent, native canvas addon and PDF.js's relative worker import in Node.
+  serverExternalPackages: ["deepagents", "langchain", "@langchain/core", "@langchain/langgraph", "@langchain/langgraph-checkpoint-mongodb", "langsmith", "@napi-rs/canvas", "ws", "pdfjs-dist"],
 };
 
 export default nextConfig;

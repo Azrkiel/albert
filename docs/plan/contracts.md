@@ -476,7 +476,7 @@ type AgentEvent = {
 };
 ```
 
-`POST /api/agent/ingest` and `POST /api/agent/replan` reply with `text/event-stream`; each message is one `AgentEvent`, and the last is `{ type: "note", label: "done", detail: AgentRun["result"] }`.
+`POST /api/agent/ingest` and `POST /api/agent/replan` reply with `text/event-stream` (header `X-Run-Id`; a second request for a course whose run is still going attaches to that run and gets its earlier events replayed; `MOCK_LLM=1` replays `fixtures/agent/ingest-run.json` at 8x, gaps capped at 120 ms); each message is one `AgentEvent`, and the last is `{ type: "note", label: "done", detail: AgentRun["result"] }`.
 
 ## 9. Storage
 
@@ -586,6 +586,7 @@ Resolve `COURSE_GITHUB_REF` through `GET /repos/{owner}/{repo}/commits/{ref}`, t
 | `/api/agent/ingest` | POST | `{ courseId }` | SSE of `AgentEvent` |
 | `/api/agent/replan` | POST | `{ courseId, trigger }` | SSE of `AgentEvent` |
 | `/api/agent/runs/[runId]` | GET | — | `AgentRun` |
+| `/api/agent/context` | GET | `?courseId=` | `{ cards: number, worksheets: Array<{ id, title }> }` (R1.2: what the Learn panel shows as ready) |
 | `/api/course/[courseId]` | GET | — | `{ course, units: Array<Pick<TeachingCard, "unitId"\|"order"\|"title"\|"subskills">>, worksheets, plan, skills }` |
 | `/api/worksheet/[worksheetId]` | GET | — | `Worksheet` |
 | `/api/files/[fileId]` | GET | — | The cached file's bytes with its mime type. Serves only files already in the `Repo` |
