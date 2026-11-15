@@ -77,17 +77,29 @@ Contract changes in this phase go in one commit each, with schema, `contracts.md
 ### R2.1 Pages from the server
 
 **Build.**
-1. `GET /api/files/[fileId]/pages` → `[{ page, widthPt, heightPt }]`; `GET /api/files/[fileId]/page/[n]` → PNG at 2× of a
-   1200-px-wide page, rendered with the P6.1 `rasterizePdf` path (single-page variant) and cached in the Repo as a derived
-   file. Only files already in the Repo; 404 otherwise.
+1. `GET /api/files/[fileId]/pages` → `[{ page, widthPt, heightPt }]`; `GET /api/files/[fileId]/page/[n]` → PNG rendered at
+   2400 px (2×), then downsampled to AC2's explicit decoded width of 1200 px. It shares P6.1's `rasterizePdf` rendering
+   path (single-page variant) and caches derived files by source id/content hash/version in the Repo. Only files already
+   in the Repo; 404 otherwise.
 2. Pure `regionsFromText(items, labels, pageSize)` in `src/lib/lms/regions.ts`: from pdfjs text items find each problem label
    ("1.", "1)", "Problem 1") at the left margin; a region runs from its label to the next label or the page end, in logical
    coordinates. **Contract:** optional `region: { page, bbox }` on `Worksheet.problems[]`, filled when the worksheet is served.
+3. Normalize crop/rotation/y-flip before the pure region helper; cache normalized text geometry by source hash. Worksheet
+   GET enriches validated responses without overwriting stored course knowledge. Bound native allocation before rendering
+   (finite positive dimensions, at most 16384 px per dimension and 16000000 pixels); unsupported geometry is safe `bad_reply`.
 
 **Acceptance**
-- [ ] **R2.1-AC1** — Unit: regions for the synthetic Worksheet 3 PDF give five problems on the right pages in label order;
+- [x] **R2.1-AC1** — Unit: regions for the synthetic Worksheet 3 PDF give five problems on the right pages in label order;
   a page with no labels gives none (picker fallback).
-- [ ] **R2.1-AC2** — Route tests: page count and sizes match `pdf-lib`'s; the PNG decodes at 1200 px wide; unknown file 404.
+- [x] **R2.1-AC2** — Route tests: page count and sizes match `pdf-lib`'s; the PNG decodes at 1200 px wide; unknown file 404.
+
+**Evidence (Nov 15).** `35fc43d` contains the flagged contract/schema/fixture/test update; `0e6c4ef` adds bounded rendering
+and worksheet integration; `a4962b2` preserves P5.6's published worksheet response contract. Unit/route coverage includes
+the synthetic PDF, no-label fallback, cache replacement, crop/rotation and oversized allocation rejection. Real Next tests
+decode both PNGs and assert all five served regions. Combined R1.1/R1.2/P5.6 main verify: 61 files, 852 passed / 16 skipped; three completed pre-Learn-integration
+local full browser suites each 114 passed / 6 skipped; build passed; production PDF/replay 3 passed and production gating
+5 passed. Independent follow-up review found no blocking issue. Live model calls: 0. Final combined-main browser/build/production and CI evidence is recorded in the PR;
+R2.2 onward and every human gate remain open.
 
 ### R2.2 Writing on the pages
 

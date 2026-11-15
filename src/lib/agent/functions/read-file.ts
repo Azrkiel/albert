@@ -5,6 +5,8 @@ import { z } from "zod";
 import type { Repo } from "../../contracts";
 import { getRepo } from "../../db";
 import { getChatModel, providerFor } from "../../llm";
+import { rasterizePdf } from "../../lms/pdf";
+export { rasterizePdf } from "../../lms/pdf";
 
 export const TRANSCRIPTION_INSTRUCTION = "Transcribe this document faithfully to Markdown, with LaTeX for all math; keep headings, example labels and step labels exactly as written; mark page breaks as `--- page N ---`; do not summarise.";
 export type FileText = { fileId: string; text: string; pages: number; lectureLabel?: string };
@@ -15,32 +17,6 @@ export type ReadOptions = {
   provider?: "bedrock" | "anthropic";
   rasterize?: (bytes: Uint8Array) => Promise<Uint8Array[]>;
 };
-
-/** Local renderer only; PDF.js never receives a URL or network transport. */
-export async function rasterizePdf(bytes: Uint8Array): Promise<Uint8Array[]> {
-  const canvas = await import("@napi-rs/canvas");
-  // PDF.js expects these browser geometry primitives even when rendering in Node.
-  Object.assign(globalThis, { DOMMatrix: canvas.DOMMatrix, ImageData: canvas.ImageData, Path2D: canvas.Path2D });
-  const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const task = getDocument({ data: new Uint8Array(bytes), useSystemFonts: true });
-  const document = await task.promise;
-  const images: Uint8Array[] = [];
-  try {
-    for (let n = 1; n <= document.numPages; n++) {
-      const page = await document.getPage(n);
-      const original = page.getViewport({ scale: 1 });
-      const scale = Math.min(2, 3000 / Math.max(original.width, original.height));
-      const viewport = page.getViewport({ scale });
-      const target = canvas.createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-      await page.render({ canvasContext: target.getContext("2d") as unknown as CanvasRenderingContext2D, viewport, canvas: target as unknown as HTMLCanvasElement }).promise;
-      const png = new Uint8Array(target.toBuffer("image/png"));
-      if (png.length > 3_750_000) throw new Error(`Rendered page ${n} exceeds the Bedrock 3.75 MB image limit.`);
-      images.push(png);
-      page.cleanup();
-    }
-    return images;
-  } finally { await task.destroy(); }
-}
 
 function rejectsPdf(error: unknown): boolean {
   // Authentication, throttling and timeouts must never trigger extra model calls.

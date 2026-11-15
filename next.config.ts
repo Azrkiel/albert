@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   agentRules: false,
   cacheComponents: true,
   partialPrefetching: true,
-  // The course agent (deepagents, LangChain, native canvas for PDF pages) runs from Node, not the bundler.
-  serverExternalPackages: ["deepagents", "langchain", "@langchain/core", "@langchain/langgraph", "@langchain/langgraph-checkpoint-mongodb", "langsmith", "@napi-rs/canvas", "ws"],
+  // Keep the course agent, native canvas addon and PDF.js's relative worker import in Node.
+  serverExternalPackages: ["deepagents", "langchain", "@langchain/core", "@langchain/langgraph", "@langchain/langgraph-checkpoint-mongodb", "langsmith", "@napi-rs/canvas", "ws", "pdfjs-dist"],
 };
 
 export default nextConfig;
