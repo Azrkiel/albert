@@ -29,6 +29,8 @@ Release ledger total at setup: `course.json` 435 + `lead.json` 100 + `r1-course.
 
 Local setup verification on `5130ec9`: `pnpm verify` passed on the lane-brief-authorized rerun: 61 files, 852 passed / 16 skipped. Initial run: contract entry-point startup timed out at 30 s, 851 passed / 16 skipped; no code or timeout changed. Full offline browser baseline: 121 passed / 6 skipped / 1 failed (9.8 min); the mock run-attachment test hit its 30 s timeout during its final status GET. Its unchanged targeted rerun passed (15.5 s test, 24.2 s total); no uninterrupted full-suite pass claimed. HTTP checks: saved mock context 5 cards / 4 worksheets; Worksheet 3 API 200 with 5 problems; original PDF 200, application/pdf, 42,107 bytes. Inspected the seeded worksheet screenshot; it does not test the imported ID in #62. Browser-control host unavailable; manual reports come from the user. No build or release-gate completion claim.
 
+Rebased evidence branch onto main `d004ad2` (R2.3 server / R2.4 library): `pnpm verify` passed, 63 files, 878 passed / 18 skipped. Full post-rebase browser and CI results belong in the evidence PR; no criterion is ticked by this docs-only update.
+
 **How to use it**
 - Tick a subphase only when **every** acceptance criterion in its phase file has been verified and `pnpm verify` passes.
 - In the Evidence column write the commit and what was run, briefly: `a1b2c3d · pnpm verify, e2e replay`.
