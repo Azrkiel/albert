@@ -35,7 +35,7 @@ export async function runAgent(kind: AgentRun["kind"], courseId: string, message
   const emit = (event: AgentEvent) => { run.events.push(event); options.onEvent?.(event); };
   await repo.saveRun(run);
   try {
-    const agent = await createCourseAgent({ studentId, courseId, emit, ...options.agent });
+    const agent = await createCourseAgent({ studentId, courseId, emit, repo, now, trigger: kind === "ingest" ? "ingest" : message.includes("Trigger: session_end") ? "session_end" : "manual", ...options.agent });
     const map = createEventMapper(now);
     const stream = await agent.stream({ messages: [{ role: "user", content: message }] }, { configurable: { thread_id: threadId }, streamMode: "updates" });
     for await (const chunk of stream) for (const event of map(chunk)) emit(event);

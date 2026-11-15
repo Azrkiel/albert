@@ -9,6 +9,8 @@ export { createTools, mainTools, TOOL_NAMES } from "./tools";
 export type { ToolContext, ToolName } from "./tools";
 export { validatePlan, planMaxMinutesPerDay } from "./functions/plan";
 export type { PlanCourse } from "./functions/plan";
+export { subagents, SUBAGENT_TOOLS, SUBAGENT_NAMES } from "./subagents";
+export type { SubAgentName } from "./subagents";
 export { createCourseAgent, courseBackend, COURSE_AGENT_PROMPT } from "./agent";
 export type { AgentContext } from "./agent";
 export { createEventMapper } from "./events";
