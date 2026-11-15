@@ -61,7 +61,8 @@ describe("P3.3-AC1 ladder rules", () => {
     expect(checkLadder(hint("One step.", "next_step"), diagnosis, 3).join(" ")).toContain("kind must be worked_step");
     expect(checkLadder(hint("word ".repeat(25), "next_step"), diagnosis, 2).join(" ")).toContain("at most 24 words");
     const math = [{ type: "math" as const, latex: "x" }, { type: "math" as const, latex: "y" }];
-    expect(checkLadder({ kind: "question", segments: [...math, { type: "text", text: "?" }] }, diagnosis, 1).join(" ")).toContain("at most one math");
+    expect(checkLadder({ kind: "question", segments: [...math, { type: "text", text: "?" }] }, diagnosis, 1)).toEqual([]);
+    expect(checkLadder({ kind: "question", segments: [...math, { type: "math", latex: "z" }, { type: "text", text: "?" }] }, diagnosis, 1).join(" ")).toContain("at most two short math");
     expect(checkLadder({ kind: "worked_step", segments: [...math, ...math] }, diagnosis, 3).join(" ")).toContain("at most two math");
   });
   it("accepts the exact word limits and nudge kind", () => {
