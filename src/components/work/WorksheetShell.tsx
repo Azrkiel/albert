@@ -53,12 +53,12 @@ export function WorksheetShell({ worksheet, children }: { worksheet: Pick<Worksh
         const id = (event.target as Element).closest("section[data-problem-id]")?.getAttribute("data-problem-id");
         if (id) setProblemId(id);
       }}>
-      <header style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "4px 16px" }}>
-        <h2 data-worksheet-title="" style={{ margin: 0 }}>{worksheet.title}</h2>
-        {tag && <span data-unit-tag="" style={{ color: "#76726b", fontSize: 14 }}>{`Unit ${tag.order} · ${tag.title}`}</span>}
-        {worksheet.dueAt && <span data-due="" style={{ color: "#76726b", fontSize: 14 }}>{dueLabel(worksheet.dueAt)}</span>}
+      <header className="worksheet-header">
+        <h2 data-worksheet-title="" className="worksheet-header__title">{worksheet.title}</h2>
+        {tag && <span data-unit-tag="" className="worksheet-header__meta">{`Unit ${tag.order} · ${tag.title}`}</span>}
+        {worksheet.dueAt && <span data-due="" className="worksheet-header__meta">{dueLabel(worksheet.dueAt)}</span>}
         <button type="button" data-original-toggle="" aria-expanded={open} aria-controls="worksheet-original"
-          onClick={() => setOpen((value) => !value)} style={{ marginLeft: "auto" }}>Original</button>
+          onClick={() => setOpen((value) => !value)} className="btn-secondary worksheet-header__original">Original</button>
       </header>
       {open && <aside id="worksheet-original" data-original-drawer="" aria-label="Original worksheet"
         style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(560px, 100vw)", zIndex: 20, background: "#fff",

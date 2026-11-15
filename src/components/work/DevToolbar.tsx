@@ -12,7 +12,7 @@ export function DevToolbar({ speed, onSpeed, onExport, onLoad, onPlay, onSnapsho
   onSnapshot?: () => void;
 }) {
   return (
-    <div role="group" aria-label="Recording tools" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginTop: 20 }}>
+    <div role="group" aria-label="Recording tools" className="work-toolbar work-toolbar--dev">
       <button type="button" onClick={onExport}>Export</button>
       <label>Load <input aria-label="Load recording" type="file" accept=".json,application/json"
         onChange={(event) => {

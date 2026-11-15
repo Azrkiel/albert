@@ -45,12 +45,12 @@ export function PdfPageBlock({ page, fileId, problems, regions, state, active, d
         conductor.interrupt();
       }
     }} onFocusCapture={onActivate}>
-    <div role="group" aria-label={`Page ${page.page} problem`} style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 24 }}>
-      <strong>Page {page.page} · Problem</strong>
+    <div role="group" aria-label={`Page ${page.page} problem`} className="page-controls">
+      <strong className="page-controls__label">Page {page.page} · Problem</strong>
       {problems.map(p => <button key={p.id} type="button" aria-pressed={selected === p.id} aria-label={`Problem ${p.label}`}
         onClick={() => setSelected(p.id)}>{p.label}</button>)}
       <button type="button" disabled={hintDisabled || !rowId}
-        onClick={() => rowId && onHintRequested(selected, { rowId, rung: 1, trigger: "manual" })}>I&apos;m stuck</button>
+        onClick={() => rowId && onHintRequested(selected, { rowId, rung: 1, trigger: "manual" })} className="btn-primary">I&apos;m stuck</button>
       <AskAlbert key={selected} label={problems.find(p => p.id === selected)?.label ?? selected} disabled={disabled || isProblemSolved(state.events, selected)}
         onAsk={question => onAsk(selected, rowId ?? `${selected}/page${page.page}/question`, question, page.page)} />
       {stuck && <button type="button" data-stuck-row={stuck.rowId} disabled={hintDisabled}
