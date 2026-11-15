@@ -22,7 +22,7 @@
     ],
     "kind": [
       "question",
-      "next_step"
+      "nudge"
     ],
     "mustNotMention": [
       "4\\cos\\theta\\,d\\theta",

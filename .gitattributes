@@ -4,3 +4,6 @@ scripts/seed-pdf.ts text eol=lf
 
 # Seed PDFs must never undergo Git's automatic line-ending conversion.
 seed/calc2/**/*.pdf binary
+
+# deepagents parses SKILL.md front matter itself; CRLF breaks quoted YAML values (the vendored socratic-tutor).
+skills/** text eol=lf

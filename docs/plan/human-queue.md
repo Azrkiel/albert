@@ -58,7 +58,14 @@ Record the result: the agent writes the check-in commit in `status.md` (Phase 2 
 
 ## Gate G3 — GitHub course → agent cards → cited hint
 
-(Agents add P6.5-AC5 and P5.6-AC3 here.)
+(Agents add P5.6-AC3 here.)
+
+- [ ] **P6.5-AC5 (Gate G3) — import, ingest, hint cites Lecture 9.** Do this after P6.5 is ticked (the agent run must pass first). Setup: `set -a; . ../albert-p1.4/.env.local; set +a`, then `STORE=memory pnpm dev` from a checkout with the P6.5 branch merged, open `http://localhost:3000/courses`.
+  1. Import the pinned GitHub source (the P5.5 picker, repository and commit shown there) and choose the course.
+  2. Ingest from the terminal in a second shell with the same env: `STORE=memory pnpm agent:ingest -- --course synthetic --source synthetic --state work/g3.json --check`. All 13 golden checks must print `pass`. (The browser app and the CLI each keep their own memory store; until P6.6 adds the Learn this course button, run the app against Mongo instead: set `STORE=mongo` for both and use the snapshot-qualified course id the importer prints.)
+  3. Open Worksheet 3 in the app, problem 1 (`\int dx / (x^2 sqrt(16 - x^2))`), and write the substitution but make the missing-`dx` mistake: write `x = 4 sin θ` then substitute into the integral without finding `dx`.
+  4. Tap **I'm stuck**. The first hint (rung 1) must cite Lecture 9 (the citation chip or text names `Lecture 9`) and must not give the answer.
+  Record pass/fail, the hint text, and the date in the P6.5 row of `status.md` and tick the G3 gate row.
 
 ## Gate G4 — skill map, study plan, re-plan, tutor report
 

@@ -179,3 +179,25 @@ it("runs real extractors with a fake structured model and appends repair problem
   expect(prompts.some(p => p.includes("Repair these validation problems") && p.includes("non-empty statement"))).toBe(true);
   expect((await repo.listCards(course.id))[0]!.methods[0]!.id).toBe(`${course.unitIds[0]}.m1`);
 });
+it("golden check 6 judges rows that name the angle symbol itself, ignoring TeX dollars and formula rows about angles", async () => {
+  // Live P6.5 agent cards wrote `$\theta$` and a row "Square root simplification requires angle restriction".
+  const { data } = await setup();
+  const notation = data.cards[2]!.notation;
+  const angle = notation.find(n => n.concept === "angle")!;
+  angle.teacherWrites = "$\\theta$";
+  notation.push({ concept: "Square root simplification requires angle restriction", teacherWrites: "\\sqrt{\\cos^2\\theta}", avoid: [], note: "" });
+  expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("pass");
+  angle.teacherWrites = "$\\phi$";
+  expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("fail");
+  angle.teacherWrites = "\\theta";
+  notation.push({ concept: "The angle", teacherWrites: "\\phi", avoid: [], note: "" });
+  expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("fail");
+});
+it("golden check 6 also judges a row whose concept names theta, but not a formula row that mentions it", async () => {
+  const { data } = await setup();
+  const notation = data.cards[2]!.notation;
+  notation.push({ concept: "Derivative of x with respect to theta", teacherWrites: "\\frac{dx}{d\\theta}", avoid: [], note: "" });
+  expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("pass");
+  notation.push({ concept: "Variable theta", teacherWrites: "\\phi", avoid: [], note: "" });
+  expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("fail");
+});

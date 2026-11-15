@@ -21,7 +21,8 @@
       "partial fractions"
     ],
     "kind": [
-      "question"
+      "question",
+      "nudge"
     ],
     "mustNotMention": [
       "4\\cos\\theta\\,d\\theta",
