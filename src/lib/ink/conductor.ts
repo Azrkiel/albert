@@ -385,7 +385,12 @@ export function createConductor(host: ConductorHost) {
       } else if (event.type === "reading") { readings = event.rows; version++; listeners.forEach((l) => l()); }
       else if (event.type === "diagnosis") {
         const method = event.deferredMethod;
-        if (method) enqueue(ctx, () => note(ctx, `You'll meet ${method.name} in ${method.unitTitle}.`));
+        if (method) {
+          // Unit titles often repeat the method name ("Partial fractions in Partial Fractions"): say "later" instead.
+          const same = method.unitTitle.trim().toLowerCase() === method.name.trim().toLowerCase();
+          const text = same ? `You'll meet ${method.name} later in the course.` : `You'll meet ${method.name} in ${method.unitTitle}.`;
+          enqueue(ctx, () => note(ctx, text));
+        }
       } else if (event.type === "mark") enqueue(ctx, () => drawMark(ctx, event.mark));
       else if (event.type === "hint") enqueue(ctx, () => writeHint(ctx, event.segments, event.citation?.label));
       else if (event.type === "done") enqueue(ctx, () => finish(ctx));
