@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { HintEventSchema, type HintEvent, type HintRequest } from "../contracts";
 import { CLIENT_FAILURE_CODES, type ClientHintFailure } from "./error-notes";
 
@@ -104,7 +104,13 @@ export function createHintRunner(fetchHint: HintFetch, publish: (state: HintPars
     active = null;
     show({ ...latest, status: "idle" });
   };
-  const dispose = () => { active?.abort(); active = null; };
+  // Never leave a stream "streaming" with no request behind it: the page would show "Getting a hint..." forever.
+  const dispose = () => {
+    const wasActive = active !== null;
+    active?.abort();
+    active = null;
+    if (wasActive && latest.status === "streaming") show({ ...latest, status: "idle" });
+  };
   return { request, cancel, dispose };
 }
 
@@ -112,6 +118,12 @@ export function useHint() {
   const [state, setState] = useState<HintParserState>({ buffer: "", events: [], status: "idle" });
   // The whole page shares one runner, so a request on any problem cancels the one in flight.
   const runner = useMemo(() => createHintRunner((input, init) => fetch(input, init), setState), []);
-  useEffect(() => () => runner.dispose(), [runner]);
+  // Dispose only on a real unmount. Effects also re-run without one (Fast Refresh, Strict Mode); disposing
+  // then aborted the hint in flight and the page kept "Getting a hint..." (the stuck.spec CI flake).
+  const disposeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    clearTimeout(disposeTimer.current);
+    return () => { disposeTimer.current = setTimeout(() => runner.dispose(), 0); };
+  }, [runner]);
   return { events: state.events, status: state.status, requestHint: runner.request, cancel: runner.cancel };
 }

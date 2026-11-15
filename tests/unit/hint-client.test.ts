@@ -175,6 +175,22 @@ describe("P3.8-AC2: createHintRunner (the logic behind useHint)", () => {
     expect(states.at(-1)?.events).toEqual([second, secondDone]);
   });
 
+  it("dispose during a request never leaves the page streaming", async () => {
+    const { calls, states, runner } = fakeHintServer();
+    const pending = runner.request(request());
+    calls[0]!.respond();
+    calls[0]!.push(started);
+    await tick();
+    runner.dispose();
+    expect(calls[0]!.signal.aborted).toBe(true);
+    expect(states.at(-1)?.status).toBe("idle");
+    const seen = states.length;
+    calls[0]!.push(hint);
+    calls[0]!.end();
+    await pending;
+    expect(states.length).toBe(seen);
+  });
+
   it("cancel stops publishing and leaves the runner usable", async () => {
     const { calls, states, runner } = fakeHintServer();
     const first = runner.request(request());
