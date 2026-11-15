@@ -5,7 +5,7 @@ import {
   exportAnnotatedPdf, normalizeRotation, pageTransform, roughMarkPaths, strokeOutlinePath, visibleBox,
   type ExportStroke,
 } from "../../src/lib/ink/pdf-export";
-import { bounds, makePdf, pageContent, pathPoints } from "./pdf-export-fixtures";
+import { bounds, makePdf, pageContent, pathPoints, type FixturePage } from "./pdf-export-fixtures";
 
 const fontBytes = new Uint8Array(readFileSync("public/fonts/Kalam-Regular.ttf"));
 const near = (a: number, b: number, eps = 1e-6) => expect(Math.abs(a - b)).toBeLessThan(eps);
@@ -125,7 +125,7 @@ describe("exportAnnotatedPdf", () => {
     const probe = await PDFDocument.load(original);
     const out = await exportAnnotatedPdf({ pdf: original, pages: [{ page: 1, strokes: [line(300, 200, 500, 200)] }, { page: 2, strokes: [line(10, 10, 60, 10)] }] });
     const after = await PDFDocument.load(out);
-    expect(after.getPage(0).getRotation().angle).toBe(spec.rotate ?? 0);
+    expect(after.getPage(0).getRotation().angle).toBe((spec as FixturePage).rotate ?? 0);
     expect(after.getPage(0).getCropBox()).toEqual(probe.getPage(0).getCropBox());
     const stroke = pathPoints(pageContent(after, 0)).slice(pathPoints(pageContent(probe, 0)).length);
     expect(stroke.length).toBeGreaterThan(0);
