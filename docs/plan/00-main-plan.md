@@ -3,6 +3,8 @@
 > **Albert** · *Turns you into Einstein.*
 > The tutor inside **Albert and Einstein Academy**, built for HackPrinceton Fall 2026 (Nov 13–15, 36 hours).
 
+**Current scope (user, Nov 14):** PDF annotation editor + Learn this course + course-context, stroke-aware helper, with Pixie-inspired pointing and on-page explanation. Study plans, re-planning and progress/report dashboards are out of this release. Read [current-scope.md](./current-scope.md) first: it overrides the older journey, phase order, gates and out-of-scope statements below. PDF mode is core work now; a short typed question to the page helper is allowed. Existing contracts remain binding until changed with code and fixtures.
+
 This is the document every person and every coding agent reads first. It explains what Albert is, why each piece exists, how the pieces fit, and which decisions are already made. It does not tell you what to type. The phase files do that:
 
 | File | What it is |

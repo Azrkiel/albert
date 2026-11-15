@@ -1,5 +1,7 @@
 # Phase 7 — Progress
 
+**Deferred for this release (user, Nov 14).** [current-scope.md](./current-scope.md) replaces the adaptive-loop release gate with PDF annotation + contextual stroke-aware tutoring. Preserve existing evidence/skill code and unfinished tutor-report work, but do not build dashboards, reports or session-end re-planning for this release. Save/reload of PDF annotations is still required; it is separate from mastery tracking. Historical criteria below remain for future work.
+
 **Purpose.** Turn what happened on the page into an honest picture of how the student is doing: evidence events from hints and checks, skill levels computed from that evidence, a course page that shows the levels and the plan, and a one-page report a tutor can use. This closes the *adaptive* loop and carries the Peri track's business-facing feature.
 
 **Done looks like.** Finish a session and the course page shows which skills moved and why, a plan that reacts to it, and a "how you're doing" line. A tutor opens the report and sees exactly where the student got stuck, with a picture of the work.

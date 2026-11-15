@@ -154,6 +154,12 @@ Each decision has a reason and a trigger that would change it. During the build,
 
 **Note.** An unrelated education product called Albert (albert.io) exists. If a judge raises it, the answer is that this is a hackathon project name inside Albert and Einstein Academy.
 
+## D19 — PDF helper with course context; no study plan in this release
+
+**Decision (user, Nov 14).** Build PDF annotation (pen, erase, undo, save), Learn this course, and an on-page assistant that uses course context and pen-stroke structure. Adapt Pixie's pointing/drawing interaction within Albert's page. Study planning/re-planning, mastery dashboards and tutor reports are deferred. [current-scope.md](./current-scope.md) defines the revised order and acceptance; it supersedes the old G4, the wait-until-G3 PDF dependency and any prohibition on a short typed question to the helper. Existing code/evidence are preserved; implementation must remove planner-required ingestion behavior rather than merely hide its UI.
+
+**Why.** Focus the release on helping the student with the work in front of them. Keep validated course knowledge and direct tutoring calls; invest remaining work in PDF annotation, contextual explanations and reliable stroke targeting.
+
 ## D18 — Lines are inferred from ink, not ruled
 
 **Decision.** Once P2.5a-AC4 passes, the work surface has no ruled rows by default. A "row" is a line of work inferred from the ink (contracts §2, Line assignment). Ruled 128 px rows remain as `NEXT_PUBLIC_CANVAS_LAYOUT=ruled`.
