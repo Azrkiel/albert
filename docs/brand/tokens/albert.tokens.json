@@ -1,0 +1,222 @@
+{
+  "name": "Albert",
+  "version": "1.3.0",
+  "color": {
+    "ink": {
+      "$type": "color",
+      "$value": "#182B49"
+    },
+    "paper": {
+      "$type": "color",
+      "$value": "#FAF7F0"
+    },
+    "coral": {
+      "$type": "color",
+      "$value": "#DB6554"
+    },
+    "sage": {
+      "$type": "color",
+      "$value": "#DDE9DB"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "#5A6572"
+    },
+    "coral-text": {
+      "$type": "color",
+      "$value": "#A63D30"
+    },
+    "border": {
+      "$type": "color",
+      "$value": "#D9DDE2"
+    },
+    "control-border": {
+      "$type": "color",
+      "$value": "#7A8592"
+    },
+    "white": {
+      "$type": "color",
+      "$value": "#FFFFFF"
+    }
+  },
+  "font": {
+    "display": {
+      "family": "Fraunces",
+      "weights": [
+        500,
+        600
+      ],
+      "fallback": [
+        "Georgia",
+        "serif"
+      ]
+    },
+    "ui": {
+      "family": "Plus Jakarta Sans",
+      "weights": [
+        400,
+        500,
+        600
+      ],
+      "fallback": [
+        "system-ui",
+        "sans-serif"
+      ]
+    },
+    "annotation": {
+      "family": "Caveat",
+      "weights": [
+        400,
+        500
+      ],
+      "optional": true,
+      "fallback": [
+        "cursive"
+      ]
+    }
+  },
+  "spacing": {
+    "1": "4px",
+    "2": "8px",
+    "3": "12px",
+    "4": "16px",
+    "6": "24px",
+    "8": "32px",
+    "12": "48px",
+    "16": "64px"
+  },
+  "radius": {
+    "sm": "8px",
+    "md": "12px",
+    "lg": "24px",
+    "pill": "999px"
+  },
+  "type": {
+    "caption": {
+      "size": "12px",
+      "lineHeight": "18px"
+    },
+    "label": {
+      "size": "14px",
+      "lineHeight": "20px"
+    },
+    "body": {
+      "size": "16px",
+      "lineHeight": "24px"
+    },
+    "lead": {
+      "size": "18px",
+      "lineHeight": "28px"
+    },
+    "subheading": {
+      "size": "24px",
+      "lineHeight": "32px"
+    },
+    "section": {
+      "size": "32px",
+      "lineHeight": "40px"
+    },
+    "title": {
+      "size": "40px",
+      "lineHeight": "48px"
+    },
+    "hero": {
+      "size": "48px",
+      "lineHeight": "56px"
+    }
+  },
+  "motion": {
+    "short": "180ms",
+    "easing": "ease-out",
+    "reducedMotion": "0ms"
+  },
+  "focus": {
+    "width": "2px",
+    "offset": "2px",
+    "color": "#182B49"
+  },
+  "interaction": {
+    "minimumTarget": "44px"
+  },
+  "mascot": {
+    "default": "waiting",
+    "states": [
+      "thinking",
+      "guiding",
+      "celebrating",
+      "welcoming",
+      "listening",
+      "encouraging",
+      "explaining",
+      "waiting"
+    ],
+    "format": "static PNG",
+    "slot": {
+      "width": "144px",
+      "height": "144px",
+      "fit": "contain"
+    }
+  },
+  "layout": {
+    "contentMax": "1200px",
+    "gridGap": "24px",
+    "desktopColumns": 12,
+    "tabletColumns": 8,
+    "mobileColumns": 4,
+    "headerDesktop": "72px",
+    "headerMobile": "64px"
+  },
+  "button": {
+    "smallHeight": "44px",
+    "height": "48px",
+    "largeHeight": "56px",
+    "horizontalPadding": "20px",
+    "gap": "12px",
+    "iconGap": "8px",
+    "radius": "999px"
+  },
+  "interactionColor": {
+    "hover": "#243D5E",
+    "pressed": "#102039",
+    "surfaceHover": "#EEECE6",
+    "disabled": "#EBECE9"
+  },
+  "semantic": {
+    "text": "ink",
+    "textSecondary": "muted",
+    "action": "ink",
+    "actionOn": "paper",
+    "surface": "paper",
+    "surfaceRaised": "white",
+    "successSurface": "sage",
+    "dangerText": "coral-text"
+  },
+  "webSurface": {
+    "muted": "#EBECE9",
+    "info": "#EEECE6",
+    "pending": "#EEE5DF",
+    "danger": "#F7E8E3",
+    "skeleton": "#E8E9E6"
+  },
+  "layer": {
+    "header": 20,
+    "dropdown": 30,
+    "overlay": 40,
+    "toast": 50
+  },
+  "bundledFonts": {
+    "display": {
+      "path": "assets/fonts/Fraunces.ttf",
+      "license": "assets/fonts/OFL-Fraunces.txt"
+    },
+    "ui": {
+      "path": "assets/fonts/PlusJakartaSans.ttf",
+      "license": "assets/fonts/OFL-PlusJakartaSans.txt"
+    }
+  },
+  "notes": [
+    "Plain product name: Albert. Logo artwork is custom, not a font.",
+    "Coral is not suitable for normal-size text on Paper. Use coral-text.",
+    "This project JSON is a handoff format, not a claim of full DTCG schema conformance."
+  ]
+}

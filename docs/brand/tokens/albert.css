@@ -1,0 +1,90 @@
+/* Albert v1.3.0 — foundation tokens; load font families in the application. */
+:root {
+  --albert-ink: #182b49;
+  --albert-paper: #faf7f0;
+  --albert-coral: #db6554;
+  --albert-sage: #dde9db;
+  --albert-muted: #5a6572;
+  --albert-coral-text: #a63d30;
+  --albert-border: #d9dde2;
+  --albert-control-border: #7a8592;
+  --albert-white: #ffffff;
+
+  --albert-font-display: 'Fraunces', Georgia, serif;
+  --albert-font-ui: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --albert-font-annotation: 'Caveat', cursive;
+
+  --albert-space-1: 4px;
+  --albert-space-2: 8px;
+  --albert-space-3: 12px;
+  --albert-space-4: 16px;
+  --albert-space-6: 24px;
+  --albert-space-8: 32px;
+  --albert-space-12: 48px;
+  --albert-space-16: 64px;
+
+  --albert-radius-sm: 8px;
+  --albert-radius-md: 12px;
+  --albert-radius-lg: 24px;
+  --albert-radius-pill: 999px;
+
+  --albert-type-caption: 12px;
+  --albert-type-label: 14px;
+  --albert-type-body: 16px;
+  --albert-type-lead: 18px;
+  --albert-type-subheading: 24px;
+  --albert-type-section: 32px;
+  --albert-type-title: 40px;
+  --albert-type-hero: 48px;
+
+  --albert-line-caption: 18px;
+  --albert-line-label: 20px;
+  --albert-line-body: 24px;
+  --albert-line-lead: 28px;
+  --albert-line-subheading: 32px;
+  --albert-line-section: 40px;
+  --albert-line-title: 48px;
+  --albert-line-hero: 56px;
+
+  --albert-motion-short: 180ms;
+  --albert-motion-easing: ease-out;
+  --albert-focus-width: 2px;
+  --albert-focus-offset: 2px;
+  --albert-target-min: 44px;
+
+
+  --albert-color-text: var(--albert-ink);
+  --albert-color-text-secondary: var(--albert-muted);
+  --albert-color-action: var(--albert-ink);
+  --albert-color-action-on: var(--albert-paper);
+  --albert-color-surface: var(--albert-paper);
+  --albert-color-surface-raised: var(--albert-white);
+  --albert-surface-muted: #ebece9;
+  --albert-info-surface: #eeece6;
+  --albert-pending-surface: #eee5df;
+  --albert-danger-surface: #f7e8e3;
+  --albert-skeleton-surface: #e8e9e6;
+  --albert-overlay-backdrop: rgb(24 43 73 / 45%);
+  --albert-layer-header: 20;
+  --albert-layer-dropdown: 30;
+  --albert-layer-overlay: 40;
+  --albert-layer-toast: 50;
+
+  --albert-content-max: 1200px;
+  --albert-grid-gap: 24px;
+  --albert-button-sm-height: 44px;
+  --albert-button-md-height: 48px;
+  --albert-button-lg-height: 56px;
+  --albert-button-gap: 12px;
+  --albert-header-desktop-height: 72px;
+  --albert-header-mobile-height: 64px;
+  --albert-ink-hover: #243d5e;
+  --albert-ink-pressed: #102039;
+  --albert-surface-hover: #eeece6;
+  --albert-disabled-surface: #ebece9;
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --albert-motion-short: 0ms; }
+}

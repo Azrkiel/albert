@@ -1,0 +1,15 @@
+Your Albert course import is complete
+
+Hi {{first_name}},
+
+Your materials have a next step.
+
+The import for {{course_name}} has finished. Ready materials: {{ready_count}}. Materials needing attention: {{failed_count}}.
+
+Review course materials: {{course_materials_url}}
+
+Review the course context and any materials needing attention before starting practice.
+
+Albert — A thoughtful tutor, beside your work.
+{{footer_address}}
+{{support_contact}}
