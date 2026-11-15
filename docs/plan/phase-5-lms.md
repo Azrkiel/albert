@@ -185,7 +185,7 @@ Moodle/Canvas integration and automatic refresh are deferred. No LMS credential 
 **Hackathon scope (user, Nov 14).** Under the import button, `/` lists Canvas, Moodle and Blackboard as plain "coming soon" options: names only (no logos), not clickable, no login flow. It shows the adapter design without pretending to integrate.
 
 **Acceptance**
-- [ ] **P5.7-AC1** — The labels render and do nothing. *Verify:* `tests/e2e/coming-soon.spec.ts` finds three list items (Canvas, Moodle, Blackboard) below the import button with no links, buttons or images, and a click leaves the page unchanged.
+- [x] **P5.7-AC1** — The labels render and do nothing. *Verify:* `tests/e2e/coming-soon.spec.ts` finds three list items (Canvas, Moodle, Blackboard) below the import button with no links, buttons or images, and a click leaves the page unchanged.
 
 ### P5.8 — The page: worksheet PDF or open whiteboard (approved Nov 14, build after G3)
 
