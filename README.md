@@ -4,7 +4,7 @@
 
 <!-- hero screenshot -->
 
-Albert is a worksheet tutor that works on the page. You open your course worksheet as a PDF and write on it with a pen. When you get stuck, you tap **I'm stuck** or ask a short question. Albert reads your handwriting, circles the symbols it is talking about, and writes a short hint in red ink next to your work. The hint uses only the methods your class has covered, cites the lecture where your teacher taught them, and does not give the answer. Your work saves and reloads, and **Save PDF** downloads the worksheet with your ink and Albert's.
+Albert is a worksheet tutor that works on the page. You open your course worksheet as a PDF and write on it with a pen. When you get stuck, you tap **I'm stuck** or type a short question in the **Ask Albert** field. Albert reads your handwriting, circles the symbols it is talking about, and writes a short hint in red ink next to your work. The hint uses only the methods your class has covered, cites the lecture where your teacher taught them, and does not give the answer. Your work saves and reloads, and **Save PDF** downloads the worksheet with your ink and Albert's.
 
 Code: [`Azrkiel/albert`](https://github.com/Azrkiel/albert). Course files: [`Azrkiel/albert-files`](https://github.com/Azrkiel/albert-files) (a synthetic Calculus II course, hosted on GitHub).
 
@@ -13,7 +13,9 @@ Code: [`Azrkiel/albert`](https://github.com/Azrkiel/albert). Course files: [`Azr
 - **Stroke-aware.** Albert reads pen strokes with their timing. Pauses, erasing and crossed-out steps show where you are stuck, and it points at the exact symbol by number, not by guessing coordinates.
 - **Scope-aware.** A deep agent reads the course once ("Learn this course") and builds a teaching card per unit: the methods, the notation, and worked examples with lecture labels. A hint for Worksheet 3 may use Units 1 to 3 and may not use a method from Unit 4.
 - **Socratic.** Rung 1 is a question. Rung 2 names the step. Rung 3 writes one worked step. The ladder is in the prompt and is checked again on the server before anything is drawn.
-- **On the page.** The reply is drawn as ink on the PDF: a circle, an arrow, a short handwritten note and a citation. If the model fails, your work stays as it was.
+- **On the page.** A small red pen tip moves to the symbol first, then the reply is drawn as ink on the PDF: a circle, an arrow, a short handwritten note and a citation. If the model fails, your work stays as it was.
+- **Ask and follow up.** **Ask Albert** takes a question of up to 200 characters. A new question cancels the one in flight, and follow-ups carry your earlier question and Albert's reply.
+- **Save PDF.** Downloads the original worksheet with your strokes as native PDF ink annotations plus Albert's marks and writing. Notes that do not fit on a page go on labelled note pages at the end.
 
 ## Who it's for
 
@@ -86,11 +88,11 @@ TODO(owner): add a paragraph on Cursor and Grok Bot only if they were used. `doc
 
 ## Status
 
-Checked by automated tests (numbers in `status.md`): PDF pages and problem regions, writing, erasing and undo per page, save and reload, annotated PDF export geometry, and hint requests that carry a short question. Still open in `status.md`: the by-hand checks (pen on the demo device, the annotated PDF in an independent viewer), live Mongo ordering, and a clean live run of the context-only course agent. [`docs/SUBMISSION.md`](docs/SUBMISSION.md) has the numbers and says what is not claimed.
+Checked by automated tests (numbers in `status.md`): PDF pages and problem regions, writing, erasing and undo per page, save and reload, annotated PDF export geometry, and hint requests that carry a short question, the Ask Albert follow-up flow, the pen-tip pointer and the Save PDF export. Still open in `status.md`: the by-hand checks (pen on the demo device, the annotated PDF in Edge and an independent viewer, a live cited hint and follow-up), live Mongo ordering, and a clean live run of the context-only course agent. [`docs/SUBMISSION.md`](docs/SUBMISSION.md) has the numbers and says what is not claimed.
 
 ## What's next
 
-Placing notes in free space on the page (they use a band below the page for now), a pointer that moves to the target before the circle, streaming for faster first ink, canvas support through an institution-approved integration, and more subjects. Study plans, re-planning and a progress dashboard exist in the repository as unfinished work and are not part of this release.
+Placing notes in free space on the page (they use a band below the page for now), streaming for faster first ink, canvas support through an institution-approved integration, and more subjects. Study plans, re-planning and a progress dashboard exist in the repository as unfinished work and are not part of this release.
 
 ## Brand and design system
 

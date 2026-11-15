@@ -10,9 +10,7 @@ AI tutors live in chat boxes. You type your problem in, and they often teach a m
 
 ## What it does
 
-You open your course worksheet as a PDF and write on it with a pen. When you tap **I'm stuck** (or a pause suggests it), Albert reads your handwriting and draws a hint on the page: it circles the symbols it means, draws an arrow, and writes a short note with a citation to the lecture where your teacher taught the step. The first hint is a question, not the answer. Your strokes save and reload, and **Save PDF** downloads the worksheet with your ink and Albert's. A "Learn this course" button has a deep agent read the course's notes and worksheets first, so hints stay inside what the class has covered.
-
-TODO(owner): the short typed question ("Ask Albert") is in the hint request contract and its mock fixtures, but no text field exists in `src/components` on main as of this branch (R3.2 is not built). Either confirm it merged before submitting, or delete this sentence's mention of asking a question here and in the README.
+You open your course worksheet as a PDF and write on it with a pen. When you tap **I'm stuck** (or a pause suggests it), Albert reads your handwriting and draws a hint on the page: it circles the symbols it means, draws an arrow, and writes a short note with a citation to the lecture where your teacher taught the step. The first hint is a question, not the answer. Next to **I'm stuck** there is an **Ask Albert** field: type a short question (up to 200 characters) and press Enter. A new question cancels the one in flight, and follow-ups carry your earlier question and Albert's reply. Before the circle draws, a small red pen tip moves to the symbol Albert is pointing at. Your strokes save and reload, and **Save PDF** downloads the original worksheet with your strokes as native PDF ink annotations and Albert's marks and writing added. Notes that do not fit on the page go on labelled note pages at the end. A "Learn this course" button has a deep agent read the course's notes and worksheets first, so hints stay inside what the class has covered.
 
 ## How we built it
 
@@ -60,7 +58,7 @@ TODO(owner): add the live first-ink times from the real UI (`status.md` "Live fi
 
 **Course ingestion.** The full agent ingest of the synthetic course on Nov 14 took 315 s and passed 13 of 13 golden checks, producing 5 cards and 4 worksheets (14 problems). An immediate rerun took 425 s, also 13 of 13. That run still built a study plan, which this release no longer does. The context-only version was run live once on Nov 15 and did not finish: it hit the 90-call cap (59 more calls, 314 s) before writing `/course/scope.md`. Golden checks 1 to 11 and 13 passed and check 12 failed. Card and worksheet ids and counts were unchanged and no plan was saved. The mock replay of the older recorded run is what the no-keys demo shows.
 
-**Automated checks.** `pnpm verify` at the PR #59 consolidation: 70 files, 954 tests passed, 20 live Mongo tests skipped. Combined PDF, workflow, replay and stuck browser checks: 24 passed, 2 existing skips. The annotated-PDF export has 19 unit tests that read stroke coordinates back from the emitted content on plain, cropped and rotated pages.
+**Automated checks.** `pnpm verify` on the local run recorded for PRs #68 to #70: 983 tests passed, 20 live Mongo tests skipped. Focused browser checks: 27 passed; replay 5; stuck 5 passed, 2 existing skips. The annotated-PDF export has 19 unit tests that read stroke coordinates back from the emitted content on plain, cropped and rotated pages.
 
 **A real recording.** `fixtures/sessions/missing-dx-pdf.json`: pen input on the PDF, 32 strokes, 2 rows, 38052.7 ms.
 
@@ -74,7 +72,7 @@ A model is better at saying which numbered symbol is wrong than at saying where 
 
 ## What's next
 
-Streaming for faster first ink. Placing notes in free space on the page instead of a band below it. A pointer that moves to the target before the circle. Canvas support through an institution-approved integration. Drill mode and more subjects. The study plan, re-plan and progress code exists in the repository but is out of this release.
+Streaming for faster first ink. Placing notes in free space on the page instead of a band below it. Canvas support through an institution-approved integration. Drill mode and more subjects. The study plan, re-plan and progress code exists in the repository but is out of this release.
 
 ## Tracks entered
 
@@ -116,4 +114,4 @@ Derived from `tracks.md` section 10. A tick means the requirement is met and the
 
 ## Still open at the time of writing
 
-From `status.md`, none of these is claimed as done: Gate R2 and R3 by-hand runs (writing on the demo device, annotated PDF in an independent viewer, a live cited hint on the PDF), live Mongo `listEvents` ordering (R2.3-AC2), the Worksheet 3 open check that failed in the mock walkthrough ([defect #62](https://github.com/Azrkiel/albert/issues/62)) and whether it was fixed since, and the by-hand real-import check.
+From `status.md`, none of these is claimed as done: Gate R2 and R3 by-hand runs (writing on the demo device, annotated PDF in an independent viewer, a live cited hint on the PDF), live Mongo `listEvents` ordering (R2.3-AC2), the Worksheet 3 open check that failed in the mock walkthrough ([defect #62](https://github.com/Azrkiel/albert/issues/62); a fix is in progress in a separate PR), a live cited hint and follow-up through Ask Albert, Save PDF opened in Edge and an independent viewer, and the by-hand real-import check.
