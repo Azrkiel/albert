@@ -1,0 +1,24 @@
+.page { display: grid; gap: 32px; max-width: 860px; }
+.card { border: 1px solid #deddd8; border-radius: 8px; padding: 20px 24px; background: #fff; }
+.muted { color: #5f5e59; font-size: 0.9rem; }
+.h2 { margin: 0 0 12px; font-family: Georgia, "Times New Roman", serif; font-size: 1.4rem; font-weight: 400; }
+.row { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: baseline; }
+.figures { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 16px; }
+.figure strong { display: block; font-size: 1.6rem; font-weight: 400; font-family: Georgia, serif; }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.stuck { display: grid; grid-template-columns: 220px 1fr; gap: 20px; padding: 16px 0; border-top: 1px solid #deddd8; break-inside: avoid; }
+.snapshot { width: 100%; height: auto; border: 1px solid #deddd8; background: #fff; }
+.label { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: #5f5e59; }
+.peri { display: block; }
+.skills { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 4px 24px; font-size: 0.9rem; }
+.skill { display: flex; justify-content: space-between; gap: 8px; }
+.print { text-decoration: underline; cursor: pointer; background: none; border: 0; font: inherit; padding: 0; }
+@media (max-width: 600px) { .stuck { grid-template-columns: 1fr; } }
+@media print {
+  .noprint { display: none !important; }
+  .page { gap: 16px; max-width: none; font-size: 11pt; }
+  .card { border: 0; padding: 0; }
+  .snapshot { max-height: 120px; width: auto; }
+  .stuck { grid-template-columns: 160px 1fr; padding: 8px 0; }
+  .page h1 { font-size: 20pt !important; margin-bottom: 4px !important; }
+}

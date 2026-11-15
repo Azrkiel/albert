@@ -629,6 +629,8 @@ COURSE_GITHUB_TOKEN=              # optional read-only token for API quota; neve
 
 # app
 DEMO_STUDENT_ID=demo
+DEMO_STUDENT_NAME=Ada             # shown on the tutor report
+SEED_DEMO_HISTORY=0              # 1 with STORE=memory: also load the hand-written demo history and plan at server start (P7.3)
 NEXT_PUBLIC_AUTO_HINT=0          # "AUTO_HINT" in the plan. 1 = a pause writes a rung 1 hint without a tap
 NEXT_PUBLIC_CANVAS_LAYOUT=ruled  # ruled | free (P2.5a, D18). free = write anywhere; becomes the default once P2.5a-AC4 passes
 PLAN_MAX_MINUTES_PER_DAY=60
@@ -663,7 +665,7 @@ Apply the P1.1a scaffold follow-up before P1.2: update `.env.example` to list th
 | `pnpm agent:replan -- --course <id>` | Runs a re-plan from the terminal | Yes |
 | `pnpm ingest:flat -- --course <id>` | Builds cards with a plain loop, no agent framework | Yes |
 | `pnpm seed:pdf` | Builds the seed course PDFs from `seed/` | No |
-| `pnpm seed:demo` | Loads hand-checked cards, worksheets and evidence for the offline demo | No |
+| `pnpm seed:demo` | Loads hand-checked cards and worksheets, then (unless `--no-history`) two earlier sessions with their hints and evidence and one hand-written study plan, all marked as seed data (plan id `seed-demo-plan:<courseId>`). Never agent output | No |
 | `pnpm check:tracks` | Checks that each track's evidence exists (see `tracks.md`) | No |
 
 ## 14. Fixtures

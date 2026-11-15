@@ -36,3 +36,10 @@ main p { max-width: 60ch; margin: 0; line-height: 1.6; }
   .shell-header { padding: 24px 0; }
   main { padding: 40px 0; }
 }
+
+/* Printed pages (the tutor report) drop the site chrome. */
+@media print {
+  .shell-header, .skip-link { display: none; }
+  .shell { max-width: none; padding: 0; }
+  main { padding: 0; }
+}

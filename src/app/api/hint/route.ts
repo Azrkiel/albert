@@ -6,6 +6,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { HintEventSchema, HintRequestSchema, type HintEvent, type HintRequest } from "../../../lib/contracts";
 import { loadMockHint, streamMockHint } from "../../../lib/tutor/mock";
 import { runHint } from "../../../lib/tutor/hint";
+import { saveHintSnapshot } from "../../../lib/progress/snapshots";
 
 // POST handlers are dynamic and use Node by default. cacheComponents forbids
 // explicit runtime/dynamic route config in this app.
@@ -18,6 +19,16 @@ async function* hintEvents(request: HintRequest, signal: AbortSignal): AsyncIter
   } else {
     yield* runHint(request);
   }
+}
+
+function saveSnapshotAfterDone(input: HintRequest, storedHintId: string) {
+  void (async () => {
+    try {
+      await saveHintSnapshot(getRepo(), { sessionId: input.sessionId, hintId: storedHintId, imageBase64: input.image.marked });
+    } catch {
+      console.warn("Hint snapshot not saved"); // the hint is already delivered; the report just has no picture
+    }
+  })();
 }
 
 export async function POST(request: Request) {
@@ -35,6 +46,7 @@ export async function POST(request: Request) {
   const events = hintEvents(input, controller.signal)[Symbol.asyncIterator]();
   const encoder = new TextEncoder();
   let hintId: string | undefined;
+  let mockStoredId: string | undefined; // the mock path stores its own hint id
   const collected: HintEvent[] = [];
   let cancelled = false;
   const cleanup = () => request.signal.removeEventListener("abort", abort);
@@ -56,8 +68,9 @@ export async function POST(request: Request) {
             const reading = collected.find(e => e.type === "reading");
             const hint = collected.find(e => e.type === "hint");
             if (diagnosis && reading && hint) {
+              mockStoredId = JSON.stringify([input.sessionId, hintId, randomUUID()]);
               const stored = StoredHintSchema.parse({
-                id: JSON.stringify([input.sessionId, hintId, randomUUID()]), sessionId: session.id, courseId: session.courseId,
+                id: mockStoredId, sessionId: session.id, courseId: session.courseId,
                 problemId: input.problemId, rowId: input.rowId, rung: input.rung,
                 reading: { rows: reading.rows.map(row => ({ index: input.rows.find(r => r.rowId === row.rowId)?.index ?? 1, latex: row.latex, confidence: row.confidence })) },
                 // Public mock streams omit the private note. runHint stores its full live reply itself.
@@ -70,6 +83,8 @@ export async function POST(request: Request) {
           }
         }
         output.enqueue(encoder.encode(line(next.value)));
+        // P7.4: only after the hint has been written, never before. Not awaited: it must not slow the hint.
+        if (next.value.type === "done") saveSnapshotAfterDone(input, mockStoredId ?? next.value.hintId);
       } catch {
         if (!controller.signal.aborted) {
           output.enqueue(encoder.encode(line({ type: "error", hintId, code: "model_unavailable", message: "Albert could not finish this hint. Try again." })));
