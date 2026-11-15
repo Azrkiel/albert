@@ -17,7 +17,37 @@ User changed the target to PDF annotation, course learning/context and stroke-aw
 - [x] R2.1 server PDF pages and served problem regions — `35fc43d` contract/schema/fixture/test update, `0e6c4ef` allocation guard/integration, `a4962b2` P5.6 API compatibility. Combined R1.1/R1.2/P5.6 main verify: 61 files, 852 passed / 16 skipped. Three completed pre-Learn-integration full local suites each passed 114 / 6 skipped; that base also passed build, production PDF/replay 3 and gating 5. Final combined-main browser/build/production and CI evidence is recorded in the PR; independent review and diff check clear. Real Next/browser coverage decodes both pages and verifies all five regions. CI evidence is in the PR. Live calls 0; R2.2 onward and human gates remain open.
 - [ ] R2.3 save and reload, server half — `dfa1683` Repo.listEvents + latestOpenSession and GET /api/session/latest (contract change); pnpm verify 62 files, 859 passed / 18 skipped (live Mongo order and latest-session tests written, skipped offline), build passes; server half: dfa1683, R2.3-AC2 memory-side passed; R2.3-AC1 open (client restore, canvas lane).
 - [ ] R2.4 annotated PDF export library — `a672474` `src/lib/ink/pdf-export.ts` (pure, not wired; `@pdf-lib/fontkit` added for custom font embedding). R2.4-AC1 passed in unit tests (`tests/unit/pdf-export.test.ts`, 19 tests, `f5dc204`: page count/sizes unchanged, inked pages grow, stroke coordinates read back from the emitted content and checked against hand-derived points on plain, cropped, 90/180/270 and cropped+90/270 pages; pages 1 and 2 of a two-page PDF inked). `pnpm verify` on main 7917ba5 + this branch: 63 files, 878 passed / 18 skipped; `pnpm build` passed. Unticked: Save PDF button is the canvas lane; needs human: R2.4-AC2.
-- [ ] R3.1 questions in the hint request (mock) — `95bacdc` (contract change: HintRequest.question / HintTurn.question / EvalCase.question), `25f61da` (question mocks fall back to the problem's own fixture first). Typecheck, lint and unit tests on main d004ad2 + this branch: 64 files, 897 passed / 18 skipped (+19 in tests/unit/hint-question.test.ts); `pnpm build` ok. R3.1-AC1 passed (schema + fixtures, question in the data block, 201 chars is 400, injection stays in the block). runs locally: R3.1-AC2 (live, ~60 calls). Left for R3.2: the hint history builder (`hintHistory` in src/lib/canvas) must copy a turn's question into its HintTurn, which needs the question on the hint_requested event.
+- [ ] R3.1 questions in the hint request (mock) — `95bacdc` (contract change: HintRequest.question / HintTurn.question / EvalCase.question), `25f61da` (question mocks fall back to the problem's own fixture first). Typecheck, lint and unit tests on main d004ad2 + this branch: 64 files, 897 passed / 18 skipped (+19 in tests/unit/hint-question.test.ts); `pnpm build` ok. R3.1-AC1 passed (schema + fixtures, question in the data block, 201 chars is 400, injection stays in the block). R3.1-AC2 FAILED locally on `a70918c`; see R3.1 Evidence below and [defect #65](https://github.com/Azrkiel/albert/issues/65). Ledger 28/70, no retry or third run. Left for R3.2: the hint history builder (`hintHistory` in src/lib/canvas) must copy a turn's question into its HintTurn, which needs the question on the hint_requested event.
+
+### R3.1 Evidence — live eval, Nov 15
+
+Tested commit `a70918c` (R3.1 #63 + R2.2 #61). Zero-call preload + tsx check passed; all six cases/requests validated and the recorded snapshot was inspected. `pnpm eval:hints`, all roles `us.anthropic.claude-sonnet-4-6`, real env loaded in place; HTTP budget preload, `AWS_MAX_ATTEMPTS=1`. No prompt, timeout, fixture or quality-bar change. Offline verify on this base: 65 files, 910 passed / 18 skipped.
+
+Run 1: PASS, 14 calls, 64 s. Run 2: FAILED, 14 more calls, 59 s. Ledger `r3.1-eval.json`: **28/70**. No run 3 or retry: user approval is required before further live attempts. Three consecutive passes were not achieved; R3.1 stays unticked. Release ledger sum: 435 + 100 + 90 + 28 + 0 + 0 = **653/800**, 147 remaining.
+
+```text
+Totals (6 cases): status  100% (bar 85%) · row  100% · clusters  100% · ladder   50% · no-answer  100% · scope  100%
+Totals (6 cases): status   83% (bar 85%) · row   83% · clusters   83% · ladder   33% · no-answer   80% · scope   83%
+```
+
+Per-case results (`S/R/C` = status/row/clusters; Y/N = yes/no; — = not applicable). Read, kind and applicable differs checks passed except for the rejected run-2 `missing-dx-r1`, which failed all its applicable checks.
+
+| Run | Case | S/R/C | Ladder | No answer | Scope | Citation | First ink / total ms |
+|---|---|---|---|---|---|---|---|
+| 1 | missing-dx-question-followup | Y/Y/Y | Y | Y | Y | Y | 6390 / 6396 |
+| 1 | missing-dx-question-r1 | Y/Y/Y | N | Y | Y | N | 9843 / 9844 |
+| 1 | missing-dx-r1 | Y/Y/Y | Y | Y | Y | Y | 5236 / 5238 |
+| 1 | missing-dx-r2 | Y/Y/Y | N | Y | Y | Y | 10150 / 10151 |
+| 1 | missing-dx-r3 | Y/Y/Y | Y | — | Y | Y | 4936 / 4937 |
+| 1 | missing-dx-repeat | Y/Y/Y | N | Y | Y | Y | 9320 / 9321 |
+| 2 | missing-dx-question-followup | Y/Y/Y | Y | Y | Y | Y | 5070 / 5075 |
+| 2 | missing-dx-question-r1 | Y/Y/Y | N | Y | Y | N | 9730 / 9732 |
+| 2 | missing-dx-r1 | N/N/N | N | N | N | N | — / 10039 |
+| 2 | missing-dx-r2 | Y/Y/Y | N | Y | Y | Y | 10991 / 10992 |
+| 2 | missing-dx-r3 | Y/Y/Y | Y | — | Y | Y | 5159 / 5160 |
+| 2 | missing-dx-repeat | Y/Y/Y | N | Y | Y | N | 8910 / 8911 |
+
+Failure: `missing-dx-r1` returned `bad_model_output` after its permitted repair. Quoted repair: `Rung 1 permits at most one math segment; you used 2.` The final rejected draft is not exposed by this CLI. No hint was displayed for that case: its missing result lowers no-answer/scope; this is not evidence of a displayed answer leak or use of an upcoming method. Both required 100% bars still failed. The question case lacked a citation in both runs and repeat lacked one in run 2; these remain visible per-case results. Ladder is reported, not gated. First-ink median/p95: 6390/10150 ms, then 8910/10991 ms; timing remains deferred under the existing decision. [Defect #65](https://github.com/Azrkiel/albert/issues/65) records the failure and no-retry stop.
 
 **How to use it**
 - Tick a subphase only when **every** acceptance criterion in its phase file has been verified and `pnpm verify` passes.
@@ -210,6 +240,7 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 15 | Codex (local live lane) | R3.1 live AC2 on a70918c: run 1 passed (14 calls, 64 s), run 2 failed (14 calls, 59 s), missing-dx-r1 bad_model_output after repair; no third run or retry. Ledger r3.1-eval.json 28/70; release 653/800. Per-case results and quoted totals in R3.1 Evidence; filed #65. AC1 remains passed, R3.1 unticked because three consecutive quality passes were not achieved. Offline verify 910/18. |
 | Nov 15 | Claude (questions lane) | R3.1 mock: HintRequest/HintTurn/EvalCase gain `question?` (cleaned to single-spaced plain text, 1-200 chars, else 400); prompt wraps all student data in <student_data> with "<" escaped; default-r{1,2,3}-question mocks; 2 eval cases (missing-dx-question-r1, -followup). No live calls; R3.1-AC2 stays for the live eval.
 | Nov 15 | Claude (ink lane) | R2.4 library: `src/lib/ink/pdf-export.ts` + tests; Save PDF button and AC2 remain. |
 | Nov 15 | Claude (server lane) | R2.3 server half: Repo.listEvents (by at, then insertion) and latestOpenSession join the contract, GET /api/session/latest?worksheetId= returns the latest open session with events (404/400 covered). Verify 62 files, 859/18; build passes; no live calls. R2.3 stays unticked until the client restore proves AC1. |
