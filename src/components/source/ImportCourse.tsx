@@ -39,6 +39,12 @@ export function ImportCourse() {
       </button>
       <p aria-live="polite">{busy ? "Downloading the course PDFs. This may take a while." : "Import the course notes and worksheets."}</p>
       {error && <p className={styles.error} role="alert">{error}</p>}
+      <div aria-label="Other course sources">
+        <p className={styles.soonLabel}>Other sources</p>
+        <ul className={styles.soon} role="list" data-testid="coming-soon-sources">
+          {COMING_SOON.map(name => <li key={name}>{name} <span>coming soon</span></li>)}
+        </ul>
+      </div>
     </section>
   );
 }
