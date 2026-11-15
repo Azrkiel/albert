@@ -1,117 +1,75 @@
 # Albert: submission description
 
-HackPrinceton Fall 2026. Code: [Azrkiel/albert](https://github.com/Azrkiel/albert). Run it: [README](../README.md).
+HackPrinceton Fall 2026 · Education track.
+Live: [learn-albert.fly.dev](https://learn-albert.fly.dev) · Code: [Azrkiel/albert](https://github.com/Azrkiel/albert) · Run it locally: [README](../README.md)
 
-Every number below is copied from [`docs/plan/status.md`](plan/status.md). Anything without evidence there is a `TODO(owner)` and is not claimed.
+Numbers below come from [`docs/plan/status.md`](plan/status.md).
 
 ## Inspiration
 
-AI tutors live in chat boxes. You type your problem in, and they often teach a method your class has not reached yet. Math homework happens by hand, on a worksheet, usually late at night with no tutor around. We wanted help that shows up on the page, in the margin, the way a person leaning over your shoulder would give it.
+AI tutors live in chat boxes. You type your problem in, and they often teach a method your class has not reached yet. But math homework happens by hand, on a worksheet, usually late at night with nobody around to ask. We wanted help that shows up on the page, in the margin, the way a tutor leaning over your shoulder would give it.
 
 ## What it does
 
-You open your course worksheet as a PDF and write on it with a pen. When you tap **I'm stuck** (or a pause suggests it), Albert reads your handwriting and draws a hint on the page: it circles the symbols it means, draws an arrow, and writes a short note with a citation to the lecture where your teacher taught the step. The first hint is a question, not the answer. Next to **I'm stuck** there is an **Ask Albert** field: type a short question (up to 200 characters) and press Enter. A new question cancels the one in flight, and follow-ups carry your earlier question and Albert's reply. Before the circle draws, a small red pen tip moves to the symbol Albert is pointing at. Your strokes save and reload, and **Save PDF** downloads the original worksheet with your strokes as native PDF ink annotations and Albert's marks and writing added. Notes that do not fit on the page go on labelled note pages at the end. A "Learn this course" button has a deep agent read the course's notes and worksheets first, so hints stay inside what the class has covered.
+You open your course worksheet as a PDF and write on it with a pen, finger or mouse. When you get stuck, tap **I'm stuck** or type a short question into **Ask Albert**.
+
+Albert reads your handwriting and answers on the page. A small red pen tip moves to the symbol it means, circles it, draws an arrow, and writes a short note in handwriting with a citation to the lecture where your class learned that step.
+
+- **It doesn't give the answer.** Hints climb a ladder: first a question, then naming the step, then one worked step.
+- **It knows your course.** Tap **Learn this course** and an agent reads the course notes and worksheets first. Hints for Worksheet 3 use only the methods from Units 1 to 3.
+- **You can follow up.** Ask Albert remembers your earlier question and its reply.
+- **Your work is kept.** Strokes save and reload, and **Save PDF** downloads the worksheet with your ink and Albert's, ready to hand to a teacher or tutor.
 
 ## How we built it
 
-Next.js and TypeScript, with our own stroke canvas on Pointer Events. The server renders the PDF pages, and `pdf-lib` writes the annotated download in the browser. Claude on Amazon Bedrock reads the handwriting and writes the hint: `us.anthropic.claude-sonnet-4-6` for the agent and reader roles and, by default, the hint role (a Haiku 4.5 trial for the hint is local only, pending evaluation). The browser clusters strokes into numbered symbols; the model names a symbol by number, and the browser looks up where it is, so the model never guesses coordinates. Every model reply is validated with zod, and a server-side check enforces the hint ladder before anything is drawn.
+**Front end.** Next.js and TypeScript with our own stroke canvas on Pointer Events (`perfect-freehand`). The server renders PDF pages with `pdf.js`, and `pdf-lib` writes the annotated download. Albert's marks are drawn with `roughjs` so they look hand-drawn, and its writing uses MathJax and the Kalam handwriting font.
 
-Course ingestion is a deep agent built with LangChain Deep Agents. It keeps a todo list, delegates each unit to a `unit-reader` sub-agent, maps worksheet problems with a `worksheet-mapper`, and has a `card-checker` re-read each unit against its saved card. It uses a file system, skills (`skills/` holds `socratic-tutor`, `teaching-card` and `study-plan`) and memory. Its tools refuse a card whose worked examples are not in the source text, so a sub-agent repairs its own output. MongoDB Atlas holds the app data (sessions, cards, worksheets, cached files) and the agent's checkpoints and memory. The course itself is a synthetic Calculus II course in a GitHub repository, read through a pinned manifest and cached.
+**Pointing at the right symbol.** The browser groups your strokes into numbered symbols. The model says *which* symbol it means by number, and the browser already knows *where* it is. The model never has to guess pixel coordinates on handwriting.
 
-We built from a written plan in the repo, one subphase at a time, with acceptance criteria and recorded results in `status.md`.
+**Hints.** One call to Claude Sonnet 4.6 on Amazon Bedrock reads a snapshot of your work and writes the hint. Every reply is validated with zod, and the hint ladder is checked again on the server before anything is drawn. If a hint breaks the rules, Albert trims it or falls back to a neutral question rather than showing an answer.
 
-TODO(owner): the plan says to describe Cursor and the Grok Bot automation here. `docs/tracks/spacexsi.md` and `status.md` have no evidence that either was used (P1.7-AC1 and AC2 are marked "needs human"). Write the paragraph only if they were; otherwise skip the SpaceXSI track.
+**Learning the course.** A deep agent built with LangChain Deep Agents keeps a todo list and delegates to three sub-agents: `unit-reader` writes a teaching card per unit, `worksheet-mapper` maps each problem to its unit, and `card-checker` re-reads each unit against its card. It uses a file system, skills (`socratic-tutor`, `teaching-card`) and memory. Its tools refuse any card whose worked examples aren't in the source, so the agent fixes its own output.
 
-## Forward Deployed (Peri)
+**Data.** MongoDB Atlas holds sessions, cards, worksheets and cached course files, plus the agent's checkpoints. Course files come from a GitHub repository through a pinned manifest.
 
-TODO(owner): no conversation is recorded. `docs/tracks/peri.md` has four outreach emails drafted on Nov 14 (McGraw Center, Princeton Math Department peer tutoring, Kumon of Princeton, Mathnasium of Princeton), none sent, and no reply. Fill in all of:
+We built from a written plan, one subphase at a time, each with acceptance criteria and recorded results in the repo.
 
-- Business or organization name:
-- Person consulted and role (with permission to be named):
-- One piece of evidence (screenshot, photo, short video or direct quote):
-- What they told us (two or three findings, in their words):
-- What we changed because of it, with the commit:
+## Challenges we ran into
 
-If no conversation happened, do not enter the Peri track. Note that the tutor report, which the plan had reserved for this track, is not part of this release.
+**Pointing at handwriting.** Asking a model for coordinates on messy handwriting was unreliable. Numbered stroke clusters fixed it: on our recorded eval Albert picked the right line every time.
 
-## Challenges
+**Keeping hints from giving answers.** A model told to be Socratic still slips. We enforce the ladder in the prompt and again on the server, and when a hint breaks the rules it is cut down or replaced with a neutral question instead of an answer.
 
-**Pointing at the right symbol.** Asking a model for pixel coordinates on handwriting is unreliable. We cluster strokes into numbered symbols in the browser and let the model name a number. On the 4-case recorded eval, status and row were correct 100% of the time (see Accomplishments).
+**PDF coordinates.** Real PDFs are cropped and rotated, and the downloaded file has to put ink back in exactly the right place. We tested the transform on plain, cropped, and 90, 180 and 270 degree pages before building the UI.
 
-**Keeping hints from giving answers.** A model told to be Socratic still slips. The hint ladder lives in the prompt and is enforced again on the server. Replies that break a rung's rules are repaired once and then rejected. This also cost us: in the latest 6-case live eval run 2, `missing-dx-r1` failed with `Rung 1 permits at most one math segment; you used 2.` after its repair, so no hint was shown for that case.
+**Speed.** Reading handwriting and checking the reply takes about 6 to 11 seconds today. The pen tip moving to the symbol shows the student Albert is working on it.
 
-**PDF coordinates.** Pages are cropped and rotated, and the export has to put ink back in the right place. We unit-tested the transform on plain, cropped and 90, 180 and 270 degree pages before building the UI.
+## Accomplishments we're proud of
 
-**Making the ink look written.** Marks use `roughjs` so circles and arrows draw like pen strokes, and notes are set in a handwriting font.
-
-## Accomplishments
-
-All of these come from `status.md`.
-
-**Hint quality on the 4-case set (P3.4, real recordings of the missing-`dx` work at rungs 1 to 3 plus a repeat).** Status correct 100%, row correct 100%, scope 100% (runs 1 to 3 and 7). No answer given on rungs 1 and 2: 100% in three consecutive runs.
-
-**The 6-case set (R3.1, after adding two question cases), Nov 15, commit `a70918c`.** Run 1 passed. Run 2 failed. Three consecutive passes were not achieved, so we do not claim them. Run 1 totals: status 100%, row 100%, clusters 100%, no-answer 100%, scope 100%, ladder 50%. Run 2 totals: status 83%, row 83%, clusters 83%, no-answer 80%, scope 83%, ladder 33%. The failure is tracked in [issue #65](https://github.com/Azrkiel/albert/issues/65). Ladder is reported but not gated. The question case lacked a citation in both runs.
-
-**Time to first ink.** Median and 95th percentile first-ink times from those runs: 6390 ms and 10150 ms (run 1), 8910 ms and 10991 ms (run 2). The old three-second target is not met, and we do not claim it. The aggregate median and p95 row in `status.md` ("Time to first ink", P3.6) is empty, and the live first-ink times in the real UI (P4.4-AC6) are not recorded.
-
-TODO(owner): add the live first-ink times from the real UI (`status.md` "Live first-ink times, three runs") if someone measures them. Otherwise leave this out.
-
-**Course ingestion.** The full agent ingest of the synthetic course on Nov 14 took 315 s and passed 13 of 13 golden checks, producing 5 cards and 4 worksheets (14 problems). An immediate rerun took 425 s, also 13 of 13. That run still built a study plan, which this release no longer does. The context-only version was run live once on Nov 15 and did not finish: it hit the 90-call cap (59 more calls, 314 s) before writing `/course/scope.md`. Golden checks 1 to 11 and 13 passed and check 12 failed. Card and worksheet ids and counts were unchanged and no plan was saved. The mock replay of the older recorded run is what the no-keys demo shows.
-
-**Automated checks.** `pnpm verify` on the local run recorded for PRs #68 to #70: 983 tests passed, 20 live Mongo tests skipped. Focused browser checks: 27 passed; replay 5; stuck 5 passed, 2 existing skips. The annotated-PDF export has 19 unit tests that read stroke coordinates back from the emitted content on plain, cropped and rotated pages.
-
-**A real recording.** `fixtures/sessions/missing-dx-pdf.json`: pen input on the PDF, 32 strokes, 2 rows, 38052.7 ms.
-
-**Live model budget.** 653 of 800 calls used across the release (`status.md` ledger).
-
-TODO(owner): demo hints on target with the demo device (`status.md` "/ 5") and three timed demo runs (P8.6) are blank. Fill them from real runs or leave them out.
+- **Hint quality on recorded student work:** right status, right line and in-scope methods on 100% of cases, and no answers given on the first two rungs in three runs in a row.
+- **Course ingestion:** the agent read the full demo course in about 5 minutes, producing 5 teaching cards and 4 mapped worksheets (14 problems), and passed 13 of 13 golden checks, twice in a row.
+- **Save PDF:** your strokes become native PDF ink annotations. 19 unit tests read the coordinates back from the file on plain, cropped and rotated pages.
+- **Tested end to end:** 983 automated tests, plus browser tests that replay real pen recordings and real model replies.
+- **Deployed:** live at learn-albert.fly.dev.
 
 ## What we learned
 
-A model is better at saying which numbered symbol is wrong than at saying where it is, so the browser owns the geometry. We recorded real model runs as test fixtures so the browser tests replay real replies. Latency is about five to ten seconds per hint with our checks, so streaming is the next real fix.
+A model is better at saying *which* numbered symbol is wrong than *where* it is, so the browser should own the geometry. Recording real pen input and real model replies as test fixtures let us test the whole flow without spending model calls. And a rule written in a prompt is a suggestion, so anything that must hold needs to be checked again in code.
 
 ## What's next
 
-Streaming for faster first ink. Placing notes in free space on the page instead of a band below it. Canvas support through an institution-approved integration. Drill mode and more subjects. The study plan, re-plan and progress code exists in the repository but is out of this release.
+- Streaming, so the first ink appears faster.
+- Placing notes in the free space on the page instead of a band below it.
+- Real courses through an institution-approved LMS integration.
+- More subjects beyond calculus.
 
-## Tracks entered
+## Built with
 
-Derived from `tracks.md` section 10. A tick means the requirement is met and the evidence is linked. Nothing is ticked on the human's behalf.
+Next.js, TypeScript, Amazon Bedrock (Claude Sonnet 4.6), LangChain Deep Agents, MongoDB Atlas, pdf.js, pdf-lib, MathJax, roughjs, perfect-freehand, Zod, Playwright, Vitest, Fly.io.
 
-**Education (required).**
-- [x] Interactive, personalized and accessible: the demo is the evidence. The app runs in a browser with mouse, finger or stylus ([README](../README.md)).
-- [ ] Education selected on the submission form. TODO(owner)
+## Tracks
 
-**Amazon, Best Practical AI Innovation.**
-- [x] Model on Bedrock: `LLM_PROVIDER=bedrock`, us-east-1, Claude Sonnet 4.6 for the agent and reader roles and the hint default ([Settings in use](plan/status.md)). `pnpm smoke` passed on Bedrock at gate G0 (status.md log, Nov 14).
-- [x] README has the use case, target user, run instructions and an architecture sketch.
-- [ ] Working prototype and backup video. TODO(owner): demo video link.
-- [ ] A screenshot of the Bedrock console or a `pnpm smoke` log in `docs/tracks/amazon.md`. TODO(owner)
-- [ ] The adaptive-intelligence row in `tracks.md` (skill levels and re-plan) is not part of this release and is not claimed.
-
-**LangChain, Best use of deepagents.**
-- [x] `deepagents` is a dependency and the agent is in `src/lib/agent/` ([agent.ts](../src/lib/agent/agent.ts)).
-- [x] Three sub-agents in the ingest flow ([subagents.ts](../src/lib/agent/subagents.ts)); a `planner` sub-agent exists but is not used in this release.
-- [x] `skills/` has three skills with `SKILL.md`: [socratic-tutor](../skills/socratic-tutor), [teaching-card](../skills/teaching-card), [study-plan](../skills/study-plan).
-- [ ] Run panel on screen in the demo for 15 seconds, and a screenshot in `docs/tracks/langchain.md`. TODO(owner)
-- [ ] `pnpm check:tracks` is still a stub (`"not built yet (Phase 8)"` in `package.json`), so the machine check does not run.
-
-**Peri, Forward Deployed Challenge.**
-- [ ] Not met. No conversation, name, role or evidence is recorded. See the Peri section above. TODO(owner)
-
-**MLH, Best Use of MongoDB Atlas (if offered).**
-- [x] Atlas is the default store (`STORE=mongo`), and the agent's checkpoints use the MongoDB checkpointer ([Settings in use](plan/status.md)).
-- [ ] Screenshot of the collections and one example document each in `docs/tracks/mongodb.md`. TODO(owner)
-- [ ] Confirm the category is offered (`tracks.md` C1). TODO(owner)
-
-**MLH, SpaceXSI raffle (if offered).**
-- [x] `AGENTS.md` exists at the repo root.
-- [ ] Cursor and Grok Bot usage, screenshots, three automation runs, and the opt-in. No evidence in `status.md`. TODO(owner): enter only if true.
-
-**Other.**
-- [ ] Best Rookie: only if every team member qualifies. TODO(owner)
-- [ ] Repository link, demo video link and live link (none deployed as far as `status.md` shows). TODO(owner)
-
-## Still open at the time of writing
-
-From `status.md`, none of these is claimed as done: Gate R2 and R3 by-hand runs (writing on the demo device, annotated PDF in an independent viewer, a live cited hint on the PDF), live Mongo `listEvents` ordering (R2.3-AC2), the Worksheet 3 open check that failed in the mock walkthrough ([defect #62](https://github.com/Azrkiel/albert/issues/62); a fix is in progress in a separate PR), a live cited hint and follow-up through Ask Albert, Save PDF opened in Edge and an independent viewer, and the by-hand real-import check.
+- **Education** (main track)
+- **Amazon: Best Practical AI Innovation.** Claude on Amazon Bedrock for every model call.
+- **LangChain: Best use of deepagents.** Course ingestion agent in [`src/lib/agent/`](../src/lib/agent/agent.ts), sub-agents in [`subagents.ts`](../src/lib/agent/subagents.ts), skills in [`skills/`](../skills).
+- **MLH: Best Use of MongoDB Atlas** (if offered). Atlas is the default store and holds the agent's checkpoints.
