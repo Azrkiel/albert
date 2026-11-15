@@ -102,7 +102,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   }, [sendHint, sessionId, sink, now]);
   useImperativeHandle(ref, () => ({ requestHint }), [requestHint]);
   // P3.8: an error shows only its plain note; partial hint text before it is dropped.
-  const hintText = hintMarginText(hint.events);
+  const hintText = hintMarginText(hint.events) || (hint.status === "streaming" ? "Getting a hint..." : "");
   const liveEvents = useCallback((events: SessionEvent[]) => {
     if (!events.length) return;
     // New live input takes ownership of the timeline; a pending replay cannot add old ink.
