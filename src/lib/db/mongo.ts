@@ -108,6 +108,22 @@ export class MongoRepo implements Repo {
     if (!await this.one<Session>("sessions", sessionId)) throw new Error(`Session not found: ${sessionId}`);
     if (events.length) await this.db.collection("session_events", { ignoreUndefined: true }).insertMany(events.map(event => ({ ...event, sessionId })));
   }
+  /**
+   * Order is `at` ascending, then `_id` ascending. Events are inserted without an explicit _id, so the driver
+   * assigns ObjectIds in array order with a per-process counter: insertion order within a process is stable.
+   */
+  async listEvents(sessionId: string): Promise<SessionEvent[]> {
+    const docs = await this.db.collection("session_events", { ignoreUndefined: true }).find({ sessionId }).sort({ at: 1, _id: 1 }).toArray();
+    return docs.map(doc => {
+      const { _id, sessionId: owner, ...event } = doc;
+      void _id; void owner;
+      return event as SessionEvent;
+    });
+  }
+  async latestOpenSession(worksheetId: string): Promise<Session | null> {
+    const doc = await (await this.collection("sessions")).findOne({ worksheetId, endedAt: { $exists: false } }, { sort: { startedAt: -1, _id: 1 } });
+    return doc ? withoutId<Session>(doc) : null;
+  }
   async endSession(sessionId: string, at: string): Promise<void> {
     const result = await (await this.collection("sessions")).updateOne({ _id: sessionId }, { $set: { endedAt: at } });
     if (!result.matchedCount) throw new Error(`Session not found: ${sessionId}`);

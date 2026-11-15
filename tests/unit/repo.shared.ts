@@ -172,6 +172,31 @@ export function repoBehaviour(name: string, create: () => Promise<RepoHarness>, 
       expect(await harness.readEvents("other")).toEqual([]);
     });
 
+    it("R2.3-AC2: lists events by time then insertion order, across batches and equal timestamps", async () => {
+      await repo.createSession(f.session);
+      const at = (n: number, id: string): SessionEvent => ({ type: "problem_opened", at: n, problemId: id });
+      await repo.appendEvents(f.session.id, [at(5, "a"), at(3, "b"), at(5, "c")]);
+      await repo.appendEvents(f.session.id, [at(5, "d"), at(1, "e"), at(3, "f")]);
+      const listed = await repo.listEvents(f.session.id);
+      expect(listed.map(e => e.type === "problem_opened" && e.problemId)).toEqual(["e", "b", "f", "a", "c", "d"]);
+      expect(await repo.listEvents("other")).toEqual([]);
+      mutate(listed);
+      expect((await repo.listEvents(f.session.id)).map(e => e.at)).toEqual([1, 3, 3, 5, 5, 5]);
+    });
+
+    it("R2.3: latestOpenSession returns the newest open session of a worksheet", async () => {
+      const make = (id: string, startedAt: string, worksheetId = f.session.worksheetId): Session => ({ ...f.session, id, startedAt, worksheetId });
+      expect(await repo.latestOpenSession(f.session.worksheetId)).toBeNull();
+      await repo.createSession(make("old", "2026-01-01T10:00:00.000Z"));
+      await repo.createSession(make("new", "2026-01-01T11:00:00.000Z"));
+      await repo.createSession(make("elsewhere", "2026-01-01T12:00:00.000Z", "other-sheet"));
+      expect((await repo.latestOpenSession(f.session.worksheetId))?.id).toBe("new");
+      await repo.endSession("new", "2026-01-01T11:30:00.000Z");
+      expect((await repo.latestOpenSession(f.session.worksheetId))?.id).toBe("old");
+      await repo.endSession("old", "2026-01-01T10:30:00.000Z");
+      expect(await repo.latestOpenSession(f.session.worksheetId)).toBeNull();
+    });
+
     it("rejects session mutations for unknown sessions", async () => {
       await expect(repo.appendEvents("missing", [f.event])).rejects.toThrow();
       await expect(repo.endSession("missing", f.session.startedAt)).rejects.toThrow();
