@@ -123,12 +123,13 @@ Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\t
        systemPrompt: COURSE_AGENT_PROMPT,
        tools: mainTools(ctx),
        subagents: subagents(ctx),
+       middleware: [todoListMiddleware()],   // from "langchain"; deepagents has no write_todos tool without it
        skills: ["/skills/"],
        memory: ["/memories/AGENTS.md"],
        backend: new CompositeBackend(new StateBackend(), {
-         "/memories/": new StoreBackend({ namespace: () => ["albert", ctx.studentId, ctx.courseId, "memories"] }),
-         "/course/":   new StoreBackend({ namespace: () => ["albert", "course", ctx.courseId] }),
-         "/skills/":   new FilesystemBackend({ rootDir: "./skills", virtualMode: true }),
+         "/memories/": new StoreBackend({ store, namespace: () => ["albert", ctx.studentId, ctx.courseId, "memories"] }),
+         "/course/":   new StoreBackend({ store, namespace: () => ["albert", "course", ctx.courseId] }),
+         "/skills/":   new FilesystemBackend({ rootDir: resolve(process.cwd(), "skills"), virtualMode: true }),
        }),
        store,          // MongoDB-backed when STORE=mongo, in-memory otherwise
        checkpointer,   // MongoDBSaver when STORE=mongo, MemorySaver otherwise
@@ -143,15 +144,17 @@ Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\t
    - a call to the sub-agent tool → `subagent_start`; its result → `subagent_end`
    - a file write or edit → `file`, with the path
    - a call to one of our tools → `tool`. Our tools also call `ctx.emit` themselves, so these events appear even if the stream mapping misses them
-   - the final message → `note` with label `done`
+   - the final message → `note` with label `summary` (the agent's one line); `runs.ts` then ends the run with the contract's `note` `done` whose `detail` is the run result
 6. `runs.ts`: `runIngest(courseId)` and `runReplan(courseId, trigger)` create an `AgentRun`, invoke the agent with one user message, forward events to a callback, and save the run when it ends.
 
+**Installed API (Nov 14; deepagents 1.16.5, langchain 1.6.6, @langchain/langgraph 1.7.4, @langchain/langgraph-checkpoint-mongodb 1.5.1).** Where this differs from the snippet above, the installed types win: (a) `createDeepAgent` adds no todo tool by itself; pass `middleware: [todoListMiddleware()]` from `langchain` to get `write_todos`. The built-in tools are `ls`, `read_file`, `write_file`, `edit_file`, `delete`, `glob`, `grep`, `execute` (no sandbox here) and `task` (arguments `description`, `subagent_type`). (b) `StoreBackend` takes `{ store, namespace }`; pass the store explicitly so seeding through `backend.write` works outside a run. (c) The checkpoint package also exports `MongoDBStore` (use it as the long-term store when `STORE=mongo`; collections `store`, `checkpoints`, `checkpoint_writes`). It bundles its own mongodb 6 driver, so `runtime.ts` casts the app's mongodb 7 client; verified live. (d) Stream with `streamMode: "updates"`; main-graph updates carry the AI tool calls (`write_todos`, `task`, `write_file`/`edit_file`) and their tool results, which is all `events.ts` needs. Sub-agent internals are not in that stream. The mapper does not map our own tools (they emit `tool` events themselves, P6.3). (e) `@langchain/core/testing` `fakeModel()` drives offline tests. (f) `pnpm tsx scripts/agent-hello.ts` takes `--then-ask` to run a second thread in the same process, which `STORE=memory` needs for AC2.
+
 **Acceptance**
-- [ ] **P6.2-AC1** — The agent runs a trivial task and streams events. *Verify:* `pnpm tsx scripts/agent-hello.ts` asks the agent to "write a todo list with two items and save a note to /course/hello.md", and prints at least one `todo` and one `file` event and a final `note`.
-- [ ] **P6.2-AC2** — Persistent files survive a new run. *Verify:* run the script twice with different thread ids; the second run is asked to read `/course/hello.md` and prints its content.
-- [ ] **P6.2-AC3** — Memory is loaded at start. *Verify:* seed `/memories/AGENTS.md` with "The student's name is Ada." and ask "what is the student's name?".
-- [ ] **P6.2-AC4** — Checkpoints land in MongoDB. *Verify:* with `STORE=mongo`, after a run the checkpoint collection has documents for that thread id.
-- [ ] **P6.2-AC5** — It also runs with no database. *Verify:* `STORE=memory pnpm tsx scripts/agent-hello.ts` passes AC1.
+- [x] **P6.2-AC1** — The agent runs a trivial task and streams events. *Verify:* `pnpm tsx scripts/agent-hello.ts` asks the agent to "write a todo list with two items and save a note to /course/hello.md", and prints at least one `todo` and one `file` event and a final `note`.
+- [x] **P6.2-AC2** — Persistent files survive a new run. *Verify:* run the script twice with different thread ids; the second run is asked to read `/course/hello.md` and prints its content.
+- [x] **P6.2-AC3** — Memory is loaded at start. *Verify:* seed `/memories/AGENTS.md` with "The student's name is Ada." and ask "what is the student's name?".
+- [x] **P6.2-AC4** — Checkpoints land in MongoDB. *Verify:* with `STORE=mongo`, after a run the checkpoint collection has documents for that thread id.
+- [x] **P6.2-AC5** — It also runs with no database. *Verify:* `STORE=memory pnpm tsx scripts/agent-hello.ts` passes AC1.
 
 **Fallback.** If a backend class or option differs from the snippet above, follow the installed types. If persistent storage through the store cannot be made to work within an hour, use the state backend for everything and keep "memory" as a `student_notes` document that a `get_student_notes` / `save_student_notes` tool pair reads and writes. The teaching cards and plans are saved through our own tools either way, so nothing downstream changes.
 
@@ -175,13 +178,15 @@ Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\t
 | `get_previous_plan` | planner | The latest plan | Plan or null |
 | `save_study_plan` | planner | `validatePlan`, then `repo.savePlan` | ok with the plan id, or problems |
 
+**Implementation (Nov 14).** `save_teaching_card` takes `CardDraftSchema` plus `unitId` (index-based file and method references; `get_course_outline` lists each unit's lecture files with `fileIndex`) and `save_worksheet` takes `WorksheetDraftSchema` plus `fileId`; code assigns ids, `taught`, due dates and `builtBy: "agent"`. `save_study_plan` takes a summary and items without ids or status. `validatePlan` (`functions/plan.ts`) is written in P6.3 because that tool needs it; P6.7 builds on it.
+
 Every tool calls `ctx.emit({ type: "tool", label })` with a short human label such as "Saved card: Unit 3 — Trigonometric Substitution".
 
 **Acceptance**
-- [ ] **P6.3-AC1** — Save tools reject bad input with usable messages. *Verify:* `tests/unit/agent-tools.test.ts` calls `save_teaching_card` with a card whose example is not in the source: the result is `ok: false` with a problem naming that example, and the `Repo` is unchanged.
-- [ ] **P6.3-AC2** — Save tools accept good input and assign ids. *Verify:* the same test file with a fixture card.
-- [ ] **P6.3-AC3** — `get_progress` works on an empty history. *Verify:* unit test returns empty lists, not an error.
-- [ ] **P6.3-AC4** — Each tool emits one event. *Verify:* unit test with a spy `emit`.
+- [x] **P6.3-AC1** — Save tools reject bad input with usable messages. *Verify:* `tests/unit/agent-tools.test.ts` calls `save_teaching_card` with a card whose example is not in the source: the result is `ok: false` with a problem naming that example, and the `Repo` is unchanged.
+- [x] **P6.3-AC2** — Save tools accept good input and assign ids. *Verify:* the same test file with a fixture card.
+- [x] **P6.3-AC3** — `get_progress` works on an empty history. *Verify:* unit test returns empty lists, not an error.
+- [x] **P6.3-AC4** — Each tool emits one event. *Verify:* unit test with a spy `emit`.
 
 ---
 
@@ -216,10 +221,12 @@ Every tool calls `ctx.emit({ type: "tool", label })` with a short human label su
    6. Delegate to `planner` for the first plan.
    7. Tick off todos as they finish.
 
+**Implementation notes (Nov 14).** Custom sub-agents do not inherit the main agent's skills, so each sub-agent lists `skills: ["/skills/"]`. Store namespace parts may not contain `.` or `:` (and deepagents limits the character set), so `agent.ts` encodes course and student ids with `nsPart`. `pnpm tsx scripts/agent-unit.ts --course synthetic --unit 3 --source synthetic --state work/course-synthetic.json` is the AC3 command (STORE=memory).
+
 **Acceptance**
-- [ ] **P6.4-AC1** — Three skills exist with valid front matter. *Verify:* `tests/unit/skills.test.ts` parses each `SKILL.md` and checks `name` and `description`; `skills/socratic-tutor/LICENSE.md` exists and contains "MIT".
-- [ ] **P6.4-AC2** — Four sub-agents are defined, each with only its listed tools. *Verify:* unit test over the exported array.
-- [ ] **P6.4-AC3** — One sub-agent works alone. *Verify:* `pnpm tsx scripts/agent-unit.ts --course <id> --unit 3` invokes the agent with "build the card for unit 3 only" and a card for unit 3 is saved, with at least one `subagent_start` event.
+- [x] **P6.4-AC1** — Three skills exist with valid front matter. *Verify:* `tests/unit/skills.test.ts` parses each `SKILL.md` and checks `name` and `description`; `skills/socratic-tutor/LICENSE.md` exists and contains "MIT".
+- [x] **P6.4-AC2** — Four sub-agents are defined, each with only its listed tools. *Verify:* unit test over the exported array.
+- [x] **P6.4-AC3** — One sub-agent works alone. *Verify:* `pnpm tsx scripts/agent-unit.ts --course <id> --unit 3` invokes the agent with "build the card for unit 3 only" and a card for unit 3 is saved, with at least one `subagent_start` event.
 
 ---
 

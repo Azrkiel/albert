@@ -5,4 +5,17 @@ export type { CardUnit, CardDraft, ExtractCardArgs } from "./functions/extract-c
 export { extractWorksheet, validateWorksheet, WorksheetDraftSchema } from "./functions/extract-worksheet";
 export type { ExtractWorksheetArgs } from "./functions/extract-worksheet";
 export { ingestFlat } from "./functions/ingest-flat";
+export { createTools, mainTools, TOOL_NAMES } from "./tools";
+export type { ToolContext, ToolName } from "./tools";
+export { validatePlan, planMaxMinutesPerDay } from "./functions/plan";
+export type { PlanCourse } from "./functions/plan";
+export { subagents, SUBAGENT_TOOLS, SUBAGENT_NAMES } from "./subagents";
+export type { SubAgentName } from "./subagents";
+export { createCourseAgent, courseBackend, COURSE_AGENT_PROMPT } from "./agent";
+export type { AgentContext } from "./agent";
+export { createEventMapper } from "./events";
+export { getAgentRuntime, agentThreadId } from "./runtime";
+export type { AgentRuntime } from "./runtime";
+export { runAgent, runIngest, runReplan } from "./runs";
+export type { RunOptions } from "./runs";
 export { checkIngest, checkIngestData } from "./functions/check-ingest";

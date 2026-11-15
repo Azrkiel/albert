@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, type Ref } from "react";
+import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from "react";
 import { useSearchParams } from "next/navigation";
-import type { CanvasLayout, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
+import type { AlbertMark, CanvasLayout, HintEvent, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
 import { hintMarginText } from "@/lib/tutor/error-notes";
-import { mathToSvg, preloadInk, renderSegment, revealWipe } from "@/lib/ink";
+import { createConductor, mathToSvg, preloadInk, renderSegment, revealWipe, type HintContext } from "@/lib/ink";
 import "@/lib/ink/ink.css";
 import { buildHintRequest, clearRow, createSessionState, detectStuck, eraseGesture, exportRecording, historyEvent, isProblemSolved, listClusters, parseRecording, reduceSessionEvent, renderSnapshot, Replayer, type SessionState, type Snapshot } from "@/lib/canvas";
+import { AlbertControls, AlbertLayer } from "./AlbertLayer";
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock, type HintRequested } from "./ProblemBlock";
@@ -35,7 +36,11 @@ const devBuild = process.env.NODE_ENV !== "production";
 // Default ruled until P2.5a-AC4 passes on real handwriting; ?layout= overrides for checks and demos.
 const envLayout: CanvasLayout = process.env.NEXT_PUBLIC_CANVAS_LAYOUT === "free" ? "free" : "ruled";
 
-export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: string, rung: Rung) => Promise<void> };
+export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: string, rung: Rung) => Promise<void>;
+  /** P3.7: fade all of a problem's Albert notes (a `correct` check). */
+  fadeAlbertNotes: (problemId: string) => void;
+  /** Remove all of a problem's Albert notes. */
+  clearAlbertNotes: (problemId: string) => void };
 
 export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksheet", ref }: { worksheetId: string; problemSource?: HintRequest["problemSource"]; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
   const params = useSearchParams();
@@ -78,6 +83,22 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
       : Math.max(current.current.durationMs, performance.now() - getSessionStart());
   }, [getSessionStart]);
   const replace = useCallback((next: SessionState) => { current.current = next; setState(next); }, []);
+  // P4.3: Albert's ink. The conductor draws into each problem's AlbertLayer; `feed` says which events it has seen.
+  const nowRef = useRef(now);
+  const shownRef = useRef<(ctx: HintContext, marks: AlbertMark[]) => void>(() => {});
+  useEffect(() => { nowRef.current = now; }, [now]);
+  // The host only reads the refs later, when events arrive; nothing is read during render.
+  // eslint-disable-next-line react-hooks/refs
+  const [conductor] = useState(() => createConductor({
+    geometry: () => ({ rows: current.current.rows, clusters: listClusters(current.current) }),
+    reducedMotion: () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    now: () => nowRef.current(),
+    onShown: (ctx, marks) => shownRef.current(ctx, marks),
+  }));
+  // `first` identifies a stream (each request parses into new event objects); its context comes from the
+  // latest hint_requested event, so the request/snapshot code path is not touched.
+  useSyncExternalStore(conductor.subscribe, conductor.version, conductor.version); // re-render when Albert's ink changes a surface's size
+  const feed = useRef<{ first: HintEvent | undefined; ctx: HintContext | null; n: number }>({ first: undefined, ctx: null, n: 0 });
   const detect = useCallback((at: number) => {
     const s = current.current;
     const signal = detectStuck(s.events, at, s.rows, listClusters(s));
@@ -99,15 +120,70 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     sink({ type: "hint_requested", at: now(), hintId: `hint-${sessionId}-${current.current.events.length}`, rowId, rung });
     setHintTarget({ problemId, rowId });
     try {
-      const request = await buildHintRequest(current.current, rowId, rung, trigger, { sessionId, problemSource });
+      const request = await buildHintRequest(
+        current.current,
+        rowId,
+        rung,
+        trigger,
+        { sessionId, problemSource },
+      );
       // A slower snapshot from an older click must not replace a newer request.
       if (id === hintRequestId.current) await sendHint(request);
     } catch {
-      if (id === hintRequestId.current) setError("Could not prepare your writing for a hint. Try again.");
+      if (id === hintRequestId.current) {
+        setError("Could not prepare your writing for a hint. Try again.");
+      }
     }
   }, [sendHint, sessionId, sink, now, problemSource]);
-  useImperativeHandle(ref, () => ({ requestHint }), [requestHint]);
+
+  useImperativeHandle(ref, () => ({
+    requestHint,
+    fadeAlbertNotes: (problemId) => conductor.fadeProblem(problemId),
+    clearAlbertNotes: (problemId) => conductor.clearProblem(problemId),
+  }), [requestHint, conductor]);
+
+  // A finished hint is part of the session: its drawn marks go in as a hint_shown event (replayed in P4.6).
+  useEffect(() => {
+    shownRef.current = (ctx, marks) => sink({
+      type: "hint_shown",
+      at: now(),
+      hintId: ctx.hintId,
+      marks,
+    });
+  }, [sink, now]);
+
+  useEffect(() => {
+    const f = feed.current;
+    const events = hint.events;
+    if (!events.length) return;
+
+    if (events[0] !== f.first) {
+      const requested = current.current.events.findLast(
+        (e) => e.type === "hint_requested",
+      );
+      const problemId = requested && current.current.rows.find(
+        (row) => row.id === requested.rowId,
+      )?.problemId;
+
+      f.first = events[0];
+      f.n = 0;
+      f.ctx = requested && problemId ? {
+        hintId: requested.hintId,
+        seedId: requested.hintId,
+        problemId,
+        rowId: requested.rowId,
+        rung: requested.rung,
+      } : null;
+    }
+
+    while (f.n < events.length) {
+      const event = events[f.n++]!;
+      if (f.ctx) conductor.handle(f.ctx, event);
+    }
+  }, [hint.events, conductor]);
   // P3.8: an error shows only its plain note; partial hint text before it is dropped.
+  // The writing is drawn as ink once a hint event is in and no error followed; until then the plain text shows.
+  const hintInk = hint.events.some((event) => event.type === "hint") && !hint.events.some((event) => event.type === "error");
   const hintText = hintMarginText(hint.events) || (hint.status === "streaming" ? "Getting a hint..." : "");
   const liveEvents = useCallback((events: SessionEvent[]) => {
     if (!events.length) return;
@@ -123,7 +199,10 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   const capture = useCallback((stroke: Stroke) => {
     liveEvents(stroke.tool === "eraser" ? eraseGesture(current.current, stroke.problemId, stroke.points, stroke.t1)
       : [{ type: "stroke_end", at: stroke.t1, stroke }]);
-  }, [liveEvents]);
+    // New writing in a row Albert pointed at fades that hint (P4.4).
+    const rowId = current.current.strokes.find((s) => s.id === stroke.id)?.rowId;
+    if (stroke.tool === "pen" && rowId) conductor.inkAdded(stroke.problemId, rowId);
+  }, [liveEvents, conductor]);
   const history = useCallback((direction: "undo" | "redo") => {
     const at = Math.max(current.current.durationMs, performance.now() - getSessionStart());
     const event = historyEvent(current.current, direction, at);
@@ -181,7 +260,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     setError("");
     setReplayDone(false);
     setRevision((value) => value + 1); // Discard in-flight pointer drafts on replacement.
-    const reset = () => { syncRestart(); replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.layout ?? "ruled"),
+    const reset = () => { syncRestart(); conductor.reset(); replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.layout ?? "ruled"),
       durationMs: rec.durationMs, ...(rec.notes === undefined ? {} : { notes: rec.notes }) }); };
     reset();
     origin.current = performance.now() - rec.durationMs;
@@ -202,7 +281,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
       done();
     }
     else void next.play().then(done, () => { if (player.current === next) setError("Could not replay recording."); });
-  }, [replace, sink, detect, syncRestart]);
+  }, [replace, sink, detect, syncRestart, conductor]);
 
   useEffect(() => {
     if (!devBuild || !fixture) return;
@@ -309,6 +388,12 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
         hintDisabled={hint.status === "streaming" || isProblemSolved(state.events, problem.id)}
         onHintRequested={(request) => onHintRequested(problem.id, request)}
         getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear} layout={state.layout}
+        albertLayer={<AlbertLayer problemId={problem.id} conductor={conductor} />}
+        albertExtent={conductor.problemInk(problem.id).extent}
+        albertOverlay={({ height }) => <AlbertControls problemId={problem.id} conductor={conductor} height={height}
+          onMoreHelp={(rowId, rung) => { if (!isProblemSolved(current.current.events, problem.id)) void requestHint(problem.id, rowId, rung as Rung); }} />}
+        hintInk={hintInk && hintTarget?.problemId === problem.id}
+        onPenDown={() => conductor.interrupt()}
         devOverlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))}
           lines={state.layout === "free" ? rows : undefined} /> : undefined} />;
     })}

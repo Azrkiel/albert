@@ -6,3 +6,8 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* P4.4: the pulsing dot while Albert is looking. */
+.albert-dot { animation: albert-pulse 900ms ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes albert-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.7); } }
+@media (prefers-reduced-motion: reduce) { .albert-dot { animation: none; } }
