@@ -1,4 +1,5 @@
 import type { CanvasLayout, Cluster, Row, SessionEvent, SessionRecording, Stroke, StuckSignal } from "../contracts";
+import { assignPageLine, pageRows } from "./pdf-pages";
 import { clusterRow } from "./clusters";
 import { assignLine, lineRows } from "./lines";
 import { assignRow, createRows, ensureRows } from "./rows";
@@ -8,10 +9,10 @@ type Edit = { kind: "draw" | "erase"; strokeIds: string[]; rowId: string };
 
 export type SessionState = {
   worksheetId: string;
-  surface?: "pdf";
-  fileId?: string;
   /** "ruled": fixed bands (P2.2). "free": rows are lines inferred from ink (P2.5a). */
   layout: CanvasLayout;
+  surface?: "pdf";
+  fileId?: string;
   problems: SessionRecording["problems"];
   rows: Row[];
   strokes: Stroke[];
@@ -82,8 +83,10 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     if (strokes.some((existing) => existing.id === stroke.id)) return state;
     if (!state.problems.some((problem) => problem.id === stroke.problemId)) throw new Error("Unknown problem");
     if (state.layout === "free") {
-      stroke.rowId ??= assignLine(stroke, strokes);
-      rows = lineRows(state.problems.map(({ id }) => id), [...strokes, stroke]);
+      if (state.surface === "pdf" && !stroke.page) throw new Error("PDF stroke requires a page");
+      stroke.rowId ??= state.surface === "pdf" ? assignPageLine(stroke, strokes) : assignLine(stroke, strokes);
+      rows = state.surface === "pdf" ? pageRows(state.problems.map(({ id }) => id), [...strokes, stroke])
+        : lineRows(state.problems.map(({ id }) => id), [...strokes, stroke]);
     } else stroke.rowId ??= assignRow(stroke, rows);
     if (!rows.some((row) => row.id === stroke.rowId && row.problemId === stroke.problemId && row.page === stroke.page)) throw new Error("Unknown row");
     event = { ...event, stroke };
@@ -94,7 +97,7 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     if (stroke.tool === "pen" && stroke.erasedAt === undefined) {
       delete stuckMarks[stroke.problemId];
       undoStack = [...undoStack, { kind: "draw", strokeIds: [stroke.id], rowId: stroke.rowId }];
-      redoStack = stroke.page === undefined ? [] : redoStack.filter(edit => rows.find(r => r.id === edit.rowId)?.page !== stroke.page);
+      redoStack = state.surface === "pdf" ? redoStack.filter(edit => rows.find(r => r.id === edit.rowId)?.page !== rows.find(r => r.id === stroke.rowId)?.page) : [];
     }
   } else if (event.type === "erase" || event.type === "undo") {
     const ids = new Set(event.strokeIds);
@@ -102,18 +105,18 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     const row = rows.find((row) => row.id === rowId);
     const affected = strokes.filter((stroke) => ids.has(stroke.id));
     if (!row || !ids.size || ids.size !== event.strokeIds.length || affected.length !== ids.size
-      || affected.some((stroke) => stroke.rowId !== row.id || stroke.problemId !== row.problemId || stroke.page !== row.page || stroke.tool !== "pen")) {
+      || affected.some((stroke) => stroke.rowId !== row.id || stroke.problemId !== row.problemId || stroke.tool !== "pen")) {
       throw new Error("Invalid edit targets");
     }
     let erase = true;
     if (event.type === "erase") {
       if (affected.some((stroke) => stroke.erasedAt !== undefined)) throw new Error("Stroke already erased");
       undoStack = [...undoStack, { kind: "erase", strokeIds: [...event.strokeIds], rowId: event.rowId }];
-      redoStack = row.page === undefined ? [] : redoStack.filter(edit => rows.find(r => r.id === edit.rowId)?.page !== row.page);
+      redoStack = state.surface === "pdf" ? redoStack.filter(edit => rows.find(r => r.id === edit.rowId)?.page !== row.page) : [];
     } else {
       const redo = event.redo === true;
       const stack = redo ? redoStack : undoStack;
-      const index = stack.findLastIndex(edit => row.page === undefined || rows.find(r => r.id === edit.rowId)?.page === row.page);
+      const index = state.surface === "pdf" ? stack.findLastIndex(edit => rows.find(r => r.id === edit.rowId)?.page === row.page) : stack.length - 1;
       const edit = stack[index];
       if (!edit || edit.rowId !== event.rowId || edit.strokeIds.length !== ids.size || edit.strokeIds.some((id) => !ids.has(id))) {
         throw new Error("Invalid undo/redo action");
@@ -148,7 +151,7 @@ export function reduceSessionEvent(state: SessionState, event: SessionEvent): Se
   let next = applySessionEvent(state, event);
   if (next === state) return state;
   if (next.layout === "free" && next.strokes !== state.strokes) {
-    next = { ...next, rows: lineRows(next.problems.map(({ id }) => id), next.strokes) };
+    next = { ...next, rows: next.surface === "pdf" ? pageRows(next.problems.map(({ id }) => id), next.strokes) : lineRows(next.problems.map(({ id }) => id), next.strokes) };
   }
   return reclusterChanged(state, next);
 }

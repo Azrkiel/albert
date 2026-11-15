@@ -34,14 +34,21 @@ export async function loadMockHint(req: HintRequest): Promise<MockHint> {
   if (req.problemSource === "handwriting") return read(`handwriting-r${req.rung}`);
   const derived = `${req.problemId.replaceAll("/", "_")}-r${req.rung}`;
   if (!safeStem.test(derived)) throw new Error("Invalid hint problemId for mock lookup");
-  try {
-    const mock = await read(derived);
-    return matchesRequest(mock, req) ? mock : read(`default-r${req.rung}`);
-  } catch (error) {
-    // A malformed fixture must fail visibly, rather than silently use a fallback.
-    if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
-    return read(`default-r${req.rung}`);
+  // R3.1: a request with a question tries the problem's "-question" fixture, then the problem's plain one (its
+  // recorded targets), then the default question fixture, then the default plain one.
+  const stems = req.question === undefined
+    ? [derived, `default-r${req.rung}`]
+    : [`${derived}-question`, derived, `default-r${req.rung}-question`, `default-r${req.rung}`];
+  for (const stem of stems.slice(0, -1)) {
+    try {
+      const mock = await read(stem);
+      if (matchesRequest(mock, req)) return mock;
+    } catch (error) {
+      // A malformed fixture must fail visibly, rather than silently use a fallback.
+      if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) throw error;
+    }
   }
+  return read(stems[stems.length - 1]!);
 }
 
 export async function* streamMockHint(mock: MockHint, sleep: (ms: number) => Promise<void>) {

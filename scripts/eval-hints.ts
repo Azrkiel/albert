@@ -83,7 +83,7 @@ async function openRepo(): Promise<{ repo: Repo; remap: (c: EvalCase, r: HintReq
 async function runCase(c: EvalCase, repo: Repo, remap: (c: EvalCase, r: HintRequest) => HintRequest) {
   if (!c.request) throw new EvalSetupError(`${c.id}: build a snapshot request first (scripts/build-eval-request.ts); recordings are replayed there`);
   const stored = HintRequestSchema.parse(JSON.parse(await readFile(join(root, "requests", c.request), "utf8")));
-  const request = remap(c, { ...stored, rung: c.rung, history: c.history ?? [] });
+  const request = remap(c, { ...stored, rung: c.rung, history: c.history ?? [], ...(c.question === undefined ? {} : { question: c.question }) });
   const bound = getHintModel();
   let modelCalls = 0;
   let repair: string | undefined;

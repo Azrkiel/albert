@@ -104,13 +104,15 @@ R2.2 onward and every human gate remain open.
 ### R2.2 Writing on the pages
 
 **Build.**
-1. `?surface=pdf` (the default for worksheets that have a `fileId` once R2 passes; `ruled`/`free` stay for the demo
+1. `?surface=pdf` (the default for worksheets that have a `fileId`; explicit `?surface=ruled|free` and legacy `?layout=` opt out; `ruled`/`free` stay for the demo
    worksheet and replays). One `WorkSurface` per PDF page, stacked; the page PNG is an `<image>` under the ink; logical width
    `PAGE.width` (1200), height `1200 × heightPt / widthPt`; free-layout line inference within each page.
 2. **Contract:** optional `page?: number` on `Stroke` and `Row`; `SessionRecording.surface?: "pdf"` plus `fileId`.
-   A stroke's `problemId` is the region holding most of its ink, else the active problem from the picker.
+   A stroke's `problemId` is the page region holding most of its ink length (not sample count), else the active problem from that page's picker. Row/stroke ids and page identity survive recording export and replay.
 3. A compact problem picker above each page ("Problem 1 2 3 4 5") shows the active problem and overrides it.
-4. Albert's column: none on PDF pages (D4 page-mode variant). Until R3.3, labelled notes share a non-overlapping below-page band; suppress page-spanning arrows across print. R3.3 places notes in white space.
+4. Albert's column: none on PDF pages (D4 page-mode variant). The entire page, including its right edge, accepts ink and erasing. Tutor notes use the below-page band (P4.6) at every viewport width.
+5. Pen, eraser, undo and redo use the active page. Erasing ignores the selected problem and finds every problem's intersected ink on that page. Undo/redo preserve the other pages' stacks.
+6. Snapshots include a light-grey problem crop from the page PNG in the visible surface's logical coordinates; line inference and snapshot rows stay within each page. Marks resolve through live target rows; empty/erased/foreign rows draw nothing.
 
 **Acceptance**
 - [x] **R2.2-AC1** — `tests/e2e/pdf-surface.spec.ts`: on Worksheet 3, synthetic strokes on pages 1 and 2 carry the right page
@@ -131,17 +133,15 @@ R2.2 onward and every human gate remain open.
 
 ### R2.4 Annotated PDF download
 
-**Build.** The pure `src/lib/ink/pdf-export.ts` library and browser adapter `pdf-export-browser.ts`: `pdf-lib` copies the original bytes, then per page draws student
+**Build.** `src/lib/ink/pdf-export.ts` in the browser: `pdf-lib` copies the original bytes, then per page draws student
 strokes (perfect-freehand outlines as SVG paths, logical → PDF points, y flipped) and Albert's marks (rough paths) and
 writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custom font embedding; math as MathJax glyph paths).
-**Save PDF** downloads `<worksheet title> - annotated.pdf`. Original boxes, rotation and page order remain unchanged. Until R3.3, below-page tutor writing goes on labelled appendix pages, paginated as complete notes; an oversized indivisible note fails visibly. This Nov 15 adjustment avoids clipping notes or overwriting print. Student-only exports keep the original page count.
+The library is pure (bytes in, bytes out; fonts passed in as `fontBytes`; math as pre-rendered glyph path data, so MathJax stays out of it; `pageTransform` handles CropBox/MediaBox origins and /Rotate). **Save PDF** (the canvas lane) calls it and downloads `<worksheet title> — annotated.pdf`.
 
 **Acceptance**
-- [x] **R2.4-AC1** — Unit: original page count/sizes unchanged for student-only ink; labelled notes pages are appended only for below-page writing; each inked original page's content stream grew; a stroke's outline lands at
+- [x] **R2.4-AC1** — Unit: original pages retain their sizes/order; student-only exports retain the original count, with labelled appendix pages only for below-page notes; each inked page's content stream grew; a stroke's outline lands at
   the expected PDF coordinates.
 - [ ] **R2.4-AC2** — By hand: open the download in an independent viewer, inspect several pages (human-queue R4).
-
-**Evidence (Nov 15, this change).** Screenshot regression reproduced before fixes. Focused PDF browser flows pass for two-page input, page-scoped editing, resize/zoom, grey printed snapshots, same-session reload, annotated download and below-page notes. `pnpm verify` after published-server/export-library integration: 69 files, 924 passed / 20 live Mongo skipped. All six PDF browser flows pass, including failed restore/autosave recovery. Crop/rotation, out-of-media crop and whole-note pagination have independent PDF decode/raster tests. Independent review identified and verified fixes for worksheet identity, draft capture and note export. Full browser/build/production/CI results are recorded in the PR. R2.3-AC2 live Mongo and R2.4-AC2 independent-viewer checks remain open; no live model calls or credentials used.
 
 **Gate R2.** By hand on the demo device: write, erase, undo on two pages, zoom, reload, download, open the PDF.
 
@@ -154,7 +154,7 @@ writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custo
 **Build.** **Contract:** `HintRequest.question?: string` (≤ 200 chars, plain text) and `HintTurn.question?`; the PDF crop
 travels as the snapshot background (R2.2-AC2), not a new field. `prompt.ts`: a question is student data, never instructions;
 answer it at the requested rung under the same ladder and scope rules; a follow-up uses history. Mock fixtures for a question
-(`fixtures/llm/*-question.json`); two eval cases from `missing-dx.json` with questions ("what did I do wrong?" at rung 1, and a
+(`fixtures/llm/*-question.json`); two eval cases from the `missing-dx.json` recording (its `missing-dx-r1` snapshot request) with questions ("what did I do wrong?" at rung 1, and a
 follow-up).
 
 **Acceptance**
@@ -172,6 +172,8 @@ the one in flight (existing runner); the helper's reply is drawn like a hint. Wr
   failing mock leaves ink and saved work usable.
 
 ### R3.3 Notes in the page's white space
+
+**deferred (user, Nov 15): notes use the below-page band**. The following free-space design is retained for a later release, not required or claimed by R2.2.
 
 **Build.** Pure `findFreeSpace(grid, size, anchor)` (`src/lib/ink/free-space.ts`): an 8-px occupancy grid from the page PNG's
 non-white pixels (sampled once per page), student ink boxes and earlier notes, padded 12 px; nearest fully free rectangle
@@ -234,4 +236,6 @@ live checks while building ≈ 30; reserve ≈ 100 for fixes and the human gates
 - **Latency**: about 5 s per hint, about 10 s with a repair; streaming (P3.6) is a follow-up, not a claim.
 - **Recordings**: R3's automated replay needs `missing-dx-pdf.json` from a person.
 
-**R2.4 published-library integration (Nov 15).** PR #60 provides the pure bytes-in/bytes-out `pdf-export.ts` API and its original fixtures/tests. The browser layer in `pdf-export-browser.ts` captures visible SVG and bundled font bytes, reuses the published page geometry, and adds grouped below-page notes without changing the pure API. The canvas downloads through that adapter.
+**Integrated PDF save/download (Nov 15, PR #59).** The published R2.2 surface remains the UI base. PDF sessions adopt the latest matching student/worksheet/file session before capture and restore normalized events without re-posting. The browser `pdf-export-browser.ts` adapter shares the published pure export geometry, captures live SVG notes, and keeps whole below-page notes on labelled appendix pages. Original page count/geometry are unchanged for student-only/on-page ink. This adjustment prevents silently clipping outside the physical page or covering print. Live Mongo, independent-viewer and device gates remain open. Final verification is recorded in PR #59.
+
+**Consolidated verification (PR #59).** The published surface, question contract, server API and pure exporter are retained. `pnpm verify`: 70 files, 954 passed / 20 live Mongo skipped. Combined PDF surface/workflow/replay/stuck browser checks: 24 passed / 2 existing skips. Ended PDF sessions keep visible work immutable and downloadable; hint animation drains before closing. Independent reviews have no remaining blocking findings. Production and complete CI evidence is recorded in the PR; human/device/viewer gates remain open.

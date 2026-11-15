@@ -1,0 +1,44 @@
+{
+  "fixtureId": "default-r2-question",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-default-r2-question",
+      "at": 0
+    },
+    {
+      "type": "reading",
+      "rows": []
+    },
+    {
+      "type": "diagnosis",
+      "status": "stalled",
+      "inScope": true
+    },
+    {
+      "type": "hint",
+      "kind": "next_step",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Check the differential: say what it becomes under your substitution before you rewrite the integral."
+        }
+      ]
+    },
+    {
+      "type": "done",
+      "hintId": "mock-default-r2-question",
+      "ms": {
+        "firstEvent": 1350,
+        "total": 1500
+      }
+    }
+  ],
+  "delaysMs": [
+    150,
+    300,
+    300,
+    600,
+    150
+  ]
+}

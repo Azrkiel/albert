@@ -51,6 +51,8 @@ const INK = {
 type BBox = { x: number; y: number; w: number; h: number };  // logical px
 ```
 
+PDF page mode uses the entire 1200-px width for pen and eraser (no reserved column). Logical height is `1200 × heightPt / widthPt`; notes use the band below the page. Page coordinates are displayed, crop/rotation-normalized PDF points, with origin at the top left.
+
 ## 2. Strokes
 
 ```ts
@@ -70,6 +72,7 @@ type Stroke = {
   points: Point[];
   t0: number; t1: number;      // first and last point time
   bbox: BBox;
+  page?: number;              // positive, 1-based PDF page; absent for legacy surfaces
   erasedAt?: number;           // set when an eraser or undo removed it; strokes are never deleted
 };
 
@@ -77,7 +80,8 @@ type Row = {
   page?: number;               // positive 1-based PDF page
   id: string;                  // `${problemId}/r${n}`: ruled, n = index; free, n = creation order, never reused
   problemId: string;
-  index: number;               // 1-based within the problem, top to bottom
+  page?: number;              // positive, 1-based PDF page; inferred lines never span pages
+  index: number;               // 1-based within the problem/page, top to bottom
   bbox: BBox;                  // ruled: the student-column band; free: the line's column (dividers bound it) around its ink ± LINE.PAD
 };
 
@@ -162,14 +166,18 @@ type HintRequest = {
   rows: Array<{ rowId: string; index: number; clusterLabels: number[] }>;
   history: HintTurn[];         // earlier hints on this problem in this session, oldest first
   fixtureId?: string;          // used only with MOCK_LLM=1
+  question?: string;           // R3.1: the student's typed question, plain text, <= 200 chars (see Question below)
 };
 
 type HintTurn = {
   hintId: string; rung: Rung; rowId: string;
   text: string;                // the hint as plain text, math as LaTeX in $…$
   studentWroteAfter: boolean;  // did new ink appear after this hint
+  question?: string;           // R3.1: the question the student asked with this hint, if any (same rules as HintRequest.question)
 };
 ```
+
+**Question (R3.1).** `HintRequest.question` and `HintTurn.question` are the student's own typed words. Plain text, at most 200 characters. The schema cleans it first: every run of whitespace or control characters (newlines, tabs, C0/C1 controls, U+2028/2029) becomes one space and the ends are trimmed; the 200 limit applies to the cleaned text; empty after cleaning is invalid (omit the field instead). A longer or invalid question makes `/api/hint` answer 400 `bad_request`. The prompt puts it in the `<student_data>` block, never in the instructions; the model answers it at the requested rung under the usual ladder and scope rules and never obeys it. A follow-up question travels the same way, with the earlier turns, and their questions, in `history`. The client that builds `history` must copy a turn's question into its `HintTurn`. The PDF crop is still the snapshot background (R2.2-AC2), not a new field. Worksheet mock requests with a question try `<problem>-r<N>-question`, then the problem's plain `<problem>-r<N>`, then `default-r<N>-question` (`default-r1-question` to `default-r3-question`), then `default-r<N>`; handwriting mocks ignore the question.
 
 **Problem source.** Worksheet hints load the assigned problem and its unit teaching card; the page must display that assigned exercise. General calculus explicitly sends `problemSource: "handwriting"`: the first handwritten problem and subsequent visible rows are authoritative. This path loads no worksheet or course scope, omits course citations/subskills/deferred units, and stores neither course hints nor skill evidence. The ordinary ladder, pointing, privacy, deadline and logging rules still apply. `inScope: true` on a general hint means no course scope is asserted. General snapshots include an unlabelled copy alongside the marked image so blue labels do not obscure transcription. Missing/illegible problem ink asks for a reread rather than inventing an exercise. The optional field also flows into the derived `CheckRequest`; a future general check must not create course evidence. Mock general requests use course-free `handwriting-r1` through `handwriting-r3` fixtures; worksheet mocks are unchanged.
 
@@ -718,6 +726,8 @@ type SessionRecording = {
   surface?: "pdf";             // paired with fileId; requires free layout and page on strokes/rows
   fileId?: string;
   layout?: "ruled" | "free";   // absent = "ruled"; free recordings replay with inferred lines
+  surface?: "pdf";             // PDF pages use free line inference, full-page pen/erase and page-scoped history
+  fileId?: string;             // original cached PDF; required by the PDF recording parser when surface=pdf
 };
 
 type MockHint = {
@@ -734,6 +744,7 @@ type EvalCase = {
   stuckRowIndex: number;
   rung: Rung;
   history?: HintTurn[];
+  question?: string;           // R3.1: sent as HintRequest.question
   expect: {
     status: Diagnose["status"][];          // any of these is correct
     stuckRowLatex?: string;                // what the stuck row says

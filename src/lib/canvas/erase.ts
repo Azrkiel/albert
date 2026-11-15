@@ -21,10 +21,10 @@ function intersects([a, b]: Segment, [c, d]: Segment): boolean {
 }
 
 /** Clip both paths to visible student ink, including segments whose endpoints lie outside. */
-function segments(points: readonly XY[], page?: number): Segment[] {
-  const left = page === undefined ? PAGE.studentCol.x : 0;
-  const right = page === undefined ? PAGE.studentCol.x + PAGE.studentCol.w : PAGE.width;
+function segments(points: readonly XY[], fullPage = false): Segment[] {
   const result: Segment[] = [];
+  const left = fullPage ? 0 : PAGE.studentCol.x;
+  const right = fullPage ? PAGE.width : PAGE.studentCol.x + PAGE.studentCol.w;
   for (let i = 0; i < points.length; i++) {
     const a = points[i]!, b = points[Math.min(i + 1, points.length - 1)]!;
     if (![a.x, a.y, b.x, b.y].every(Number.isFinite)) continue;
@@ -46,11 +46,12 @@ function live(stroke: Stroke): boolean { return stroke.tool === "pen" && stroke.
 
 /** One completed eraser gesture, grouped by row. No DOM, clock, mutation, or history deletion. */
 export function eraseGesture(state: SessionState, problemId: string, points: readonly XY[], at: number, page?: number): SessionEvent[] {
-  const path = segments(points, page);
+  if (state.surface === "pdf" && page === undefined) return [];
+  const path = segments(points, state.surface === "pdf");
   const rows = new Map<string, string[]>();
   for (const stroke of state.strokes) {
-    if (!live(stroke) || (page === undefined ? stroke.problemId !== problemId : stroke.page !== page) || !stroke.rowId) continue;
-    if (!segments(stroke.points, page).some((ink) => path.some((eraser) => intersects(ink, eraser)))) continue;
+    if (!live(stroke) || (state.surface === "pdf" ? stroke.page !== page : stroke.problemId !== problemId) || !stroke.rowId) continue;
+    if (!segments(stroke.points, state.surface === "pdf").some((ink) => path.some((eraser) => intersects(ink, eraser)))) continue;
     const ids = rows.get(stroke.rowId) ?? [];
     ids.push(stroke.id); rows.set(stroke.rowId, ids);
   }
@@ -63,7 +64,9 @@ export function clearRow(state: SessionState, rowId: string, at: number): Sessio
 }
 
 export function historyEvent(state: SessionState, direction: "undo" | "redo", at: number, page?: number): SessionEvent | null {
-  const edit = (direction === "undo" ? state.undoStack : state.redoStack).findLast(edit => page === undefined || state.rows.find(r => r.id === edit.rowId)?.page === page);
+  if (state.surface === "pdf" && page === undefined) return null;
+  const stack = direction === "undo" ? state.undoStack : state.redoStack;
+  const edit = state.surface === "pdf" ? stack.findLast(edit => state.rows.find(r => r.id === edit.rowId)?.page === page) : stack.at(-1);
   return edit ? { type: "undo", at, strokeIds: [...edit.strokeIds], rowId: edit.rowId,
     ...(direction === "redo" ? { redo: true as const } : {}) } : null;
 }

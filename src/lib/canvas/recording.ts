@@ -8,13 +8,15 @@ export function parseRecording(input: unknown): SessionRecording {
   const problems = new Set(rec.problems.map(({ id }) => id));
   const rows = new Map(rec.rows.map((row) => [row.id, row]));
   if (problems.size !== rec.problems.length || rows.size !== rec.rows.length) invalid();
-  for (const row of rec.rows) if (!problems.has(row.problemId) || (rec.surface === "pdf" && row.page === undefined)) invalid();
-  const layout = rec.layout ?? "ruled";
+  for (const row of rec.rows) if (!problems.has(row.problemId)) invalid();
+  if (rec.surface === "pdf" && !rec.fileId) invalid();
+  const layout = rec.surface === "pdf" ? "free" : rec.layout ?? "ruled";
   // Ruled problems always have bands; free-layout rows exist only where there is ink.
   if (layout === "ruled") for (const id of problems) if (!rec.rows.some((row) => row.problemId === id)) invalid();
   const strokes = new Set<string>();
   let previous = 0;
-  let state = createSessionState(rec.problems, rec.worksheetId, rec.rows, layout);
+  let state: SessionState = { ...createSessionState(rec.problems, rec.worksheetId, rec.rows, layout),
+    ...(rec.surface ? { surface: rec.surface, fileId: rec.fileId } : {}) };
   for (const event of rec.events) {
     if (event.at < previous || event.at > rec.durationMs) invalid();
     previous = event.at;
@@ -22,8 +24,8 @@ export function parseRecording(input: unknown): SessionRecording {
     if (event.type !== "stroke_end") continue;
     const stroke = event.stroke;
     if (strokes.has(stroke.id) || !problems.has(stroke.problemId)
-      || (rec.surface === "pdf" && stroke.page === undefined)
-      || !stroke.rowId || rows.get(stroke.rowId)?.problemId !== stroke.problemId || rows.get(stroke.rowId)?.page !== stroke.page
+      || !stroke.rowId || rows.get(stroke.rowId)?.problemId !== stroke.problemId
+      || rows.get(stroke.rowId)?.page !== stroke.page || (rec.surface === "pdf" && !stroke.page)
       || stroke.t0 !== stroke.points[0]?.t || stroke.t1 !== stroke.points.at(-1)?.t
       || stroke.t1 > event.at) invalid();
     strokes.add(stroke.id);
@@ -40,7 +42,7 @@ export function parseRecording(input: unknown): SessionRecording {
 export function exportRecording(state: SessionState, name: string): SessionRecording {
   return parseRecording({ version: 1, name, worksheetId: state.worksheetId, problems: state.problems,
     rows: state.rows, events: state.events, durationMs: state.durationMs,
-    ...(state.surface === "pdf" ? { surface: "pdf", fileId: state.fileId } : {}),
+    ...(state.surface ? { surface: state.surface, fileId: state.fileId } : {}),
     ...(state.notes === undefined ? {} : { notes: state.notes }),
     ...(state.layout === "free" ? { layout: "free" as const } : {}) });
 }

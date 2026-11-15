@@ -71,7 +71,6 @@ function glyphHeight(line: Band): number {
  * so side work at the same height as the main column starts its own lines.
  */
 export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
-  strokes = strokes.filter(s => s.page === stroke.page);
   const ids = dividerIds([...strokes.filter((s) => s.id !== stroke.id), stroke]);
   const dividers = dividersOf(strokes, stroke.problemId, ids);
   const visible = ids.has(stroke.id) ? [] : strokes.filter((s) => s.id !== stroke.id && !separated(stroke, s, dividers));
@@ -109,7 +108,7 @@ export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
   // 3. A new line; numbers are never reused, including lines whose ink is all erased.
   const used = strokes.filter((s) => s.problemId === stroke.problemId && s.rowId).map((s) => lineNumber(s.rowId!));
   const next = Math.max(0, ...used.filter(Number.isFinite).filter((n) => n < Number.MAX_SAFE_INTEGER)) + 1;
-  return `${stroke.problemId}${stroke.page === undefined ? "" : `/page${stroke.page}`}/r${next}`;
+  return `${stroke.problemId}/r${next}`;
 }
 
 /**
@@ -118,11 +117,7 @@ export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
  * bottom. Lines whose ink is all erased keep a row (so undo can restore them) and come after; divider
  * rows come last. A row's box spans its column: from the divider on its left to the one on its right.
  */
-export function lineRows(problemIds: string[], strokes: Stroke[], page?: number): Row[] {
-  if (page === undefined && strokes.some(s => s.page !== undefined)) {
-    return [...new Set(strokes.map(s => s.page))].sort((a,b) => (a ?? 0) - (b ?? 0)).flatMap(n =>
-      lineRows(problemIds, strokes.filter(s => s.page === n), n));
-  }
+export function lineRows(problemIds: string[], strokes: Stroke[], fullPage = false): Row[] {
   return problemIds.flatMap((problemId) => {
     const ids = dividerIds(strokes);
     const dividers = dividersOf(strokes, problemId, ids);
@@ -135,8 +130,8 @@ export function lineRows(problemIds: string[], strokes: Stroke[], page?: number)
       ...all.filter((b) => !live.has(b.rowId)).sort(order)];
     const rows: Row[] = ordered.map((band, i) => {
       const xs = spanning(band).map((d) => centerX(d.bbox));
-      const left = Math.max(page === undefined ? PAGE.studentCol.x : 0, ...xs.filter((x) => x <= band.left));
-      const right = Math.min(page === undefined ? PAGE.studentCol.x + PAGE.studentCol.w : PAGE.width, ...xs.filter((x) => x >= band.right));
+      const left = Math.max(PAGE.studentCol.x, ...xs.filter((x) => x <= band.left));
+      const right = Math.min(fullPage ? PAGE.width : PAGE.studentCol.x + PAGE.studentCol.w, ...xs.filter((x) => x >= band.right));
       return { id: band.rowId, problemId, index: i + 1,
         bbox: { x: left, y: band.top - LINE.PAD, w: right - left, h: band.bottom - band.top + 2 * LINE.PAD } };
     });
@@ -151,7 +146,7 @@ export function lineRows(problemIds: string[], strokes: Stroke[], page?: number)
       const left = Math.min(...members.map((m) => m.bbox.x)), right = Math.max(...members.map((m) => rightOf(m.bbox)));
       return { id, problemId, index: rows.length + i + 1, bbox: { x: left, y: top, w: right - left, h: bottom - top } };
     });
-    return [...rows, ...extra].map(row => page === undefined ? row : { ...row, page });
+    return [...rows, ...extra];
   });
 }
 

@@ -28,6 +28,9 @@ describe("mock lookup", () => {
   it("preserves an explicitly selected replay fixture even when current rows differ", async () => {
     expect((await loadMockHint({ ...request, rows: [], fixtureId: "calc2-ws3_p1-r1" })).fixtureId).toBe("calc2-ws3_p1-r1");
   });
+  it("keeps question fallback selection when the problem fixture cannot target current ink", async () => {
+    expect((await loadMockHint({ ...request, question: "why?", rows: request.rows.slice(0, 1) })).fixtureId).toBe("default-r1-question");
+  });
   it.each([1, 2, 3] as const)("falls back to the matching default rung %i", async (rung) => {
     expect((await loadMockHint({ ...request, problemId: "unknown/p1", rung })).fixtureId).toBe(`default-r${rung}`);
   });

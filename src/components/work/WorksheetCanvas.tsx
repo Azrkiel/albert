@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from "react";
 import { useSearchParams } from "next/navigation";
-import type { AlbertMark, CanvasLayout, HintEvent, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal } from "@/lib/contracts";
+import type { AlbertMark, CanvasLayout, HintEvent, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal, Worksheet } from "@/lib/contracts";
 import { useHint } from "@/lib/tutor/client";
 import { hintMarginText } from "@/lib/tutor/error-notes";
 import { createConductor, mathToSvg, preloadInk, renderSegment, revealWipe, type HintContext } from "@/lib/ink";
@@ -12,6 +12,8 @@ import { AlbertControls, AlbertLayer, ReadingTip } from "./AlbertLayer";
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock, type HintRequested } from "./ProblemBlock";
+import { PdfPageBlock } from "./PdfPageBlock";
+import { pageHeight, type PdfPage } from "@/lib/canvas";
 import { useSessionSync } from "./useSessionSync";
 
 /** P2.7 dev hook: snapshot of the current state; problem and marked default to the row's problem and true. */
@@ -42,17 +44,39 @@ export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: st
   /** Remove all of a problem's Albert notes. */
   clearAlbertNotes: (problemId: string) => void };
 
-export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksheet", ref }: { worksheetId: string; problemSource?: HintRequest["problemSource"]; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
+export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId, pdfProblems = [], problemSource = "worksheet", ref }: { worksheetId: string; worksheetTitle?: string; fileId?: string; pdfProblems?: Worksheet["problems"]; problemSource?: HintRequest["problemSource"]; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
   const devTools = devBuild && params.get("dev") === "1";
-  const urlLayout = params.get("layout") ?? params.get("surface");
-  const layout: CanvasLayout = urlLayout === "free" || urlLayout === "ruled" ? urlLayout : envLayout;
+  const urlLayout = params.get("layout");
+  const surface = params.get("surface");
+  const pdf = !!fileId && !fixture && surface !== "ruled" && surface !== "free" && urlLayout !== "ruled" && urlLayout !== "free";
+  const layout: CanvasLayout = pdf || surface === "free" ? "free" : surface === "ruled" ? "ruled" : urlLayout === "free" || urlLayout === "ruled" ? urlLayout : envLayout;
   const autoHint = params.get("auto") === "1" || process.env.NEXT_PUBLIC_AUTO_HINT === "1";
   const urlSpeed = params.get("speed");
   const initialSpeed = urlSpeed === "instant" || urlSpeed === "4" ? urlSpeed : "1";
   const [speed, setSpeed] = useState<PlaybackSpeed>(initialSpeed);
-  const [state, setState] = useState(() => createSessionState(problems, worksheetId, undefined, layout));
+  const [state, setState] = useState(() => ({ ...createSessionState(problems, worksheetId, undefined, layout), ...(pdf ? { surface: "pdf" as const, fileId } : {}) }));
+  const [pages, setPages] = useState<PdfPage[]>([]);
+  const [pageError, setPageError] = useState("");
+  const [activePage, setActivePage] = useState(1);
+  const pagesRef = useRef(pages);
+  useEffect(() => {
+    if (state.surface !== "pdf" || !state.fileId) return;
+    const abort = new AbortController();
+    void fetch(`/api/files/${encodeURIComponent(state.fileId)}/pages`, { signal: abort.signal }).then(async response => {
+      if (!response.ok) throw new Error("Pages unavailable");
+      const value: unknown = await response.json();
+      if (!Array.isArray(value) || !value.length || !value.every(p => p && Number.isInteger(p.page) && p.page > 0
+        && Number.isFinite(p.widthPt) && p.widthPt > 0 && Number.isFinite(p.heightPt) && p.heightPt > 0)) throw new Error("Invalid pages");
+      if (!abort.signal.aborted) {
+        // Replay can queue during layer attachment, before passive effects run.
+        pagesRef.current = value as PdfPage[];
+        setPages(value as PdfPage[]); setPageError("");
+      }
+    }).catch(() => { if (!abort.signal.aborted) setPageError("Could not open the PDF pages. Reload to try again."); });
+    return () => abort.abort();
+  }, [state.surface, state.fileId]);
   const [tool, setTool] = useState<Stroke["tool"]>("pen");
   const current = useRef(state);
   const origin = useRef<number | null>(null);
@@ -67,13 +91,34 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   const [replayDone, setReplayDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [pdfEnding, setPdfEnding] = useState(false);
+  const [pdfEndRequested, setPdfEndRequested] = useState(false);
+  const pdfLocked = useRef(false);
+  const drainingHint = useRef(false);
+  const root = useRef<HTMLDivElement>(null);
+  const restoredHints = useRef<Extract<SessionEvent, { type: "hint_shown" }>[]>([]);
   // P2.8: the store's session id once POST /api/session has answered; the local id until then.
   const fallbackSessionId = useId();
   const [serverSessionId, setServerSessionId] = useState<string>();
   const sessionId = serverSessionId ?? fallbackSessionId;
-  const sync = useSessionSync(worksheetId, setServerSessionId);
+  const sync = useSessionSync(worksheetId, setServerSessionId, {
+    resume: pdf,
+    fileId: pdf ? fileId : undefined,
+    onRestore: (session, events) => {
+      let restored: SessionState = { ...createSessionState(problems, worksheetId, undefined, "free"), surface: "pdf", fileId: session.fileId };
+      for (const event of events) restored = reduceSessionEvent(restored, event);
+      origin.current = performance.now() - Math.max(restored.durationMs, ...restored.strokes.map(stroke => stroke.t1));
+      restoredHints.current = events.filter((event): event is Extract<SessionEvent, { type: "hint_shown" }> => event.type === "hint_shown");
+      current.current = restored;
+      setState(restored);
+    },
+  });
   const { push: syncPush, restart: syncRestart } = sync;
   const hint = useHint();
+  const pdfInputLocked = state.surface === "pdf" && (!sync.ready || pdfEnding
+    || (pdfEndRequested && (sync.status === "ending" || sync.status === "ended")));
+  useEffect(() => { pdfLocked.current = pdfInputLocked; }, [pdfInputLocked]);
   const [hintTarget, setHintTarget] = useState<{ problemId: string; rowId: string } | null>(null);
   const sendHint = hint.requestHint;
   const getSessionStart = useCallback(() => origin.current ??= performance.now(), []);
@@ -91,17 +136,31 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   // eslint-disable-next-line react-hooks/refs
   const [conductor] = useState(() => createConductor({
     geometry: () => ({ rows: current.current.rows, clusters: listClusters(current.current) }),
+    pageMode: () => current.current.surface === "pdf",
+    noteLabel: problemId => current.current.surface === "pdf" ? `Problem ${current.current.problems.find(problem => problem.id === problemId)?.label ?? ""}` : undefined,
     reducedMotion: () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     narrow: () => window.matchMedia("(max-width: 899px)").matches,
+    pageHeight: page => { const size = pagesRef.current.find(p => p.page === page); return size ? pageHeight(size) : 0; },
     now: () => nowRef.current(),
     onShown: (ctx, marks) => shownRef.current(ctx, marks),
   }));
+  useEffect(() => {
+    if (!sync.ready || !pages.length || !restoredHints.current.length) return;
+    // Child layers attach during commit. Historical hints redraw instantly without entering the live sink.
+    const saved = restoredHints.current;
+    restoredHints.current = [];
+    for (const event of saved) {
+      const requested = current.current.events.find(item => item.type === "hint_requested" && item.hintId === event.hintId);
+      conductor.replayShown(event.marks, { instant: true, rung: requested?.type === "hint_requested" ? requested.rung : 1 });
+    }
+  }, [sync.ready, pages, state, conductor]);
   // `first` identifies a stream (each request parses into new event objects); its context comes from the
   // latest hint_requested event, so the request/snapshot code path is not touched.
   useSyncExternalStore(conductor.subscribe, conductor.version, conductor.version); // re-render when Albert's ink changes a surface's size
   const feed = useRef<{ first: HintEvent | undefined; ctx: HintContext | null; n: number }>({ first: undefined, ctx: null, n: 0 });
   const detect = useCallback((at: number) => {
     const s = current.current;
+    if (s.surface === "pdf" && pdfLocked.current) return;
     const signal = detectStuck(s.events, at, s.rows, listClusters(s));
     if (signal) {
       const event: SessionEvent = { type: "stuck", at, signal };
@@ -110,8 +169,11 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     }
   }, [replace, syncPush]);
   const sink = useCallback((event: SessionEvent) => {
-    replace(reduceSessionEvent(current.current, event));
-    syncPush(event);
+    if (current.current.surface === "pdf" && pdfLocked.current && !(drainingHint.current && event.type === "hint_shown")) return;
+    const next = reduceSessionEvent(current.current, event);
+    if (next === current.current) return;
+    replace(next);
+    syncPush(next.events.at(-1)!);
     // P4.6: a recording's hint redraws its marks (a live one is already on the page and is skipped).
     if (event.type === "hint_shown") {
       const rung = current.current.events.find((e) => e.type === "hint_requested" && e.hintId === event.hintId);
@@ -120,8 +182,18 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     }
     if (!seeking.current) detect(event.at);
     }, [replace, detect, syncPush, conductor]);
+  const backgroundFor = useCallback((rowId: string) => {
+    const s = current.current;
+    const row = s.rows.find(r => r.id === rowId);
+    const page = pagesRef.current.find(p => p.page === row?.page);
+    if (s.surface !== "pdf" || !page || !s.fileId) return undefined;
+    const region = pdfProblems.find(p => p.id === row?.problemId)?.region;
+    return { src: `/api/files/${encodeURIComponent(s.fileId)}/page/${page.page}`, page: page.page,
+      width: 1200, height: pageHeight(page), crop: region?.page === page.page ? region.bbox : { x: 0, y: 0, w: 1200, h: pageHeight(page) } };
+  }, [pdfProblems]);
   // Manual, stuck-mark and ref requests share the real P2.7 snapshot builder
   const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual") => {
+    if (current.current.surface === "pdf" && pdfLocked.current) return;
     const id = ++hintRequestId.current;
     setError("");
     sink({ type: "hint_requested", at: now(), hintId: `hint-${sessionId}-${current.current.events.length}`, rowId, rung });
@@ -132,7 +204,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
         rowId,
         rung,
         trigger,
-        { sessionId, problemSource },
+        { sessionId, problemSource, background: backgroundFor(rowId) },
       );
       // A slower snapshot from an older click must not replace a newer request.
       if (id === hintRequestId.current) await sendHint(request);
@@ -141,7 +213,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
         setError("Could not prepare your writing for a hint. Try again.");
       }
     }
-  }, [sendHint, sessionId, sink, now, problemSource]);
+  }, [sendHint, sessionId, sink, now, problemSource, backgroundFor]);
 
   useImperativeHandle(ref, () => ({
     requestHint,
@@ -193,6 +265,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   const hintInk = hint.events.some((event) => event.type === "hint") && !hint.events.some((event) => event.type === "error");
   const hintText = hintMarginText(hint.events) || (hint.status === "streaming" ? "Getting a hint..." : "");
   const liveEvents = useCallback((events: SessionEvent[]) => {
+    if (current.current.surface === "pdf" && pdfLocked.current) return;
     if (!events.length) return;
     // New live input takes ownership of the timeline; a pending replay cannot add old ink.
     player.current?.cancel();
@@ -204,19 +277,21 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     for (const event of events) sink(event);
   }, [sink]);
   const capture = useCallback((stroke: Stroke) => {
-    liveEvents(stroke.tool === "eraser" ? eraseGesture(current.current, stroke.problemId, stroke.points, stroke.t1)
+    liveEvents(stroke.tool === "eraser" ? eraseGesture(current.current, stroke.problemId, stroke.points, stroke.t1, stroke.page)
       : [{ type: "stroke_end", at: stroke.t1, stroke }]);
     // New writing in a row Albert pointed at fades that hint (P4.4).
     const rowId = current.current.strokes.find((s) => s.id === stroke.id)?.rowId;
     if (stroke.tool === "pen" && rowId) conductor.inkAdded(stroke.problemId, rowId);
   }, [liveEvents, conductor]);
   const history = useCallback((direction: "undo" | "redo") => {
+    if (current.current.surface === "pdf" && pdfLocked.current) return;
     const at = Math.max(current.current.durationMs, performance.now() - getSessionStart());
-    const event = historyEvent(current.current, direction, at);
+    const event = historyEvent(current.current, direction, at, activePage);
     if (event) liveEvents([event]);
-  }, [getSessionStart, liveEvents]);
+  }, [getSessionStart, liveEvents, activePage]);
 
   const onHintRequested = useCallback((problemId: string, request: HintRequested) => {
+    if (current.current.surface === "pdf" && pdfLocked.current) return;
     if (isProblemSolved(current.current.events, problemId)) return;
     if (request.trigger === "manual") {
       const signal: StuckSignal = { kind: "manual", problemId, rowId: request.rowId, at: now() };
@@ -231,7 +306,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   }, [detect, now]);
 
   useEffect(() => {
-    if (!autoHint) return;
+    if (!autoHint || pdfInputLocked) return;
     const timers = Object.values(state.stuckMarks).filter((mark) => mark.kind === "pause").map((mark) => {
       const appeared = markVisibleSince.current.get(mark) ?? performance.now();
       markVisibleSince.current.set(mark, appeared);
@@ -242,8 +317,9 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
       }, Math.max(0, 1500 - (performance.now() - appeared)));
     });
     return () => timers.forEach(clearTimeout);
-  }, [autoHint, state.stuckMarks, onHintRequested]);
+  }, [autoHint, state.stuckMarks, onHintRequested, pdfInputLocked]);
   const clear = useCallback((rowId: string) => {
+    if (current.current.surface === "pdf" && pdfLocked.current) return;
     const at = Math.max(current.current.durationMs, performance.now() - getSessionStart());
     const event = clearRow(current.current, rowId, at);
     if (event) liveEvents([event]);
@@ -262,13 +338,19 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   }, [history]);
 
   const start = useCallback((rec: SessionRecording, playbackSpeed: PlaybackSpeed) => {
+    // Replacing the timeline is the explicit way to start working again after a PDF session ends.
+    pdfLocked.current = false;
+    drainingHint.current = false;
+    setPdfEnding(false);
+    setPdfEndRequested(false);
     player.current?.cancel();
     loaded.current = rec;
     setError("");
     setReplayDone(false);
     setRevision((value) => value + 1); // Discard in-flight pointer drafts on replacement.
-    const reset = () => { syncRestart(); conductor.reset(); replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.layout ?? "ruled"),
-      durationMs: rec.durationMs, ...(rec.surface ? { surface: rec.surface, fileId: rec.fileId } : {}), ...(rec.notes === undefined ? {} : { notes: rec.notes }) }); };
+    const reset = () => { syncRestart(); conductor.reset(); replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.surface === "pdf" ? "free" : rec.layout ?? "ruled"),
+      ...(rec.surface ? { surface: rec.surface, fileId: rec.fileId, layout: "free" as const } : {}),
+      durationMs: rec.durationMs, ...(rec.notes === undefined ? {} : { notes: rec.notes }) }); };
     reset();
     origin.current = performance.now() - rec.durationMs;
     replayClock.current = { started: performance.now(), speed: playbackSpeed === "4" ? 4 : 1,
@@ -312,10 +394,10 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     const state = current.current;
     const row = state.rows.find((r) => r.id === upToRowId);
     return renderSnapshot({ strokes: state.strokes, rows: state.rows, clusters: listClusters(state),
-      problemId: problemId ?? row?.problemId ?? "", upToRowId, marked });
-  }, []);
+      problemId: problemId ?? row?.problemId ?? "", upToRowId, marked, background: backgroundFor(upToRowId) });
+  }, [backgroundFor]);
   const hintRequestHook = useCallback<HintRequestHook>((rowId, rung, trigger) =>
-    buildHintRequest(current.current, rowId, rung, trigger, { sessionId, problemSource }), [sessionId, problemSource]);
+    buildHintRequest(current.current, rowId, rung, trigger, { sessionId, problemSource, background: backgroundFor(rowId) }), [sessionId, problemSource, backgroundFor]);
   // P4.2: load the hand font and MathJax when the work page mounts, before the first hint.
   const [mathReady, setMathReady] = useState(false);
   useEffect(() => {
@@ -325,11 +407,11 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   }, []);
   useEffect(() => {
     if (!devBuild) return;
-    window.__albert = { state, replayDone: replayDone && !loading, renderSnapshot: snapshotHook, buildHintRequest: hintRequestHook,
+    window.__albert = { state, replayDone: (state.surface === "pdf" && !loaded.current ? sync.ready : replayDone) && !loading, renderSnapshot: snapshotHook, buildHintRequest: hintRequestHook,
       ...(serverSessionId === undefined ? {} : { sessionId: serverSessionId }), flushSession: sync.flush,
       mathReady, mathToSvg, renderSegment, revealWipe };
     return () => { delete window.__albert; };
-  }, [state, replayDone, loading, snapshotHook, hintRequestHook, serverSessionId, sync.flush, mathReady]);
+  }, [state, replayDone, loading, snapshotHook, hintRequestHook, serverSessionId, sync.flush, sync.ready, mathReady]);
 
   function openSnapshot() {
     const rowId = latestRow(current.current);
@@ -365,27 +447,87 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
-  return <>
+  async function savePdf() {
+    const source = current.current.fileId;
+    if (!source) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/files/${encodeURIComponent(source)}`);
+      if (!response.ok) throw new Error("Original PDF unavailable");
+      const { exportWorksheetPdf } = await import("@/lib/ink/pdf-export-browser");
+      const annotations = Array.from(root.current?.querySelectorAll<SVGSVGElement>("svg[data-page]") ?? []).flatMap(surface =>
+        Array.from(surface.querySelectorAll<SVGGElement>("[data-albert-layer]")).map(layer => ({ page: Number(surface.dataset.page), svg: layer })));
+      const bytes = await exportWorksheetPdf({ originalPdf: new Uint8Array(await response.arrayBuffer()), strokes: current.current.strokes, annotations });
+      const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${worksheetTitle ?? worksheetId} - annotated.pdf`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setError("Could not save the PDF. Your writing is still here. Try again.");
+    } finally { setSaving(false); }
+  }
+
+  async function endSession() {
+    if (current.current.surface !== "pdf") { await sync.end(); return; }
+    if (pdfLocked.current || hint.status === "streaming") return;
+    // Lock synchronously: queued pointer/timer callbacks must not create a successor session.
+    pdfLocked.current = true;
+    setPdfEnding(true);
+    setPdfEndRequested(true);
+    hintRequestId.current++;
+    hint.cancel();
+    player.current?.cancel();
+    conductor.interrupt();
+    drainingHint.current = true;
+    try {
+      // Record any already queued completed hint before the final event flush.
+      await conductor.idle();
+      drainingHint.current = false;
+      await sync.end();
+    } finally {
+      drainingHint.current = false;
+      setPdfEnding(false); // An error leaves the existing session open and editable for retry.
+    }
+  }
+
+  return <div ref={root} data-pdf-worksheet={state.surface === "pdf" ? "" : undefined}>
     <div role="group" aria-label="Ink tools" style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
-      <button type="button" aria-pressed={tool === "pen"} onClick={() => setTool("pen")}>Pen</button>
-      <button type="button" aria-pressed={tool === "eraser"} onClick={() => setTool("eraser")}>Eraser</button>
-      <button type="button" disabled={!state.undoStack.length} onClick={() => history("undo")}>Undo</button>
-      <button type="button" disabled={!state.redoStack.length} onClick={() => history("redo")}>Redo</button>
-      <button type="button" disabled={sync.status === "ending" || sync.status === "ended"} onClick={() => void sync.end()}>End session</button>
+      <button type="button" disabled={pdfInputLocked} aria-pressed={tool === "pen"} onClick={() => setTool("pen")}>Pen</button>
+      <button type="button" disabled={pdfInputLocked} aria-pressed={tool === "eraser"} onClick={() => setTool("eraser")}>Eraser</button>
+      <button type="button" disabled={pdfInputLocked || !historyEvent(state, "undo", state.durationMs, activePage)} onClick={() => history("undo")}>Undo</button>
+      <button type="button" disabled={pdfInputLocked || !historyEvent(state, "redo", state.durationMs, activePage)} onClick={() => history("redo")}>Redo</button>
+      <button type="button" disabled={sync.status === "ending" || sync.status === "ended" || pdfInputLocked || (state.surface === "pdf" && hint.status === "streaming")} onClick={() => void endSession()}>End session</button>
+      {state.surface === "pdf" && <>
+        <button type="button" disabled={saving || !sync.ready || !pages.length} onClick={() => void savePdf()}>{saving ? "Saving PDF…" : "Save PDF"}</button>
+        <span role="status">Page {activePage} · {sync.ready ? "Autosave on" : "Opening saved writing…"}</span>
+      </>}
     </div>
     {devTools && <DevToolbar speed={speed} onSpeed={setSpeed}
       onLoad={(file) => void load(file)} onExport={download} onPlay={() => start(loaded.current ?? snapshot(), speed)}
       onSnapshot={openSnapshot} />}
     {devTools && state.problems[0] && <button type="button"
-      disabled={hint.status === "streaming"}
+      disabled={pdfInputLocked || hint.status === "streaming"}
       onClick={() => {
         const problem = state.problems[0];
         if (problem) void requestHint(problem.id, `${problem.id}/r3`, 1);
       }}>Request mock hint</button>}
     {sync.status === "ended" && <p role="status">Session ended. Your work is saved.</p>}
-    {sync.status === "error" && <p role="alert">Could not save your session. Check your connection and try again.</p>}
+    {sync.status === "error" && <p role="alert">{state.surface === "pdf" ? "Could not load or save your writing." : "Could not save your session. Check your connection and try again."} <button type="button" onClick={() => void sync.retry()}>Try again</button></p>}
     {error && <p role="alert">{error}</p>}
-    {state.problems.map((problem) => {
+    {state.surface === "pdf" && <>
+      {pageError && <p role="alert">{pageError}</p>}
+      {!pages.length && !pageError && <p role="status">Opening PDF pages…</p>}
+      {pages.map(page => <PdfPageBlock key={`${revision}/${state.fileId}/${page.page}/${params.get("problem") ?? ""}`} page={page} fileId={state.fileId!}
+        problems={state.problems} regions={pdfProblems} state={state} active={activePage === page.page}
+        disabled={pdfInputLocked}
+        onActivate={() => setActivePage(page.page)} onStroke={capture} getSessionStart={getSessionStart}
+        tool={tool} conductor={conductor} hintText={hintText} hintTarget={hintTarget} hintInk={hintInk}
+        hintDisabled={pdfInputLocked || hint.status === "streaming"} onHintRequested={onHintRequested} onMoreHelp={(problemId, rowId, rung) => void requestHint(problemId, rowId, rung)} />)}
+    </>}
+    {state.surface !== "pdf" && state.problems.map((problem) => {
       const rows = state.rows.filter((row) => row.problemId === problem.id);
       return <ProblemBlock key={`${revision}/${problem.id}`} problem={problem} rows={rows}
         strokes={state.strokes.filter((stroke) => stroke.problemId === problem.id)}
@@ -405,5 +547,5 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
         devOverlay={devTools ? <ClusterOverlay clusters={listClusters(state, rows.map((row) => row.id))}
           lines={state.layout === "free" ? rows : undefined} /> : undefined} />;
     })}
-  </>;
+  </div>;
 }

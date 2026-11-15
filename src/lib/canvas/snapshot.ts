@@ -21,11 +21,11 @@ export const SNAPSHOT = {
 
 export type SnapshotRow = { rowId: string; index: number; clusterLabels: number[] };
 
-export type SnapshotBackground = { page: number; url: string; width: number; height: number; region: BBox };
-
 export type SnapshotArgs = {
   strokes: Stroke[]; rows: Row[]; clusters: Cluster[];
-  problemId: string; upToRowId: string; marked: boolean; background?: SnapshotBackground;
+  problemId: string; upToRowId: string; marked: boolean;
+  /** Full page image in logical coordinates; crop is the problem region. */
+  background?: { src: string; page: number; width: number; height: number; crop: BBox };
 };
 
 export type Snapshot = { png: string; width: number; height: number; rows: SnapshotRow[] };
@@ -34,7 +34,7 @@ export type Snapshot = { png: string; width: number; height: number; rows: Snaps
 export type SnapshotText = { text: string; x: number; y: number; box: BBox; clusterId?: string; rowId: string };
 
 export type SnapshotPlan = {
-  background?: SnapshotBackground;
+  background?: SnapshotArgs["background"];
   crop: BBox;                 // logical px, padding included
   scale: number;              // image px per logical px
   width: number; height: number;
@@ -135,13 +135,14 @@ export function planSnapshot(args: Omit<SnapshotArgs, "marked">): SnapshotPlan {
   const drawn = new Set(strokes.map((s) => s.rowId));
   const labels = placeLabels(wanted, tags.map((tag) => tag.box), args.clusters.filter((c) => drawn.has(c.rowId)));
 
-  const content = union([...(args.background ? [args.background.region] : []), ...strokes.map((s) => s.bbox), ...tags.map((t) => t.box), ...labels.map((l) => l.box)])
+  const background = args.background?.page === upTo.page ? args.background : undefined;
+  const content = union([...(background ? [background.crop] : []), ...strokes.map((s) => s.bbox), ...tags.map((t) => t.box), ...labels.map((l) => l.box)])
     ?? { x: 0, y: 0, w: 0, h: 0 };
   const pad = SNAPSHOT.PADDING;
   const crop = { x: content.x - pad, y: content.y - pad, w: content.w + 2 * pad, h: content.h + 2 * pad };
   const scale = Math.min(SNAPSHOT.SCALE, SNAPSHOT.MAX_SIDE / Math.max(crop.w, crop.h));
   return {
-    crop, scale, ...(args.background ? { background: args.background } : {}),
+    crop, scale, ...(background ? { background } : {}),
     width: Math.max(1, Math.min(SNAPSHOT.MAX_SIDE, Math.round(crop.w * scale))),
     height: Math.max(1, Math.min(SNAPSHOT.MAX_SIDE, Math.round(crop.h * scale))),
     strokes, tags, labels, rows: listed,
@@ -150,14 +151,18 @@ export function planSnapshot(args: Omit<SnapshotArgs, "marked">): SnapshotPlan {
 
 type Context2D = OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D;
 
-function draw(ctx: Context2D, plan: SnapshotPlan, marked: boolean, background?: HTMLImageElement) {
+function draw(ctx: Context2D, plan: SnapshotPlan, marked: boolean, background?: ImageBitmap) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, plan.width, plan.height);
   ctx.setTransform(plan.scale, 0, 0, plan.scale, -plan.crop.x * plan.scale, -plan.crop.y * plan.scale);
   if (background && plan.background) {
-    ctx.globalAlpha = .35;
-    ctx.drawImage(background, 0, 0, plan.background.width, plan.background.height);
-    ctx.globalAlpha = 1;
+    const b = plan.background;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(b.crop.x, b.crop.y, b.crop.w, b.crop.h); ctx.clip();
+    ctx.globalAlpha = 0.18;
+    ctx.filter = "grayscale(1)";
+    ctx.drawImage(background, 0, 0, b.width, b.height);
+    ctx.restore();
   }
   ctx.fillStyle = SNAPSHOT.INK;
   // Same perfect-freehand outline as the screen (path.ts), so the model sees what the student sees.
@@ -188,13 +193,14 @@ function bytesToBase64(bytes: Uint8Array): string {
 /** Draws on an OffscreenCanvas, or a detached `<canvas>` where OffscreenCanvas is missing. Browser only. */
 export async function renderSnapshot(args: SnapshotArgs): Promise<Snapshot> {
   const plan = planSnapshot(args);
-  let background: HTMLImageElement | undefined;
-  if (plan.background) {
-    background = new Image();
-    background.src = plan.background.url;
-    await background.decode();
-  }
   let png: string;
+  let background: ImageBitmap | undefined;
+  if (plan.background) {
+    const response = await fetch(plan.background.src);
+    if (!response.ok) throw new Error("Page image unavailable");
+    background = await createImageBitmap(await response.blob());
+  }
+  try {
   if (typeof OffscreenCanvas !== "undefined") {
     const canvas = new OffscreenCanvas(plan.width, plan.height);
     const ctx = canvas.getContext("2d");
@@ -211,5 +217,6 @@ export async function renderSnapshot(args: SnapshotArgs): Promise<Snapshot> {
     draw(ctx, plan, args.marked, background);
     png = canvas.toDataURL("image/png").replace(/^data:image\/png;base64,/, "");
   }
+  } finally { background?.close(); }
   return { png, width: plan.width, height: plan.height, rows: plan.rows };
 }

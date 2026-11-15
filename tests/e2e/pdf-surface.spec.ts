@@ -1,187 +1,212 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
-import { readFile } from "node:fs/promises";
-import { PDFDocument } from "pdf-lib";
-import { readPdfText } from "../../src/lib/lms/pdf";
 
-test.setTimeout(90_000);
-
-async function draw(page: Page, number: number, x: number, y: number) {
-  const surface = page.locator(`svg[data-page="${number}"][data-capture-ready=true]`);
-  await surface.scrollIntoViewIfNeeded();
-  await surface.evaluate((svg, p) => {
-    const m = (svg as SVGSVGElement).getScreenCTM()!;
-    window.scrollBy(0, m.b * p.x + m.d * p.y + m.f - innerHeight / 2);
-  }, { x, y });
-  const point = await surface.evaluate((svg, p) => {
-    const m = (svg as SVGSVGElement).getScreenCTM()!;
-    return { x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f,
-      endX: m.a * (p.x + 20) + m.c * (p.y + 20) + m.e, endY: m.b * (p.x + 20) + m.d * (p.y + 20) + m.f };
-  }, { x, y });
-  await page.mouse.move(point.x, point.y);
-  await page.mouse.down();
-  await page.mouse.move(point.endX, point.endY, { steps: 4 });
-  await page.mouse.up();
-}
-
+// Each geometry scenario starts a fresh live session; separate workflow coverage verifies restoration.
 test.beforeEach(async ({ request }) => {
-  const latest = await request.get("/api/session/latest?worksheetId=calc2-ws3&fileId=calc2-worksheet-3");
-  const body = await latest.json();
+  const response = await request.get("/api/session/latest?worksheetId=calc2-ws3&fileId=calc2-worksheet-3");
+  const body = await response.json();
   if (body.session) await request.post(`/api/session/${body.session.id}/end`);
 });
 
-test("production: PDF writing autosaves, reloads and downloads through the visible controls", async ({ page }) => {
-  await page.goto("/work/calc2-ws3?surface=pdf");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
-  const stored = page.waitForResponse(response => response.url().includes("/events") && response.request().method() === "POST" && response.ok()
-    && response.request().postDataJSON().events.some((event: { type: string; stroke?: { page?: number } }) => event.type === "stroke_end" && event.stroke?.page === 2));
-  await draw(page, 1, 1000, 420); await draw(page, 2, 1000, 260);
-  await stored;
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(2);
-  const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save PDF", exact: true }).click();
-  const pdf = await PDFDocument.load(await readFile((await (await download).path())!));
-  expect(pdf.getPageCount()).toBe(2);
-  expect(pdf.getPages().every(p => p.node.Contents() !== undefined)).toBe(true);
-});
+/** Synthetic geometry through real pointer capture; never presented as a human recording. */
+async function draw(page: Page, n: number, x: number, y: number) {
+  const surface = page.locator(`svg[data-capture-ready=true][data-page="${n}"]`);
+  await surface.evaluate((svg, y) => {
+    const p = new DOMPoint(0, y).matrixTransform((svg as SVGSVGElement).getScreenCTM()!);
+    window.scrollBy(0, p.y - window.innerHeight / 2);
+  }, y);
+  const points = await surface.evaluate((svg, { x, y }) => [new DOMPoint(x, y), new DOMPoint(x + 12, y + 24)].map(p => {
+    const c = p.matrixTransform((svg as SVGSVGElement).getScreenCTM()!);
+    const viewport = window.visualViewport!;
+    return { x: (c.x - viewport.offsetLeft) * viewport.scale, y: (c.y - viewport.offsetTop) * viewport.scale };
+  }), { x, y });
+  await page.mouse.move(points[0]!.x, points[0]!.y);
+  await page.mouse.down();
+  await page.mouse.move(points[1]!.x, points[1]!.y, { steps: 4 });
+  await page.mouse.up();
+}
+async function open(page: Page) {
+  // Await the actual metadata response: the first dev request compiles the PDF route.
+  const metadata = page.waitForResponse(r => r.url().endsWith("/api/files/calc2-worksheet-3/pages"));
+  await page.goto("/work/calc2-ws3?dev=1");
+  expect((await metadata).ok()).toBe(true);
+  await expect(page.locator("svg[data-capture-ready=true][data-page]")).toHaveCount(2);
+  await expect(page.locator("[data-pdf-background]")).toHaveCount(2);
+  return (await (await page.request.get("/api/worksheet/calc2-ws3")).json()).problems as Array<{ id: string; region: { page: number; bbox: { y: number; h: number } } }>;
+}
 
-test("writes on both PDF pages, edits by page, restores and downloads the original with ink", async ({ page }) => {
-  await page.goto("/work/calc2-ws3?source=worksheet&surface=pdf");
-  await expect(page.locator("[data-pdf-page]")).toHaveCount(2);
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
-  await draw(page, 1, 1000, 420);
-  await draw(page, 2, 1000, 260);
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(2);
-  const strokes = await page.evaluate(() => window.__albert!.state.strokes);
-  expect(strokes.map(s => [s.page, s.problemId])).toEqual([[1, "calc2-ws3/p1"], [2, "calc2-ws3/p4"]]);
+test("R2.2-AC1: page/problem ownership, full right edge, page-scoped erase, undo and redo", async ({ page }) => {
+  const problems = await open(page);
+  const y1 = problems[0]!.region.bbox.y + 60;
+  const y2 = problems[3]!.region.bbox.y + 60;
+  await draw(page, 1, 1180, y1);
+  await draw(page, 2, 1180, y2);
+  await expect.poll(() => page.evaluate(() => window.__albert!.state.strokes.length)).toBe(2);
+  const original = await page.evaluate(() => window.__albert!.state.strokes);
+  expect(original.map(s => [s.page, s.problemId])).toEqual([[1, "calc2-ws3/p1"], [2, "calc2-ws3/p4"]]);
+  await expect(page.locator('svg[data-page="1"] path[data-stroke-id]')).toHaveCount(1);
+  await expect(page.locator('svg[data-page="2"] path[data-stroke-id]')).toHaveCount(1);
+  // The picker changes fallback identity; erasing still finds every problem's ink on this page.
+  await page.locator('[data-pdf-page="1"]').getByRole("button", { name: "Problem 5", exact: true }).click();
+  await page.getByRole("button", { name: "Eraser", exact: true }).click();
+  await draw(page, 1, 1180, y1);
+  await expect(page.locator('svg[data-page="1"] path[data-stroke-id]')).toHaveCount(0);
+  expect((await page.evaluate(() => window.__albert!.state.strokes))[1]).toEqual(original[1]);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(page.locator("path[data-stroke-id][data-page='2']")).toHaveCount(0);
-  await expect(page.locator("path[data-stroke-id][data-page='1']")).toHaveCount(1);
+  await expect(page.locator('svg[data-page="1"] path[data-stroke-id]')).toHaveCount(1);
+  // Undo page 1's draw while page 2's more recent draw stays intact.
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.locator('svg[data-page="1"] path[data-stroke-id]')).toHaveCount(0);
+  await expect(page.locator('svg[data-page="2"] path[data-stroke-id]')).toHaveCount(1);
   await page.getByRole("button", { name: "Redo", exact: true }).click();
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(2);
-  await page.evaluate(() => window.__albert!.flushSession!());
-  const session = await page.evaluate(() => window.__albert!.sessionId);
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(2);
-  expect(await page.evaluate(() => window.__albert!.state.strokes)).toEqual(strokes);
-  expect(await page.evaluate(() => window.__albert!.sessionId)).toBe(session);
-  const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save PDF", exact: true }).click();
-  const saved = await download;
-  expect(saved.suggestedFilename()).toMatch(/annotated\.pdf$/);
-  const pdf = await PDFDocument.load(await readFile((await saved.path())!));
-  expect(pdf.getPageCount()).toBe(2);
-  expect(pdf.getPages().map(p => p.getSize())).toEqual([{ width: 612, height: 792 }, { width: 612, height: 792 }]);
+  expect((await page.evaluate(() => window.__albert!.state.strokes))[0]).toEqual(original[0]);
+  // An unlabelled area uses the active picker, even for a problem printed on the other page.
+  await page.getByRole("button", { name: "Pen", exact: true }).click();
+  await draw(page, 1, 100, 10);
+  expect((await page.evaluate(() => window.__albert!.state.strokes)).at(-1)).toMatchObject({ page: 1, problemId: "calc2-ws3/p5" });
 });
 
-test("draws hints around current PDF ink, keeps notes below print and exports those notes", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.route("**/api/hint", async route => {
-    const req = route.request().postDataJSON();
-    const rowId = req.rowId as string;
-    const events = [
-      { type: "started", hintId: "pdf-test", at: 0 },
-      { type: "mark", mark: { type: "circle", rowId, clusterIds: [`${rowId}/c1`] } },
-      { type: "hint", kind: "question", segments: [{ type: "text", text: "Check the differential" }, { type: "math", latex: "dx" }] },
-      { type: "done", hintId: "pdf-test", ms: { firstEvent: 1, total: 2 } },
-    ];
-    await route.fulfill({ contentType: "application/x-ndjson", body: events.map(e => JSON.stringify(e)).join("\n") + "\n" });
-  });
-  await page.goto("/work/calc2-ws3?surface=pdf");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
-  await draw(page, 1, 1000, 420);
-  await page.getByRole("button", { name: "I'm stuck", exact: true }).first().click();
-  await expect(page.locator("[data-albert-chip]")).toBeVisible({ timeout: 20_000 });
-  const note = await page.locator("[data-albert-writing]").evaluate(el => {
-    const box = (el as SVGGElement).getBBox(); return { y: box.y, height: box.height };
-  });
-  expect(note.y).toBeGreaterThan(1552);
-  const circle = await page.locator("[data-mark-kind=circle]").evaluate(el => {
-    const box = (el as SVGGElement).getBBox(); return { width: box.width, height: box.height };
-  });
-  expect(circle.width).toBeLessThan(100); expect(circle.height).toBeLessThan(100);
-  await expect(page.locator("[data-mark-kind=arrow]")).toHaveCount(0);
-  const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Save PDF", exact: true }).click();
-  const bytes = new Uint8Array(await readFile((await (await download).path())!));
-  expect((await PDFDocument.load(bytes)).getPageCount()).toBe(3);
-  const text = await readPdfText(bytes);
-  expect(text[2]!.items.map(item => item.str).join(" ")).toContain("Check the differential");
-  await page.screenshot({ path: ".p57-r21-qa/pdf-page-notes.png", fullPage: true });
-});
-
-test("the reported blank-row scenario uses a neutral recorded reply without a giant circle", async ({ page }) => {
-  await page.goto("/work/calc2-ws3?surface=ruled&dev=1");
-  const surface = page.locator("svg[data-capture-ready=true]").first();
-  await expect(surface).toBeVisible();
-  // Use a real pointer to satisfy browser pointer capture.
-  const box = await surface.boundingBox();
-  await page.mouse.move(box!.x + 80, box!.y + 110); await page.mouse.down();
-  await page.mouse.move(box!.x + 120, box!.y + 120); await page.mouse.up();
-  await page.getByRole("button", { name: "Request mock hint", exact: true }).click();
-  await expect(page.locator("[data-albert-writing]")).toContainText(/Which\s*part\s*of\s*this\s*step/, { timeout: 20_000 });
-  await expect(page.locator("[data-mark-kind=circle]")).toHaveCount(0);
-  await expect(page.locator("[data-recorded-preview]")).toBeVisible();
-  await expect(page.getByText("You replaced x.", { exact: false })).toHaveCount(0);
-});
-
-test("keeps logical ink aligned through resizing and zoom, erases across problem selection, and snapshots print", async ({ page }) => {
-  await page.goto("/work/calc2-ws3?surface=pdf");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
-  await draw(page, 1, 1000, 420);
-  await page.setViewportSize({ width: 800, height: 900 });
-  await draw(page, 1, 1000, 420);
-  await page.evaluate(() => { document.body.style.zoom = "1.25"; });
-  await draw(page, 1, 1000, 420);
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(3);
-  const boxes = await page.evaluate(() => window.__albert!.state.strokes.map(s => s.bbox));
-  for (const box of boxes) {
-    expect(box.x).toBeCloseTo(1000, 0); expect(box.y).toBeCloseTo(420, 0);
-    expect(box.w).toBeCloseTo(20, 0); expect(box.h).toBeCloseTo(20, 0);
+test("R2.2-AC1: stored geometry is stable at two viewport widths, CSS zoom and browser viewport zoom", async ({ page }) => {
+  await open(page);
+  const geometry: unknown[] = [];
+  for (const { width, zoom } of [{ width: 1440, zoom: 1 }, { width: 900, zoom: 1 }, { width: 1440, zoom: 1.25 }]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(zoom => { document.documentElement.style.zoom = String(zoom); }, zoom);
+    await draw(page, 1, 1100, 340);
+    const s = await page.evaluate(() => window.__albert!.state.strokes.at(-1)!);
+    geometry.push(s.points.map(p => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100]));
   }
+  await page.evaluate(() => { document.documentElement.style.zoom = "1"; });
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1.25 });
+  expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1.25);
+  await draw(page, 1, 1100, 340);
+  geometry.push(await page.evaluate(() => window.__albert!.state.strokes.at(-1)!.points.map(p => [Math.round(p.x * 100) / 100, Math.round(p.y * 100) / 100])));
+  await cdp.detach();
+  expect(geometry[3]).toEqual(geometry[0]);
+  expect(geometry[1]).toEqual(geometry[0]);
+  expect(geometry[2]).toEqual(geometry[0]);
+});
+
+test("R2.2-AC2: the decoded hint snapshot includes light grey printed page pixels under black ink", async ({ page }) => {
+  const problems = await open(page);
+  await draw(page, 2, 1100, problems[3]!.region.bbox.y + 60);
   const pixels = await page.evaluate(async () => {
     const state = window.__albert!.state;
-    const snapshot = await window.__albert!.renderSnapshot!({ upToRowId: state.strokes[0]!.rowId!, marked: false });
-    const image = new Image(); image.src = `data:image/png;base64,${snapshot.png}`; await image.decode();
-    const canvas = document.createElement("canvas"); canvas.width = snapshot.width; canvas.height = snapshot.height;
-    const ctx = canvas.getContext("2d")!; ctx.drawImage(image, 0, 0);
-    const rgba = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-    let grey = 0, dark = 0;
-    for (let i = 0; i < rgba.length; i += 4) {
-      if (rgba[i]! > 140 && rgba[i]! < 230) grey++;
-      if (rgba[i]! < 80) dark++;
+    const rowId = state.strokes.at(-1)!.rowId!;
+    const snapshot = await window.__albert!.renderSnapshot!({ upToRowId: rowId, marked: false });
+    const image = await createImageBitmap(await (await fetch(`data:image/png;base64,${snapshot.png}`)).blob());
+    const canvas = new OffscreenCanvas(image.width, image.height);
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(image, 0, 0);
+    const data = ctx.getImageData(0, 0, image.width, image.height).data;
+    let grey = 0, ink = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i]! >= 200 && data[i]! <= 240 && Math.abs(data[i]! - data[i + 1]!) <= 1 && Math.abs(data[i]! - data[i + 2]!) <= 1) grey++;
+      if (data[i]! < 70 && data[i + 1]! < 70 && data[i + 2]! < 70) ink++;
     }
-    return { grey, dark };
+    image.close();
+    return { grey, ink, rows: snapshot.rows.map(r => r.rowId) };
   });
-  expect(pixels.grey).toBeGreaterThan(100); expect(pixels.dark).toBeGreaterThan(10);
-  await page.getByLabel("Problem on page 1").selectOption("calc2-ws3/p2");
-  await page.getByRole("button", { name: "Eraser", exact: true }).click();
-  await draw(page, 1, 1000, 420);
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(0);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(3);
+  expect(pixels.grey).toBeGreaterThan(30);
+  expect(pixels.ink).toBeGreaterThan(10);
+  expect(pixels.rows).toEqual(["calc2-ws3/p4/page2/r1"]);
 });
 
-test("failed restore stays blocked until retry, while failed autosave keeps ink and retries the buffered events", async ({ page }) => {
-  let lookupWorks = false, saveWorks = false;
-  await page.route("**/api/session/latest?**", route => lookupWorks ? route.continue() : route.fulfill({ status: 503, json: { error: "offline" } }));
-  await page.route("**/api/session/*/events", route => saveWorks ? route.continue() : route.fulfill({ status: 503, json: { error: "offline" } }));
-  await page.goto("/work/calc2-ws3?surface=pdf");
-  await expect(page.locator("[data-pdf-worksheet]").getByRole("alert")).toContainText("Could not load or save");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(0);
-  await page.clock.install();
-  await page.clock.fastForward(4000);
-  await expect(page.locator("[data-pdf-worksheet]").getByRole("alert")).toBeVisible();
-  lookupWorks = true;
-  await page.getByRole("button", { name: "Try again", exact: true }).click();
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
-  await draw(page, 1, 1000, 420);
-  expect(await page.evaluate(() => window.__albert!.flushSession!())).toBe(false);
-  await expect(page.locator("[data-pdf-worksheet]").getByRole("alert")).toBeVisible();
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(1);
-  saveWorks = true;
-  await page.getByRole("button", { name: "Try again", exact: true }).click();
-  await expect(page.locator("[data-pdf-worksheet]").getByRole("alert")).toHaveCount(0);
-  await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.locator("path[data-stroke-id]")).toHaveCount(1);
+test("R2.2: helper targets the real earlier row and writes below page 2", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/hint", route => {
+    const request = route.request().postDataJSON();
+    const rowId = request.rows[0].rowId;
+    return route.fulfill({ contentType: "application/x-ndjson", body: [
+      { type: "started", hintId: "pdf-hint", at: 0 },
+      { type: "mark", mark: { type: "circle", rowId, clusterIds: [`${rowId}/c1`] } },
+      { type: "hint", kind: "question", segments: [{ type: "text", text: "What changes in your first step?" }] },
+      { type: "done", hintId: "pdf-hint", ms: { firstEvent: 1, total: 2 } },
+    ].map(e => JSON.stringify(e) + "\n").join("") });
+  });
+  const problems = await open(page);
+  const y = problems[3]!.region.bbox.y + 60;
+  await draw(page, 2, 600, y);
+  await draw(page, 2, 600, y + 70);
+  const block = page.locator('[data-pdf-page="2"]');
+  await block.getByRole("button", { name: "I'm stuck", exact: true }).click();
+  const writing = block.locator("[data-albert-writing]");
+  await expect(writing).toContainText("Whatchangesinyourfirststep?");
+  const geometry = await block.locator('svg[data-page="2"]').evaluate(svg => {
+    const circle = svg.querySelector<SVGGraphicsElement>('[data-mark-kind="circle"]')!;
+    const writing = svg.querySelector<SVGGraphicsElement>('[data-albert-writing]')!;
+    const bg = svg.querySelector<SVGImageElement>("image")!;
+    return { target: circle.getAttribute("data-target-row"), circle: ({ x: circle.getBBox().x, y: circle.getBBox().y }), writing: ({ x: writing.getBBox().x, y: writing.getBBox().y }), pageHeight: bg.height.baseVal.value };
+  });
+  expect(geometry.target).toBe("calc2-ws3/p4/page2/r1");
+  expect(geometry.circle.y).toBeLessThan(y);
+  expect(geometry.writing.y).toBeGreaterThan(geometry.pageHeight);
+  await expect(page.locator('svg[data-page="1"] [data-albert-writing]')).toHaveCount(0);
+  // Student ink stays usable on the printed page after the reply.
+  await draw(page, 2, 600, y + 10);
+  expect((await page.evaluate(() => window.__albert!.state.strokes)).filter(s => s.page === 2)).toHaveLength(3);
+});
+
+test("R2.2: a PDF problem deep link selects and highlights its page", async ({ page }) => {
+  await page.goto("/work/calc2-ws3?problem=4");
+  const block = page.locator('[data-pdf-page="2"]');
+  await expect(block).toHaveAttribute("data-highlighted", "");
+  await expect(block.getByRole("button", { name: "Problem 4", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(block).toBeInViewport();
+});
+
+
+test("R2.2: PDF hint recordings wait for asynchronously mounted page layers", async ({ page }) => {
+  const recording = JSON.parse(readFileSync("fixtures/sessions/pdf-synthetic.json", "utf8").replaceAll("pdf/p1", "calc2-ws3/p1"));
+  recording.fileId = "calc2-worksheet-3";
+  const first = recording.events[0].stroke;
+  const second = { ...first, id: "pdf-s2", page: 2, rowId: "calc2-ws3/p1/page2/r1", t0: 20, t1: 30,
+    points: first.points.map((p: { t: number }) => ({ ...p, t: p.t + 20 })) };
+  recording.rows.push({ ...recording.rows[0], page: 2, id: second.rowId });
+  const marks = [
+    { id: "pdf-replay/circle", hintId: "pdf-replay", problemId: second.problemId, drawnAt: 40, bbox: second.bbox,
+      spec: { type: "circle", rowId: second.rowId, clusterIds: [`${second.rowId}/c1`] } },
+    { id: "pdf-replay/writing", hintId: "pdf-replay", problemId: second.problemId, drawnAt: 40, bbox: { x: 16, y: 1580, w: 400, h: 40 },
+      spec: { type: "writing", rowId: second.rowId, segments: [{ type: "text", text: "A saved PDF hint" }] } },
+  ];
+  recording.events.push({ type: "stroke_end", at: 30, stroke: second },
+    { type: "hint_requested", at: 35, hintId: "pdf-replay", rowId: second.rowId, rung: 1 },
+    { type: "hint_shown", at: 40, hintId: "pdf-replay", marks });
+  recording.durationMs = 50;
+  await page.route("**/api/dev/recording?name=synthetic-pdf", route => route.fulfill({ json: recording }));
+  await page.route("**/api/files/calc2-worksheet-3/pages", async route => {
+    const response = await route.fetch();
+    await new Promise(resolve => setTimeout(resolve, 300)); // Deliberately make recording replay beat page loading.
+    await route.fulfill({ response });
+  });
+  let hintRequests = 0;
+  page.on("request", r => { if (r.url().endsWith("/api/hint")) hintRequests++; });
+  await page.goto("/work/calc2-ws3?replay=synthetic-pdf&speed=instant");
+  await page.waitForFunction(() => window.__albert?.replayDone);
+  const page2 = page.locator('[data-pdf-page="2"]');
+  await expect(page2.locator('[data-mark-kind="circle"]')).toHaveCount(1);
+  await expect(page2.locator("[data-albert-writing]")).toContainText("AsavedPDFhint");
+  const y = await page2.locator("[data-albert-writing]").evaluate(el => (el as SVGGraphicsElement).getBBox().y);
+  expect(y).toBeGreaterThan(1552);
+  await expect(page.locator('[data-pdf-page="1"] [data-albert-writing]')).toHaveCount(0);
+  expect(hintRequests).toBe(0);
+});
+
+
+test("R2.2: a shared problem's More help control belongs only to its hint page", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/hint", route => route.fulfill({ contentType: "application/x-ndjson", body: [
+    { type: "started", hintId: "shared-problem", at: 0 },
+    { type: "hint", kind: "question", segments: [{ type: "text", text: "Which step changes?" }] },
+    { type: "done", hintId: "shared-problem", ms: { firstEvent: 1, total: 2 } },
+  ].map(e => JSON.stringify(e) + "\n").join("") }));
+  const problems = await open(page);
+  await draw(page, 1, 100, problems[0]!.region.bbox.y + 60);
+  const second = page.locator('[data-pdf-page="2"]');
+  await second.getByRole("button", { name: "Problem 1", exact: true }).click();
+  await draw(page, 2, 100, 10); // Unlabelled whitespace uses the selected problem.
+  await second.getByRole("button", { name: "I'm stuck", exact: true }).click();
+  await expect(second.locator("[data-albert-chip]")).toHaveCount(1);
+  await expect(page.locator('[data-pdf-page="1"] [data-albert-chip]')).toHaveCount(0);
 });
