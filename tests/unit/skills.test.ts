@@ -30,6 +30,10 @@ describe("P6.4 skills", () => {
     expect(readFileSync("skills/socratic-tutor/LICENSE.md", "utf8")).toContain("MIT");
   });
 
+  it("keeps SKILL.md files LF-only so deepagents parses quoted front matter (.gitattributes)", () => {
+    for (const skill of SKILLS) expect(readFileSync(`skills/${skill}/SKILL.md`, "utf8"), skill).not.toContain("\r");
+  });
+
   it("teaching-card and study-plan carry the rules the validators enforce", () => {
     const card = readFileSync("skills/teaching-card/SKILL.md", "utf8");
     for (const phrase of ["never invent", "begin \"can", "snake_case", "empty steps", "save_teaching_card"]) expect(card.toLowerCase()).toContain(phrase.toLowerCase());
