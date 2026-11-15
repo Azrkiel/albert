@@ -49,6 +49,10 @@ export interface Repo {
   createSession(s: Session): Promise<void>;
   appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
   endSession(sessionId: string, at: string): Promise<void>;
+  /** Stored events of one session ordered by `at`, then by insertion order. Unknown session: []. */
+  listEvents(sessionId: string): Promise<SessionEvent[]>;
+  /** The worksheet's open session (no `endedAt`) with the latest `startedAt`, or null. */
+  latestOpenSession(worksheetId: string): Promise<Session | null>;
   saveHint(h: StoredHint): Promise<void>;
   listHints(filter: { sessionId?: string; courseId?: string }): Promise<StoredHint[]>;
   addEvidence(e: EvidenceEvent[]): Promise<void>;

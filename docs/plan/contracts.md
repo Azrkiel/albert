@@ -499,6 +499,8 @@ interface Repo {
   getSession(id: string): Promise<Session | null>;
   createSession(s: Session): Promise<void>;         appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
   endSession(sessionId: string, at: ISO): Promise<void>;
+  listEvents(sessionId: string): Promise<SessionEvent[]>;        // by `at`, then insertion order; unknown session: []
+  latestOpenSession(worksheetId: string): Promise<Session | null>; // open = no endedAt; latest startedAt (ties: lowest id)
   saveHint(h: StoredHint): Promise<void>;           listHints(filter: { sessionId?: string; courseId?: string }): Promise<StoredHint[]>;
   // progress
   addEvidence(e: EvidenceEvent[]): Promise<void>;   listEvidence(studentId: string, courseId: string): Promise<EvidenceEvent[]>;
@@ -594,6 +596,7 @@ Resolve `COURSE_GITHUB_REF` through `GET /repos/{owner}/{repo}/commits/{ref}`, t
 | `/api/files/[fileId]/page/[n]` | GET | — | One PNG, decoded width 1200 px, proportional height; render at 2x then downsample; derived files cached in the Repo by original id/content hash and renderer version |
 | `/api/scope/[worksheetId]` | GET | `?problemId=` | `ScopeBundle` |
 | `/api/session` | POST | `{ worksheetId }` | `{ sessionId }` |
+| `/api/session/latest` | GET | `?worksheetId=` (required) | `{ session: Session; events: SessionEvent[] }`: the worksheet's latest open session with its events in order (`at`, then insertion). 404 when none, 400 on a bad query |
 | `/api/session/[id]/events` | POST | `{ events: SessionEvent[] }` | `{ ok: true }` |
 | `/api/session/[id]/end` | POST | — | `{ evidenceAdded: number; replanRunId?: string }` |
 | `/api/hint` | POST | `HintRequest` | NDJSON of `HintEvent` |

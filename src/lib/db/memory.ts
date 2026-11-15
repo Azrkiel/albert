@@ -53,8 +53,14 @@ export class MemoryRepo implements Repo {
     if (!this.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
     this.sessionEvents.set(sessionId, [...(this.sessionEvents.get(sessionId) ?? []), ...copy(events)]);
   }
-  /** Dev read-back (not in the Repo contract): the stored events of one session, in append order. */
-  async listEvents(sessionId: string): Promise<SessionEvent[]> { return copy(this.sessionEvents.get(sessionId) ?? []); }
+  /** By `at`, then append order (Array.prototype.sort is stable, so equal `at` keeps insertion order). */
+  async listEvents(sessionId: string): Promise<SessionEvent[]> {
+    return copy([...(this.sessionEvents.get(sessionId) ?? [])].sort((a, b) => a.at - b.at));
+  }
+  async latestOpenSession(worksheetId: string): Promise<Session | null> {
+    return copy([...this.sessions.values()].filter(s => s.worksheetId === worksheetId && s.endedAt === undefined)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || byId(a, b))[0] ?? null);
+  }
   async endSession(sessionId: string, at: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
