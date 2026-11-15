@@ -56,6 +56,10 @@ Record the result: the agent writes the check-in commit in `status.md` (Phase 2 
   within `HINT_TIMEOUT_MS` (12 s) and you can keep writing while it waits. Record pass/fail and the seconds in the P3.8
   row of `status.md`.
 
+## Gate R1 — course context ready
+
+- [ ] **R1.1-AC2 / R1.2-AC1 — repeat live ingest through the route.** Blocked: live budget (user decision Nov 15). When budget allows (about 90 calls; the lane ledger is at 90/90): start a dev server on the saved P6.5 state with the real `.env.local` and the live-budget preload, then `curl -N -X POST http://localhost:<port>/api/agent/ingest -H 'content-type: application/json' -d '{"courseId":"<id>"}'`. Record golden checks 1-13, calls, elapsed time, card/worksheet ids and counts and `latestPlan` before and after (all unchanged), and swap `fixtures/agent/ingest-run.json` to the context-only run (tokens redacted, re-check). Record the result in status.md (R1.1 and R1.2 rows). Partial result so far: run 2 used 59 calls in 314 s, golden 1-11 and 13 pass, 12 fails because the budget ran out before `/course/scope.md` was written.
+
 ## Gate G3 — GitHub course → agent cards → cited hint
 
 (Agents add P5.6-AC3 here.)
