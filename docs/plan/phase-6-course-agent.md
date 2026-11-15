@@ -254,7 +254,7 @@ Every tool calls `ctx.emit({ type: "tool", label })` with a short human label su
    | 10 | Four worksheets exist; Worksheet 3 has five problems; every problem has a subskill from its own unit or an earlier one | — |
    | 11 | Worksheet 3 and Worksheet 4 have due dates equal to the pinned outline (synthetic offsets use persisted demo day) | — |
    | 12 | The run produced a todo list, at least three `subagent_start` events and a `/course/scope.md` file | — |
-   | 13 | A plan was saved and passes `validatePlan` | — |
+   | 13 | **Context coverage (R1.1; was "a plan was saved").** Every worksheet problem's `subskillIds`/`methodIds` resolve to a saved card; every taught card has `sourceFileIds` and a worked example with a lecture label; the run saved **no** study plan (a plan from an earlier run is allowed) | — |
 
 3. Run ingestion twice. The second run must update, not duplicate.
 4. Re-run the hint eval against the agent's cards: `pnpm eval:hints --cards ingested` loads cards and Worksheet 3 from the store instead of `fixtures/cards/` and `fixtures/worksheets/`.
