@@ -10,7 +10,7 @@ type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLa
 
 export type HintRequested = { rowId: string; rung: 1; trigger: StuckSignal["kind"] };
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, albertLayer, layout = "ruled", stuckMark, onHintRequested, hintDisabled }: {
+export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, albertLayer, albertExtent, albertOverlay, hintInk, onPenDown, layout = "ruled", stuckMark, onHintRequested, hintDisabled }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
@@ -27,23 +27,32 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   devOverlay?: ReactNode;
   /** Albert's ink layer (P4.3), drawn above everything else on the surface. */
   albertLayer?: ReactNode;
+  /** Albert's HTML controls (More help, Clear notes), given the surface's logical height. */
+  /** Page y Albert's writing reaches; the surface grows to fit it. */
+  albertExtent?: number;
+  albertOverlay?: (info: { height: number }) => ReactNode;
+  /** True once Albert's writing is drawn as ink: the plain-text column then stays for screen readers only. */
+  hintInk?: boolean;
+  /** The pen went down on this problem: finish Albert's running animations. */
+  onPenDown?: () => void;
   /** "free": rows are inferred lines, drawn without rules; only lines with live ink get a number. */
   layout?: CanvasLayout;
 }) {
   const headingId = useId();
   const free = layout === "free";
-  const height = free ? freeSurfaceHeight(rows) : Math.max(...rows.map((row) => row.bbox.y + row.bbox.h));
+  const rowsHeight = free ? freeSurfaceHeight(rows) : Math.max(...rows.map((row) => row.bbox.y + row.bbox.h));
+  const height = Math.max(rowsHeight, albertExtent ?? 0);
   const inked = inkedRowIds(strokes);
   const numbered = free ? rows.filter((row) => inked.has(row.id)) : rows;
   const markRow = rows.find((row) => row.id === stuckMark?.rowId);
   const manualRow = strokes.findLast((stroke) => stroke.tool === "pen" && stroke.erasedAt === undefined && inked.has(stroke.rowId ?? ""))?.rowId ?? rows[0]?.id;
 
   return (
-    <section data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }}>
+    <section data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }} onPointerDownCapture={onPenDown}>
       {/* HTML controls stay accessible outside the SVG's atomic img role. */}
       <WorkSurface problemId={problem.id} height={height} strokes={strokes}
         onStroke={onStroke} getSessionStart={getSessionStart} tool={tool} svgOverlay={devOverlay} albertLayer={albertLayer}
-        overlay={<>{onClearRow && numbered.map((row) => <button key={row.id} type="button" data-row-number=""
+        overlay={<>{albertOverlay?.({ height })}{onClearRow && numbered.map((row) => <button key={row.id} type="button" data-row-number=""
           aria-label={`Clear row ${row.index} of problem ${problem.label}`}
           title={`Clear row ${row.index}`} onClick={() => onClearRow(row.id)}
           style={{ position: "absolute", left: `${row.bbox.x / PAGE.width * 100 + 0.5}%`, top: `${(row.bbox.y + 2) / height * 100}%`,
@@ -71,7 +80,7 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
             y={rows.find((row) => row.id === hintRowId)?.bbox.y ?? PAGE.statementMinHeight}
             width={PAGE.albertCol.w - 32} height={PAGE.rowHeight * 2}>
             <div data-albert-column="" role="note" aria-live="polite" aria-label={`Albert's hints for problem ${problem.label}`}
-              style={{ color: INK.albert, fontSize: 20, whiteSpace: "pre-wrap", paddingTop: PAGE.rowPaddingTop }}>
+              style={{ color: INK.albert, fontSize: 20, whiteSpace: "pre-wrap", paddingTop: PAGE.rowPaddingTop, ...(hintInk ? { opacity: 0 } : {}) }}>
               {hintText}
             </div>
           </foreignObject>
