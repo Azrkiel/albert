@@ -1,38 +1,188 @@
+/* Albert brand tokens (docs/brand/tokens/albert.css, v1.3) + app styles. Light theme only: the PDF canvas is paper-white. */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/fonts/Fraunces.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  src: url("/fonts/PlusJakartaSans.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
-  background: #fffefb;
-  font-family: Arial, Helvetica, sans-serif;
+  --albert-ink: #182b49;
+  --albert-ink-hover: #243d5e;
+  --albert-ink-pressed: #102039;
+  --albert-paper: #faf7f0;
+  --albert-coral: #db6554;
+  --albert-coral-text: #a63d30;
+  --albert-sage: #dde9db;
+  --albert-muted: #5a6572;
+  --albert-border: #d9dde2;
+  --albert-control-border: #7a8592;
+  --albert-white: #ffffff;
+  --albert-surface-muted: #ebece9;
+  --albert-surface-hover: #eeece6;
+  --albert-danger-surface: #f7e8e3;
+  --albert-desk: #ecebe6;
+
+  --albert-font-display: "Fraunces", Georgia, serif;
+  --albert-font-ui: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --albert-space-1: 4px;
+  --albert-space-2: 8px;
+  --albert-space-3: 12px;
+  --albert-space-4: 16px;
+  --albert-space-6: 24px;
+  --albert-space-8: 32px;
+  --albert-space-12: 48px;
+  --albert-space-16: 64px;
+
+  --albert-radius-sm: 8px;
+  --albert-radius-md: 12px;
+  --albert-radius-lg: 24px;
+  --albert-radius-pill: 999px;
+
+  --albert-shadow-page: 0 1px 2px rgb(24 43 73 / 8%), 0 8px 28px rgb(24 43 73 / 10%);
+  --albert-shadow-raised: 0 1px 2px rgb(24 43 73 / 8%), 0 4px 14px rgb(24 43 73 / 8%);
+
+  background: var(--albert-paper);
+  font-family: var(--albert-font-ui);
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; color: var(--ink-student); }
-a { color: inherit; }
-a:focus-visible { outline: 2px solid var(--ink-albert); outline-offset: 5px; }
+body { margin: 0; color: var(--albert-ink); font: 400 16px/1.6 var(--albert-font-ui); background: var(--albert-paper); }
+a { color: var(--albert-ink); text-underline-offset: 4px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--albert-ink);
+  outline-offset: 2px;
+}
+img { max-width: 100%; height: auto; }
 
-.shell { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+/* ---------- shell ---------- */
+.shell { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
 .shell-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  padding: 32px 0;
-  border-bottom: 1px solid #deddd8;
+  gap: 12px 24px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--albert-border);
 }
-.academy { margin: 0 0 12px; font-size: 0.75rem; letter-spacing: 0.06em; }
-.brand { font-family: Georgia, "Times New Roman", serif; font-size: 2.5rem; font-weight: 700; text-decoration: none; }
-.tagline { color: var(--ink-albert); margin: 8px 0 0; font-size: 0.95rem; }
-.health-status { display: inline-flex; align-items: center; gap: 8px; font-size: 0.8rem; }
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-albert); }
-.status-dot[data-ready="true"] { background: var(--ink-student); }
-main { padding: 64px 0; }
-h1 { margin: 0 0 16px; font-family: Georgia, "Times New Roman", serif; font-size: clamp(2rem, 5vw, 3rem); font-weight: 400; }
-main p { max-width: 60ch; margin: 0; line-height: 1.6; }
-.skip-link { position: absolute; top: -100px; left: 16px; padding: 12px; background: #fffefb; }
+.brand-block { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: inline-block; line-height: 0; border-radius: var(--albert-radius-sm); }
+.brand img { display: block; width: 132px; height: auto; }
+.tagline { margin: 0; color: var(--albert-muted); font-size: 0.875rem; padding-left: 16px; border-left: 1px solid var(--albert-border); }
+.health-status {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border: 1px solid var(--albert-border); border-radius: var(--albert-radius-pill);
+  background: var(--albert-white); color: var(--albert-muted); font-size: 0.75rem; font-weight: 500;
+}
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--albert-coral); }
+.status-dot[data-ready="true"] { background: #4f8a5b; }
+main { padding: 40px 0 64px; }
+h1, h2, h3 { font-family: var(--albert-font-display); font-weight: 500; color: var(--albert-ink); line-height: 1.15; }
+h1 { margin: 0 0 12px; font-size: clamp(2rem, 4.4vw, 3rem); letter-spacing: -0.025em; }
+h2 { letter-spacing: -0.015em; }
+main > p { max-width: 62ch; margin: 0; line-height: 1.6; color: var(--albert-muted); }
+.skip-link { position: absolute; top: -100px; left: 16px; z-index: 100; padding: 12px 20px; background: var(--albert-ink); color: var(--albert-paper); border-radius: var(--albert-radius-sm); }
 .skip-link:focus { top: 12px; }
+
+/* ---------- buttons (global defaults; pills per brand kit) ---------- */
+button {
+  font: 600 14px/20px var(--albert-font-ui);
+  min-height: 40px;
+  padding: 8px 18px;
+  border: 1px solid var(--albert-ink);
+  border-radius: var(--albert-radius-pill);
+  background: var(--albert-white);
+  color: var(--albert-ink);
+  cursor: pointer;
+  transition: background-color 180ms ease-out, color 180ms ease-out, border-color 180ms ease-out;
+}
+@media (hover: hover) { button:hover:not(:disabled) { background: var(--albert-surface-hover); } }
+button:active:not(:disabled) { background: var(--albert-surface-hover); }
+button:disabled { cursor: default; border-color: transparent; background: var(--albert-surface-muted); color: var(--albert-muted); }
+button[aria-pressed="true"] { background: var(--albert-ink); color: var(--albert-paper); }
+@media (hover: hover) { button[aria-pressed="true"]:hover:not(:disabled) { background: var(--albert-ink-hover); } }
+button[aria-pressed="true"]:disabled { background: var(--albert-surface-muted); color: var(--albert-muted); }
+@media (prefers-reduced-motion: reduce) { button { transition: none; } }
+
+input[type="text"], select {
+  font: 400 14px/20px var(--albert-font-ui);
+  min-height: 40px;
+  padding: 8px 14px;
+  color: var(--albert-ink);
+  background: var(--albert-white);
+  border: 1px solid var(--albert-control-border);
+  border-radius: var(--albert-radius-pill);
+}
+input[type="text"]::placeholder { color: var(--albert-muted); }
+[role="alert"] { color: var(--albert-coral-text); }
+main p[role="alert"] { padding: 12px 16px; border-radius: var(--albert-radius-md); background: var(--albert-danger-surface); }
 
 @media (max-width: 600px) {
   .shell { padding: 0 20px; }
-  .shell-header { padding: 24px 0; }
-  main { padding: 40px 0; }
+  main { padding: 28px 0 40px; }
+  .tagline { padding-left: 0; border-left: 0; }
 }
+
+/* ---------- button variants ---------- */
+button.btn-primary:not(:disabled) { background: var(--albert-ink); color: var(--albert-paper); border-color: var(--albert-ink); }
+button.btn-secondary:not(:disabled) { background: var(--albert-paper); color: var(--albert-ink); border-color: var(--albert-ink); }
+@media (hover: hover) {
+  button.btn-primary:hover:not(:disabled) { background: var(--albert-ink-hover); }
+  button.btn-secondary:hover:not(:disabled) { background: var(--albert-surface-hover); }
+}
+button.btn-primary:active:not(:disabled) { background: var(--albert-ink-pressed); }
+
+/* ---------- work page ---------- */
+.work-title { margin-bottom: 8px; font-size: clamp(1.75rem, 3vw, 2.25rem); }
+.source-nav { display: inline-flex; gap: 4px; margin-top: 20px; padding: 4px; border: 1px solid var(--albert-border); border-radius: var(--albert-radius-pill); background: var(--albert-white); }
+.source-nav a { padding: 6px 16px; border-radius: var(--albert-radius-pill); color: var(--albert-ink); font-size: 0.875rem; font-weight: 600; text-decoration: none; }
+.source-nav a[aria-current="page"] { background: var(--albert-ink); color: var(--albert-paper); }
+@media (hover: hover) { .source-nav a:not([aria-current="page"]):hover { background: var(--albert-surface-hover); } }
+.work-note { max-width: 70ch; margin: 12px 0 0; color: var(--albert-muted); font-size: 0.9375rem; line-height: 1.5; }
+.work-note--quiet { display: none; }
+.work-note--badge { display: inline-block; padding: 4px 12px; border-radius: var(--albert-radius-pill); background: var(--albert-sage); color: var(--albert-ink); font-size: 0.8125rem; }
+
+.worksheet-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; margin-top: 16px; }
+.worksheet-header__title { margin: 0; font-size: 1.5rem; }
+.worksheet-header__meta { color: var(--albert-muted); font-size: 0.875rem; }
+.worksheet-header__original { margin-left: auto; align-self: center; }
+
+.work-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  margin-top: 16px; padding: 10px 12px;
+  border: 1px solid var(--albert-border); border-radius: var(--albert-radius-md);
+  background: var(--albert-white); box-shadow: var(--albert-shadow-raised);
+}
+.work-toolbar--dev { margin-top: 8px; box-shadow: none; background: transparent; border-style: dashed; font-size: 0.8125rem; color: var(--albert-muted); }
+.work-toolbar button { min-height: 36px; padding: 6px 16px; }
+.work-toolbar button.btn-primary { margin-left: auto; }
+.work-status { color: var(--albert-muted); font-size: 0.8125rem; font-weight: 500; }
+
+[data-pdf-worksheet] > p[role="status"], [data-pdf-worksheet] > p[role="alert"] { margin: 12px 0 0; }
+[data-pdf-worksheet] { padding-bottom: 8px; }
+[data-pdf-page] { margin-top: 28px; padding: 16px 20px 24px; border-radius: var(--albert-radius-lg); background: var(--albert-desk); }
+[data-pdf-page][data-active-page="true"] { box-shadow: inset 0 0 0 2px rgb(24 43 73 / 14%); }
+[data-pdf-page] svg[data-page] { border-radius: 4px; box-shadow: var(--albert-shadow-page); }
+[data-pdf-page] > div[style] { margin-top: 16px !important; }
+
+.page-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.page-controls__label { margin-right: 6px; font-size: 0.875rem; font-weight: 700; letter-spacing: 0.01em; }
+.page-controls button { min-height: 36px; padding: 6px 16px; }
+.page-controls button[aria-label^="Problem"] { min-width: 40px; padding: 6px 12px; }
+.ask-albert { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.ask-albert__input { min-width: 180px; width: min(340px, 40vw); min-height: 36px !important; padding: 6px 14px !important; }
+.ask-albert__error { flex-basis: 100%; font-size: 0.8125rem; }
+@media (max-width: 900px) { .ask-albert { margin-left: 0; flex: 1 1 100%; } .ask-albert__input { flex: 1 1 200px; width: auto; } }
+
+section[data-highlighted] { border-radius: var(--albert-radius-lg); }

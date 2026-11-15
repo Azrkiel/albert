@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const pages = [
-  { route: "/", heading: "Connect your course" },
+  { route: "/", heading: "Write your math. Albert marks the page." },
   { route: "/courses", heading: "Pick a course" },
   { route: "/course/demo-course", heading: "Plan, skills, worksheets" },
   { route: "/work/demo-worksheet", heading: "The page you write on" },
@@ -19,7 +19,7 @@ for (const { route, heading } of pages) {
     const response = await page.goto(route);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
-    await expect(page.locator("main > p").first()).not.toBeEmpty();
+    await expect(page.locator("main p").first()).not.toBeEmpty();
     await expect(page.getByRole("banner").getByRole("link", { name: "Albert", exact: true })).toBeVisible();
     await expect(page.getByText("Turns you into Einstein.", { exact: true })).toBeVisible();
     await expect(page.getByRole("status")).toHaveText("Services not ready");

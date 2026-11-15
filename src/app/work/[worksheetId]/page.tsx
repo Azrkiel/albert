@@ -38,22 +38,22 @@ async function WorkProblems({ params, searchParams }: WorkPageProps) {
     ? `${page}?source=worksheet` : "/courses";
   const canvas = <WorksheetCanvas key={`${worksheetId}/${problemSource}/${worksheet?.fileId ?? ""}`} worksheetId={worksheetId} problems={problems} worksheetTitle={worksheet?.title} fileId={worksheet?.fileId} pdfProblems={worksheet?.problems} problemSource={problemSource} />;
   return <>
-    <nav aria-label="Problem source" style={{ display: "flex", gap: 16 }}>
+    <nav aria-label="Problem source" className="source-nav">
       <Link prefetch={false} href={`${page}?source=handwriting`} aria-current={problemSource === "handwriting" ? "page" : undefined}>General calculus</Link>
       <Link prefetch={false} href={worksheetHref}
         aria-current={problemSource === "worksheet" ? "page" : undefined}>{worksheet ? "Worksheet" : "Choose worksheet"}</Link>
     </nav>
-    <p data-problem-source={problemSource}>{worksheet ? `${worksheet.title}: hints use these assigned questions and your course notes.`
+    <p data-problem-source={problemSource} className="work-note">{worksheet ? `${worksheet.title}: hints use these assigned questions and your course notes.`
       : "General calculus: hints follow the problem and steps you write."}</p>
-    <p>Choose a source before writing.</p>
-    {process.env.MOCK_LLM === "1" && <p data-recorded-preview="">Recorded preview: replies use saved examples and do not read your handwriting.</p>}
+    <p className="work-note work-note--quiet">Choose a source before writing.</p>
+    {process.env.MOCK_LLM === "1" && <p data-recorded-preview="" className="work-note work-note--badge">Recorded preview: replies use saved examples and do not read your handwriting.</p>}
     {worksheet ? <WorksheetShell worksheet={worksheet}>{canvas}</WorksheetShell> : canvas}
   </>;
 }
 
 export default function WorkPage(props: WorkPageProps) {
   return <>
-    <h1>The page you write on</h1>
+    <h1 className="work-title">The page you write on</h1>
     <p>Write by hand, with room for Albert beside you.</p>
     <Suspense fallback={<p>Opening your page...</p>}>
       <WorkProblems {...props} />

@@ -513,15 +513,15 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
   }
 
   return <div ref={root} data-pdf-worksheet={state.surface === "pdf" ? "" : undefined}>
-    <div role="group" aria-label="Ink tools" style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
+    <div role="group" aria-label="Ink tools" className="work-toolbar">
       <button type="button" disabled={pdfInputLocked} aria-pressed={tool === "pen"} onClick={() => setTool("pen")}>Pen</button>
       <button type="button" disabled={pdfInputLocked} aria-pressed={tool === "eraser"} onClick={() => setTool("eraser")}>Eraser</button>
       <button type="button" disabled={pdfInputLocked || !historyEvent(state, "undo", state.durationMs, activePage)} onClick={() => history("undo")}>Undo</button>
       <button type="button" disabled={pdfInputLocked || !historyEvent(state, "redo", state.durationMs, activePage)} onClick={() => history("redo")}>Redo</button>
-      <button type="button" disabled={sync.status === "ending" || sync.status === "ended" || pdfInputLocked || (state.surface === "pdf" && hint.status === "streaming")} onClick={() => void endSession()}>End session</button>
+      <button type="button" disabled={sync.status === "ending" || sync.status === "ended" || pdfInputLocked || (state.surface === "pdf" && hint.status === "streaming")} onClick={() => void endSession()} className="btn-secondary">End session</button>
       {state.surface === "pdf" && <>
-        <button type="button" disabled={savingPdf || !sync.ready || !pages.length} onClick={() => void downloadPdf()}>{savingPdf ? "Saving PDF…" : "Save PDF"}</button>
-        <span role="status">Page {activePage} · {sync.ready ? "Autosave on" : "Opening saved writing…"}</span>
+        <button type="button" disabled={savingPdf || !sync.ready || !pages.length} onClick={() => void downloadPdf()} className="btn-primary">{savingPdf ? "Saving PDF…" : "Save PDF"}</button>
+        <span role="status" className="work-status">Page {activePage} · {sync.ready ? "Autosave on" : "Opening saved writing…"}</span>
       </>}
     </div>
     {devTools && <DevToolbar speed={speed} onSpeed={setSpeed}
