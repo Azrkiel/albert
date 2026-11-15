@@ -84,8 +84,6 @@ Next.js and TypeScript. Our own stroke canvas on Pointer Events with `perfect-fr
 
 We worked from a written plan in `docs/plan/`, one subphase at a time, each with acceptance criteria and a recorded result in [`docs/plan/status.md`](docs/plan/status.md).
 
-TODO(owner): add a paragraph on Cursor and Grok Bot only if they were used. `docs/tracks/spacexsi.md` has no evidence yet, so this README does not claim either.
-
 ## Status
 
 Checked by automated tests (numbers in `status.md`): PDF pages and problem regions, writing, erasing and undo per page, save and reload, annotated PDF export geometry, and hint requests that carry a short question, the Ask Albert follow-up flow, the pen-tip pointer and the Save PDF export. Still open in `status.md`: the by-hand checks (pen on the demo device, the annotated PDF in Edge and an independent viewer, a live cited hint and follow-up), live Mongo ordering, and a clean live run of the context-only course agent. [`docs/SUBMISSION.md`](docs/SUBMISSION.md) has the numbers and says what is not claimed.
