@@ -131,6 +131,13 @@ describe("manifest validation", () => {
 });
 
 describe("contract variants and bounds", () => {
+  it("R3.2: keeps typed questions and empty-page context in recorded hint requests", () => {
+    const event = { type: "hint_requested", at: 10, hintId: "q1", rowId: "p1/page1/question", rung: 1, question: "  which\n step?  ", problemId: "p1", page: 1 };
+    expect(contracts.SessionEventSchema.parse(event)).toEqual({ ...event, question: "which step?" });
+    for (const question of ["", " ", "a".repeat(201)]) expect(contracts.SessionEventSchema.safeParse({ ...event, question }).success).toBe(false);
+    for (const page of [0, -1, 1.5]) expect(contracts.SessionEventSchema.safeParse({ ...event, page }).success).toBe(false);
+  });
+
   it("R2.2: preserves optional PDF identity and rejects invalid page numbers", () => {
     const stroke = { ...examples.Stroke.valid, page: 2 };
     const row = { ...examples.Row.valid, page: 2 };

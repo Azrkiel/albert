@@ -48,7 +48,7 @@ const EMPTY: ProblemInk = { chip: null, hasInk: false, extent: 0 };
 const NS = "http://www.w3.org/2000/svg";
 
 type Drawn = { ctx: HintContext; group: SVGGElement; marks: AlbertMark[]; kinds: Set<string>; rows: Set<string>;
-  writing: SVGGElement | null; faded: boolean };
+  writing: SVGGElement | null; faded: boolean; motion: Skip };
 
 /**
  * Turns one hint's `HintEvent`s into Albert's ink inside each problem's `<g class="albert">`.
@@ -72,6 +72,7 @@ export function createConductor(host: ConductorHost) {
   const pointers = new Map<string, SVGGElement>();
   let pointerPositions = new WeakMap<SVGSVGElement, PenPosition>();
   const skip: Skip = { now: false };
+  const animationSkip = (made: Drawn): Skip => ({ get now() { return skip.now || made.motion.now; } });
   const listeners = new Set<() => void>();
   const states = new Map<string, ProblemInk>();
   let readings: { rowId: string; latex: string; confidence: string }[] = [];
@@ -113,7 +114,7 @@ export function createConductor(host: ConductorHost) {
     group.setAttribute("data-rung", String(ctx.rung));
     group.setAttribute("data-row-id", ctx.rowId);
     layer.append(group);
-    const made: Drawn = { ctx, group, marks: [], kinds: new Set(), rows: new Set([ctx.rowId]), writing: null, faded: false };
+    const made: Drawn = { ctx, group, marks: [], kinds: new Set(), rows: new Set([ctx.rowId]), writing: null, faded: false, motion: { now: false } };
     drawn.set(ctx.hintId, made);
     setState(ctx.problemId, {});
     return made;
@@ -126,6 +127,7 @@ export function createConductor(host: ConductorHost) {
   const remove = (hintId: string) => {
     const d = drawn.get(hintId);
     if (!d) return;
+    d.motion.now = true;
     d.group.remove();
     drawn.delete(hintId);
     setState(d.ctx.problemId, {});
@@ -204,7 +206,7 @@ export function createConductor(host: ConductorHost) {
           const bb = group.getBBox();
           made.marks.push({ id: `${ctx.hintId}/${kind}${made.marks.length + 1}`, hintId: ctx.hintId, problemId: ctx.problemId, spec,
             bbox: { x: bb.x, y: bb.y, w: bb.width, h: bb.height }, drawnAt: host.now() });
-          await revealStroke(group, ms(duration, ctx), skip);
+          await revealStroke(group, ms(duration, ctx), animationSkip(made));
         },
       });
     } finally { removePointer(ctx.hintId); }
@@ -288,7 +290,7 @@ export function createConductor(host: ConductorHost) {
     for (const p of placed) {
       if (gone(ctx)) return;
       p.el.removeAttribute("visibility");
-      await revealWipe(p.el, ms(revealMs(p.item.seg, p.glyphs), ctx), skip);
+      await revealWipe(p.el, ms(revealMs(p.item.seg, p.glyphs), ctx), animationSkip(made));
     }
   }
 
@@ -335,7 +337,7 @@ export function createConductor(host: ConductorHost) {
       el.append(t);
     });
     made.group.append(el);
-    await revealWipe(el, ms(text.length / WRITE.charsPerSec * 1000, ctx), skip);
+    await revealWipe(el, ms(text.length / WRITE.charsPerSec * 1000, ctx), animationSkip(made));
   }
 
   function replayShown(marks: AlbertMark[], opts: { instant: boolean; rung: number }) {
@@ -404,6 +406,14 @@ export function createConductor(host: ConductorHost) {
      * the recorded hint id, so a replay's wobble can differ from the live one.
      */
     replayShown,
+    cancel(hintId: string) {
+      cancelled.add(hintId);
+      pendingReplays.delete(hintId);
+      removeDot(hintId); removePointer(hintId);
+      const problemId = drawn.get(hintId)?.ctx.problemId;
+      remove(hintId);
+      if (problemId) setState(problemId, { chip: null });
+    },
     /** Rows of the latest `reading` event (P4.6's "What Albert read"). */
     latestReading: () => readings,
     /** Resolves when everything queued so far has finished drawing. */
@@ -438,7 +448,8 @@ export function createConductor(host: ConductorHost) {
       cancelled.clear();
       pendingReplays.clear();
       readings = [];
-      for (const d of drawn.values()) d.group.remove();
+      for (const d of drawn.values()) { d.motion.now = true; d.group.remove(); }
+      skip.now = false;
       for (const dot of dots.values()) dot.remove();
       dots.clear();
       for (const pointer of pointers.values()) pointer.remove();

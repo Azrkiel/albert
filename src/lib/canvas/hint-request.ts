@@ -12,6 +12,7 @@ export type BuildHintRequestOptions = {
   problemSource?: HintRequest["problemSource"];
   /** Also render image.clean. General handwriting includes it by default to keep labels out of transcription. */
   clean?: boolean;
+  question?: string;
   background?: SnapshotArgs["background"];
   /** Injected in unit tests, which have no canvas. */
   render?: (args: SnapshotArgs) => Promise<Snapshot>;
@@ -48,6 +49,7 @@ export function hintHistory(events: SessionEvent[], problemId: string, rowProble
       hintId: event.hintId,
       rung: request?.rung ?? 1,
       rowId,
+      ...(request?.question === undefined ? {} : { question: request.question }),
       text: writing.map((spec) => segmentsText(spec.segments)).join("\n"),
       studentWroteAfter: events.some((e) => e.type === "stroke_end" && e.at > event.at
         && e.stroke.problemId === problemId && e.stroke.tool === "pen"),
@@ -78,6 +80,7 @@ export async function buildHintRequest(state: SessionState, rowId: string, rung:
     rowId,
     rung,
     trigger,
+    ...(options.question === undefined ? {} : { question: options.question }),
     image: { marked: marked.png, ...(clean ? { clean: clean.png } : {}), width: marked.width, height: marked.height },
     rows: marked.rows,
     history: hintHistory(state.events, row.problemId, problemOf),
