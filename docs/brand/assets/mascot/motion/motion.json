@@ -1,0 +1,35 @@
+{
+  "version": "1.3.0",
+  "transition": {
+    "file": "guiding-to-waiting.webp",
+    "from": "guiding",
+    "to": "waiting",
+    "canvas": [
+      256,
+      256
+    ],
+    "frames": 6,
+    "durationMs": 180,
+    "loop": "once",
+    "type": "crossfade between aligned static drawings, not skeletal animation"
+  },
+  "sprite": {
+    "file": "../normalized/pose-sheet-512.png",
+    "cell": [
+      512,
+      512
+    ],
+    "columns": 8,
+    "states": [
+      "thinking",
+      "guiding",
+      "celebrating",
+      "welcoming",
+      "listening",
+      "encouraging",
+      "explaining",
+      "waiting"
+    ]
+  },
+  "accessibility": "Use the corresponding static state when reduced motion is requested. Do not autoplay repeated idle motion."
+}

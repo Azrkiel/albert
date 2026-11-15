@@ -1,0 +1,16 @@
+{
+  "title": "Albert \u2014 Find your next step.",
+  "description": "A thoughtful tutor, beside your work.",
+  "wideImage": "albert-og-1200x630.png",
+  "wideSize": [
+    1200,
+    630
+  ],
+  "squareImage": "albert-square-1080.png",
+  "squareSize": [
+    1080,
+    1080
+  ],
+  "imageAlt": "Albert, the paper tutor, beside the words Find your next step.",
+  "integration": "Use absolute public image URLs and the actual canonical page URL in production social metadata."
+}

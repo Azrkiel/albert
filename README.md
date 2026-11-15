@@ -30,6 +30,10 @@ This repository currently holds the build plan. Code follows it.
 
 Phases: [1 Foundation](docs/plan/phase-1-foundation.md) · [2 Canvas](docs/plan/phase-2-canvas.md) · [3 Tutor brain](docs/plan/phase-3-tutor-brain.md) · [4 Ink](docs/plan/phase-4-ink.md) · [5 Course import](docs/plan/phase-5-lms.md) · [6 Course agent](docs/plan/phase-6-course-agent.md) · [7 Progress](docs/plan/phase-7-progress.md) · [8 Ship](docs/plan/phase-8-ship.md)
 
+## Brand and design system
+
+The [Albert brand kit](docs/brand/README.md) includes the master design system, editable logos, mascot poses, website assets, responsive screen references, email templates, and QA evidence. Start with the [production asset index](docs/brand/PRODUCTION_ASSETS.md). The [integration note](docs/brand/REPOSITORY_INTEGRATION.md) explains how these references relate to the current application scope.
+
 ## Built with
 
 Next.js and TypeScript · a custom stroke canvas · Claude on Amazon Bedrock · LangChain Deep Agents · MongoDB Atlas · GitHub course files and uploads · MathJax · roughjs
