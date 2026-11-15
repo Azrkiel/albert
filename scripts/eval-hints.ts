@@ -62,7 +62,7 @@ async function openRepo(): Promise<{ repo: Repo; remap: (c: EvalCase, r: HintReq
   for (const card of state.cards) await repo.upsertCard(card);
   for (const ws of state.worksheets) await repo.upsertWorksheet(ws);
   const hand = new Map<string, z.infer<typeof WorksheetSchema>>();
-  for (const name of await readdir(join(process.cwd(), "fixtures", "worksheets"))) {
+  for (const name of (await readdir(join(process.cwd(), "fixtures", "worksheets"))).filter((n) => n.endsWith(".json"))) {
     const ws = WorksheetSchema.parse(JSON.parse(await readFile(join(process.cwd(), "fixtures", "worksheets", name), "utf8")));
     hand.set(ws.id, ws);
   }
@@ -72,7 +72,9 @@ async function openRepo(): Promise<{ repo: Repo; remap: (c: EvalCase, r: HintReq
     const number = original?.title.match(/\d+/)?.[0];
     const label = original?.problems.find((p) => p.id === c.problemId)?.label;
     const ws = state.worksheets.find((w) => number !== undefined && new RegExp(`\\b${number}\\b`).test(w.title));
-    const problem = ws?.problems.find((p) => p.label === label);
+    // Ingested labels may read "Problem 1" where the hand-written worksheet says "1".
+    const labelKey = (l: string | undefined) => l?.match(/\d+[a-z]?/i)?.[0]?.toLowerCase();
+    const problem = ws?.problems.find((p) => labelKey(p.label) !== undefined && labelKey(p.label) === labelKey(label));
     if (!ws || !problem) throw new EvalSetupError(`No ingested worksheet/problem for ${c.id}`);
     return { ...r, worksheetId: ws.id, problemId: problem.id };
   } };

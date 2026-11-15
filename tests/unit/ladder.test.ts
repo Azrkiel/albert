@@ -17,6 +17,11 @@ describe("P3.3-AC1 ladder rules", () => {
   it("rung 1 with 30 words fails", () => {
     expect(checkLadder(hint(`${"word ".repeat(29)}word?`), diagnosis, 1).join(" ")).toContain("at most 18 words; you used 30");
   });
+  it("rung 1 with an equation in its math segment fails (it would state the fix)", () => {
+    const q: WriteHint = { kind: "question", segments: [{ type: "text", text: "Where is " }, { type: "math", latex: String.raw`dx = 4\cos\theta\,d\theta` }, { type: "text", text: " in the integral?" }] };
+    expect(checkLadder(q, diagnosis, 1).join(" ")).toContain("Rung 1 must not contain =");
+    expect(checkLadder({ kind: "question", segments: [{ type: "text", text: "What does " }, { type: "math", latex: "dx" }, { type: "text", text: " become?" }] }, diagnosis, 1)).toEqual([]);
+  });
   it("rung 2 with dx = 4\\cos\\theta\\,d\\theta fails", () => {
     const next: WriteHint = { kind: "next_step", segments: [{ type: "math", latex: String.raw`dx = 4\cos\theta\,d\theta` }] };
     expect(checkLadder(next, diagnosis, 2).join(" ")).toContain("must not contain =");
