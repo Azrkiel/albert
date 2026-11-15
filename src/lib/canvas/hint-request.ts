@@ -8,7 +8,9 @@ export type BuildHintRequestOptions = {
    * their own; the default is the local placeholder `local:<worksheetId>`. P2.8 replaces it.
    */
   sessionId?: string;
-  /** Also render the unmarked image (`image.clean`); the server sends it only when SEND_CLEAN_IMAGE=1. */
+  /** Omitted for legacy worksheet callers. */
+  problemSource?: HintRequest["problemSource"];
+  /** Also render image.clean. General handwriting includes it by default to keep labels out of transcription. */
   clean?: boolean;
   /** Injected in unit tests, which have no canvas. */
   render?: (args: SnapshotArgs) => Promise<Snapshot>;
@@ -65,11 +67,12 @@ export async function buildHintRequest(state: SessionState, rowId: string, rung:
   const render = options.render ?? renderSnapshot;
   const base = { strokes: state.strokes, rows: state.rows, clusters: listClusters(state), problemId: row.problemId, upToRowId: rowId };
   const marked = await render({ ...base, marked: true });
-  const clean = options.clean ? await render({ ...base, marked: false }) : undefined;
+  const clean = (options.clean ?? options.problemSource === "handwriting") ? await render({ ...base, marked: false }) : undefined;
   const problemOf = (id: string) => state.rows.find((r) => r.id === id)?.problemId;
   return HintRequestSchema.parse({
     sessionId: options.sessionId ?? localSessionId(state.worksheetId),
     worksheetId: state.worksheetId,
+    ...(options.problemSource === undefined ? {} : { problemSource: options.problemSource }),
     problemId: row.problemId,
     rowId,
     rung,

@@ -151,9 +151,10 @@ type HintRequest = {
   rowId: string;               // the stuck row
   rung: Rung;
   trigger: StuckSignal["kind"];
+  problemSource?: "worksheet" | "handwriting"; // omitted means worksheet (legacy callers)
   image: {
     marked: string;            // base64 PNG: rows 1..stuck, with row tags and cluster numbers
-    clean?: string;            // base64 PNG without marks; sent only when SEND_CLEAN_IMAGE=1
+    clean?: string;            // base64 PNG without marks; general handwriting includes it; worksheet opt-in
     width: number; height: number;
   };
   rows: Array<{ rowId: string; index: number; clusterLabels: number[] }>;
@@ -167,6 +168,8 @@ type HintTurn = {
   studentWroteAfter: boolean;  // did new ink appear after this hint
 };
 ```
+
+**Problem source.** Worksheet hints load the assigned problem and its unit teaching card; the page must display that assigned exercise. General calculus explicitly sends `problemSource: "handwriting"`: the first handwritten problem and subsequent visible rows are authoritative. This path loads no worksheet or course scope, omits course citations/subskills/deferred units, and stores neither course hints nor skill evidence. The ordinary ladder, pointing, privacy, deadline and logging rules still apply. `inScope: true` on a general hint means no course scope is asserted. General snapshots include an unlabelled copy alongside the marked image so blue labels do not obscure transcription. Missing/illegible problem ink asks for a reread rather than inventing an exercise. The optional field also flows into the derived `CheckRequest`; a future general check must not create course evidence. Mock general requests use course-free `handwriting-r1` through `handwriting-r3` fixtures; worksheet mocks are unchanged.
 
 **Snapshot rendering.** White background, black ink, 2× device scale, cropped to the union of the rows' ink plus 24 px padding, scaled down so the longer side is at most 1400 px. In the marked image each row has a tag `R1`, `R2`, … at its left edge and each cluster has its number above it in `INK.clusterLabel` at 14 px.
 

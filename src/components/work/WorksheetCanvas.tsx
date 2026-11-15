@@ -37,7 +37,7 @@ const envLayout: CanvasLayout = process.env.NEXT_PUBLIC_CANVAS_LAYOUT === "free"
 
 export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: string, rung: Rung) => Promise<void> };
 
-export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: string; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
+export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksheet", ref }: { worksheetId: string; problemSource?: HintRequest["problemSource"]; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
   const devTools = devBuild && params.get("dev") === "1";
@@ -99,13 +99,13 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     sink({ type: "hint_requested", at: now(), hintId: `hint-${sessionId}-${current.current.events.length}`, rowId, rung });
     setHintTarget({ problemId, rowId });
     try {
-      const request = await buildHintRequest(current.current, rowId, rung, trigger, { sessionId });
+      const request = await buildHintRequest(current.current, rowId, rung, trigger, { sessionId, problemSource });
       // A slower snapshot from an older click must not replace a newer request.
       if (id === hintRequestId.current) await sendHint(request);
     } catch {
       if (id === hintRequestId.current) setError("Could not prepare your writing for a hint. Try again.");
     }
-  }, [sendHint, sessionId, sink, now]);
+  }, [sendHint, sessionId, sink, now, problemSource]);
   useImperativeHandle(ref, () => ({ requestHint }), [requestHint]);
   // P3.8: an error shows only its plain note; partial hint text before it is dropped.
   const hintText = hintMarginText(hint.events) || (hint.status === "streaming" ? "Getting a hint..." : "");
@@ -229,7 +229,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       problemId: problemId ?? row?.problemId ?? "", upToRowId, marked });
   }, []);
   const hintRequestHook = useCallback<HintRequestHook>((rowId, rung, trigger) =>
-    buildHintRequest(current.current, rowId, rung, trigger, { sessionId }), [sessionId]);
+    buildHintRequest(current.current, rowId, rung, trigger, { sessionId, problemSource }), [sessionId, problemSource]);
   // P4.2: load the hand font and MathJax when the work page mounts, before the first hint.
   const [mathReady, setMathReady] = useState(false);
   useEffect(() => {

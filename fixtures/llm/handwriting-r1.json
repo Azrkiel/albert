@@ -1,0 +1,39 @@
+{
+  "fixtureId": "handwriting-r1",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-handwriting-r1",
+      "at": 0
+    },
+    {
+      "type": "diagnosis",
+      "status": "stalled",
+      "inScope": true
+    },
+    {
+      "type": "hint",
+      "kind": "question",
+      "segments": [
+        {
+          "type": "text",
+          "text": "What changes between your first and second lines?"
+        }
+      ]
+    },
+    {
+      "type": "done",
+      "hintId": "mock-handwriting-r1",
+      "ms": {
+        "firstEvent": 1350,
+        "total": 1500
+      }
+    }
+  ],
+  "delaysMs": [
+    150,
+    150,
+    150,
+    150
+  ]
+}

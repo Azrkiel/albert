@@ -5,7 +5,7 @@ test("I'm stuck sends the real marked writing and cluster labels up to the curre
   await page.route("**/api/hint", route => route.fulfill({ contentType: "application/x-ndjson",
     body: JSON.stringify({ type: "error", code: "model_unavailable", message: "Test response" }) + "\n" }));
   await page.goto("/work/calc2-ws3?layout=ruled");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
+  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
   const problem = page.locator('section[data-problem-id="calc2-ws3/p1"]');
   const surface = problem.locator("svg[data-capture-ready=true]");
   await surface.scrollIntoViewIfNeeded();
@@ -67,7 +67,7 @@ test("a snapshot preparation failure shows a safe note and a successful retry cl
       body: JSON.stringify({ type: "error", code: "model_unavailable", message: "Test response" }) + "\n" });
   });
   await page.goto("/work/calc2-ws3?layout=ruled");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
+  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
   const problem = page.locator('section[data-problem-id="calc2-ws3/p1"]');
   const button = problem.getByRole("button", { name: "I'm stuck", exact: true });
   const preparationNote = page.getByRole("alert").filter({ hasText: "Could not prepare your writing for a hint." });

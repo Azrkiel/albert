@@ -301,3 +301,14 @@ pnpm eval:hints --checks
 
 - [ ] `status.md` has the chosen hint model, the image mode, the latest eval totals and the three consecutive 100% lines.
 - [ ] By hand, with the real model: write the missing-`dx` work, tap the mark, and read the question. Tap twice more for rungs 2 and 3. Nothing gives away more than its rung allows.
+
+
+### User-approved follow-up: handwritten general calculus (Nov 14)
+
+The live buttons now send the real ink snapshot. A user trial exposed a separate source mismatch: the page said only "Write one step per row" while the server supplied the fixed worksheet exercise. The user explicitly requested general calculus driven by handwriting, with course material used for worksheet work, and approved changing the shared request contract and related tests.
+
+`HintRequest.problemSource` is optional (`worksheet` or `handwriting`); omitted means worksheet for existing callers. Worksheet pages load and display all assigned statements from the same stored worksheet used by scope loading. `/work/general-calculus` and `?source=handwriting` open blank practice; mode navigation remounts the canvas to keep requests/history apart. This general-practice option is an explicit user-approved exception to P5.8's proposed unit-picked whiteboard; it does not implement PDF page mode or its unit scope.
+
+General practice uses its first handwritten problem and subsequent visible rows, with no worksheet statement, teaching card, covered/upcoming methods or lecture examples loaded. It includes clean and numbered copies of the same ink; the model reads the clean copy and locates marks in the numbered copy. The normal ladder, reread, pointing, repair, timeout and safe-log rules still apply. Validation rejects course citations, subskills and deferred units. `inScope: true` here makes no claim about course coverage. Neither live nor mock general hints store course hints or skill evidence, because no course is selected. Session ink recording is unchanged. Legacy worksheet no-notes behavior and mocks are retained. Source-labelled request fixtures, examples, schema and contracts.md ship together.
+
+Live trial, run by agent with the user's recorded two-row ink: numbered image alone removed the unrelated worksheet but misread the denominator. With the clean copy, Haiku 4.5 transcribed the first line as `\int \frac{x^2}{3x^3} dx` and asked what power remains after cancellation; server total 3403 ms. This is a single-case check, not proof of reliable handwriting recognition or the P3.5 evaluation. The second line was incomplete; do not claim a complete transcription benchmark. The 12000 ms timeout stays unchanged; P3.8-AC3 remains needs human.

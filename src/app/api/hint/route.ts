@@ -46,7 +46,7 @@ export async function POST(request: Request) {
         if (next.done) { output.close(); cleanup(); return; }
         if (next.value.type === "started") hintId = next.value.hintId;
         collected.push(next.value);
-        if (next.value.type === "done" && process.env.MOCK_LLM === "1") {
+        if (next.value.type === "done" && process.env.MOCK_LLM === "1" && input.problemSource !== "handwriting") {
           // P2.8 creates persisted sessions. Until then the dev canvas has none.
           const repo = process.env.STORE === "memory" || process.env.MONGODB_URI ? getRepo() : undefined;
           const session = await repo?.getSession(input.sessionId);

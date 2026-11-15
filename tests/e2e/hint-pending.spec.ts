@@ -18,7 +18,7 @@ for (const outcome of ["success", "timeout"] as const) {
       await route.fulfill({ contentType: "application/x-ndjson", body: events.map(event => JSON.stringify(event)).join("\n") + "\n" });
     });
     await page.goto("/work/calc2-ws3?layout=ruled");
-    await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
+    await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
     const problem = page.locator('section[data-problem-id="calc2-ws3/p1"]');
     const button = problem.getByRole("button", { name: "I'm stuck", exact: true });
     const column = problem.locator("[data-albert-column]");
