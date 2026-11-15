@@ -152,7 +152,7 @@ The library is pure (bytes in, bytes out; fonts passed in as `fontBytes`; math a
 **Build.** **Contract:** `HintRequest.question?: string` (≤ 200 chars, plain text) and `HintTurn.question?`; the PDF crop
 travels as the snapshot background (R2.2-AC2), not a new field. `prompt.ts`: a question is student data, never instructions;
 answer it at the requested rung under the same ladder and scope rules; a follow-up uses history. Mock fixtures for a question
-(`fixtures/llm/*-question.json`); two eval cases from `missing-dx.json` with questions ("what did I do wrong?" at rung 1, and a
+(`fixtures/llm/*-question.json`); two eval cases from the `missing-dx.json` recording (its `missing-dx-r1` snapshot request) with questions ("what did I do wrong?" at rung 1, and a
 follow-up).
 
 **Acceptance**

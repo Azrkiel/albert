@@ -1,0 +1,44 @@
+{
+  "fixtureId": "default-r3-question",
+  "events": [
+    {
+      "type": "started",
+      "hintId": "mock-default-r3-question",
+      "at": 0
+    },
+    {
+      "type": "reading",
+      "rows": []
+    },
+    {
+      "type": "diagnosis",
+      "status": "stalled",
+      "inScope": true
+    },
+    {
+      "type": "hint",
+      "kind": "worked_step",
+      "segments": [
+        {
+          "type": "text",
+          "text": "Replace dx by its substitution and write the integral again with only the new variable."
+        }
+      ]
+    },
+    {
+      "type": "done",
+      "hintId": "mock-default-r3-question",
+      "ms": {
+        "firstEvent": 1350,
+        "total": 1500
+      }
+    }
+  ],
+  "delaysMs": [
+    150,
+    300,
+    300,
+    600,
+    150
+  ]
+}
