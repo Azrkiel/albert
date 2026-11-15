@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { GitHubSnapshotSchema } from "./storage";
+import { BBoxSchema } from "./geometry";
 
 export const CourseSchema = z.object({
   id: z.string(), source: z.enum(["github", "upload"]), snapshot: GitHubSnapshotSchema.optional(),
@@ -29,7 +30,7 @@ export type TeachingCard = z.infer<typeof TeachingCardSchema>;
 export const WorksheetSchema = z.object({
   id: z.string(), courseId: z.string(), unitId: z.string(), title: z.string(), fileId: z.string(),
   dueAt: z.iso.datetime({ offset: true }).optional(), assignmentId: z.string().optional(),
-  problems: z.array(z.object({ id: z.string(), label: z.string(), statementLatex: z.string(), page: z.number().int().positive(), subskillIds: z.array(z.string()).min(1), methodIds: z.array(z.string()) })),
+  problems: z.array(z.object({ id: z.string(), label: z.string(), statementLatex: z.string(), page: z.number().int().positive(), region: z.object({ page: z.number().int().positive(), bbox: BBoxSchema }).optional(), subskillIds: z.array(z.string()).min(1), methodIds: z.array(z.string()) })),
 });
 export type Worksheet = z.infer<typeof WorksheetSchema>;
 

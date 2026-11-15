@@ -11,6 +11,8 @@ User changed the target to PDF annotation, course learning/context and stroke-aw
 - [ ] Page-local helper with course context, stroke targeting, short questions/follow-ups and Pixie-inspired pointing.
 - [ ] Integrated course -> PDF -> handwritten work -> cited help -> saved PDF, verified automatically and by hand as specified in current-scope.md.
 
+R2.1 WIP (`r2.1-pdf-pages`, based on P5.7): page metadata/PNG APIs and pure region derivation implemented; optional Worksheet region contract and synthetic Worksheet 3 fixture updated together. `pnpm verify --maxWorkers=2`: 56 files, 831 passed / 16 skipped; focused renderer/page/region tests: 31 passed. Both PNG pages inspected by the agent (not a person-only acceptance claim). Worksheet-serving integration awaits published R1.3/P5.6; build/runtime checks, two full e2e passes and CI remain pending. Live calls: 0.
+
 **How to use it**
 - Tick a subphase only when **every** acceptance criterion in its phase file has been verified and `pnpm verify` passes.
 - In the Evidence column write the commit and what was run, briefly: `a1b2c3d · pnpm verify, e2e replay`.
@@ -198,6 +200,7 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 14 | Codex (page lane) | R2.1 partial server work: render at 2400 px then downsample to the explicit AC2 width of 1200; cache derived PNGs and page metadata by original id/content hash; normalize PDF crop/rotation/y-flip before pure region detection. P6.1 rasterizePdf API and limits retained through extraction/re-export. Worksheet.region contract, docs, fixture and tests change together; served worksheet integration waits for the separate P5.6 lane's published code. No R2.1/P5.7 completion tick, merge, human check or live model call claimed. |
 | Nov 14 | Claude (lead) | P3.4 ticked after two user decisions: the eval uses the cases the real recordings support (4), and "ladder passes without retry" is reported, not gated (each retry is the server's safety net; it costs time, not correctness). Three consecutive runs held no-answer and scope at 100%; the final run exited 0. Live calls 61. |
 | Nov 14 | Claude (lead) | User decision (Nov 14, ~22:45): merge P6.5 now with AC4 left open, so P6.6–P6.8 and G3 build on it. P6.5 stays unticked until AC4 (hints with agent-built cards meet the eval bars) passes after prompt tuning; AC5 is the G3 by-hand check. |
 | Nov 14 | Claude (lead) | P6.5 final live runs: fresh agent ingest 13/13 golden checks in 315 s (AC1, AC2), a rerun on the same store changed no ids or counts (AC3; it took 425 s, so ingestion time has no margin). AC4 not met: with agent-built cards the missing-dx eval leaked `dx = 4cosθ dθ` on a rung-1 repeat; a rung-1 guard now rejects `=` in math (no leak on the rerun) but rung-1 replies still need a repair (~10 s). P6.5 stays unticked. Live calls this step: course 171 (ledger 435), lead 17 (ledger 31). |

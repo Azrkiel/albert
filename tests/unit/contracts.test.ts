@@ -131,6 +131,17 @@ describe("manifest validation", () => {
 });
 
 describe("contract variants and bounds", () => {
+  it("R2.1: preserves optional worksheet regions and rejects invalid page/box geometry", () => {
+    const worksheet = examples.Worksheet.valid;
+    const problem = worksheet.problems[0];
+    const withRegion = (region: unknown) => ({ ...worksheet, problems: [{ ...problem, region }] });
+    const region = { page: 2, bbox: { x: 0, y: 200, w: 1200, h: 400 } };
+    expect(contracts.WorksheetSchema.parse(withRegion(region)).problems[0]!.region).toEqual(region);
+    expect(contracts.WorksheetSchema.parse(worksheet)).toEqual(worksheet);
+    for (const invalid of [{ ...region, page: 0 }, { ...region, page: 1.5 }, { page: 1, bbox: { x: 0, y: 0, w: -1, h: 1 } }]) {
+      expect(contracts.WorksheetSchema.safeParse(withRegion(invalid)).success).toBe(false);
+    }
+  });
   it("matches the plan constants", () => {
     expect(contracts.PAGE).toEqual({ width: 1200, studentCol: { x: 0, w: 760 }, gutter: { x: 760, w: 30 }, albertCol: { x: 790, w: 410 }, rowHeight: 128, rowPaddingTop: 10, statementMinHeight: 96 });
     expect(contracts.INK).toEqual({ student: "#1b1b1f", albert: "#c8321e", clusterLabel: "#2f6fdb" });

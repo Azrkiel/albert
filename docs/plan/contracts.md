@@ -338,6 +338,7 @@ type Worksheet = {
     label: string;             // "1", "2a"
     statementLatex: string;    // the problem as text with LaTeX in $…$
     page: number;
+    region?: { page: number; bbox: BBox }; // R2.1: 1-based PDF page, top-left logical px at PAGE.width
     subskillIds: string[];     // at least one; all from units with order ≤ this worksheet's unit
     methodIds: string[];
   }>;
@@ -588,6 +589,8 @@ Resolve `COURSE_GITHUB_REF` through `GET /repos/{owner}/{repo}/commits/{ref}`, t
 | `/api/course/[courseId]` | GET | — | `{ course, units: Array<Pick<TeachingCard, "unitId"\|"order"\|"title"\|"subskills">>, worksheets, plan, skills }` |
 | `/api/worksheet/[worksheetId]` | GET | — | `Worksheet` |
 | `/api/files/[fileId]` | GET | — | The cached file's bytes with its mime type. Serves only files already in the `Repo` |
+| `/api/files/[fileId]/pages` | GET | — | `Array<{ page: number; widthPt: number; heightPt: number }>`; 1-based displayed PDF pages (crop and rotation applied) |
+| `/api/files/[fileId]/page/[n]` | GET | — | One PNG, decoded width 1200 px, proportional height; render at 2x then downsample; derived files cached in the Repo by original id/content hash and renderer version |
 | `/api/scope/[worksheetId]` | GET | `?problemId=` | `ScopeBundle` |
 | `/api/session` | POST | `{ worksheetId }` | `{ sessionId }` |
 | `/api/session/[id]/events` | POST | `{ events: SessionEvent[] }` | `{ ok: true }` |
@@ -600,6 +603,8 @@ Resolve `COURSE_GITHUB_REF` through `GET /repos/{owner}/{repo}/commits/{ref}`, t
 | `/api/report/[courseId]` | GET | — | `TutorReport` |
 
 All routes run on the Node runtime. The optional GitHub token and model keys never reach the browser. Source errors return `{ code, message }` with `not_found`, `forbidden`, `rate_limited`, `unavailable` or `bad_reply`; source import does not invoke the model. No LMS credential routes are built for the hackathon.
+
+PDF page routes only read original bytes already in the Repo. Unknown files and invalid/out-of-range page numbers return 404; non-PDF or unreadable PDF sources return a safe `bad_reply`. Derived metadata and PNG cache entries change when source bytes change. Worksheet regions are optional: detected labels define full-width vertical bands from the label to the next label or page bottom; no detected label leaves the problem picker in charge. PDF.js display coordinates account for crop, page rotation and the PDF-to-canvas y flip before scaling to `PAGE.width`.
 
 ## 12. Environment
 
