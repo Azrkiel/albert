@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { connection } from "next/server";
 import { WorksheetCanvas } from "@/components/work/WorksheetCanvas";
+import { WorksheetShell } from "@/components/work/WorksheetShell";
 import { getRepo } from "@/lib/db";
 
 type WorkPageProps = {
@@ -31,6 +32,7 @@ async function WorkProblems({ params, searchParams }: WorkPageProps) {
   const page = `/work/${encodeURIComponent(worksheetId)}`;
   const worksheetHref = worksheet || (source === "handwriting" && worksheetId !== "general-calculus")
     ? `${page}?source=worksheet` : "/courses";
+  const canvas = <WorksheetCanvas key={`${worksheetId}/${problemSource}`} worksheetId={worksheetId} problems={problems} problemSource={problemSource} />;
   return <>
     <nav aria-label="Problem source" style={{ display: "flex", gap: 16 }}>
       <Link prefetch={false} href={`${page}?source=handwriting`} aria-current={problemSource === "handwriting" ? "page" : undefined}>General calculus</Link>
@@ -40,7 +42,7 @@ async function WorkProblems({ params, searchParams }: WorkPageProps) {
     <p data-problem-source={problemSource}>{worksheet ? `${worksheet.title}: hints use these assigned questions and your course notes.`
       : "General calculus: hints follow the problem and steps you write."}</p>
     <p>Choose a source before writing. Switching opens a fresh page.</p>
-    <WorksheetCanvas key={`${worksheetId}/${problemSource}`} worksheetId={worksheetId} problems={problems} problemSource={problemSource} />
+    {worksheet ? <WorksheetShell worksheet={worksheet}>{canvas}</WorksheetShell> : canvas}
   </>;
 }
 

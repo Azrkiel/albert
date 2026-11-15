@@ -18,7 +18,7 @@ async function assertPlacement(page: Page, block: Locator, mark: Locator) {
   const rowId = await mark.getAttribute("data-stuck-row");
   const target = await page.evaluate((id) => window.__albert!.state.rows.find((row) => row.id === id), rowId);
   expect(target).toBeDefined();
-  const centre = await block.locator("svg").evaluate((svg, { box, x }) => {
+  const centre = await block.locator("svg[data-capture-ready=true]").evaluate((svg, { box, x }) => {
     const p = new DOMPoint(x, box.y + box.h / 2).matrixTransform((svg as SVGSVGElement).getScreenCTM()!);
     return { y: p.y, scale: (svg as SVGSVGElement).getScreenCTM()!.d };
   }, { box: target!.bbox, x: PAGE.albertCol.x });
