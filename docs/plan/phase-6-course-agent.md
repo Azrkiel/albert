@@ -123,12 +123,13 @@ Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\t
        systemPrompt: COURSE_AGENT_PROMPT,
        tools: mainTools(ctx),
        subagents: subagents(ctx),
+       middleware: [todoListMiddleware()],   // from "langchain"; deepagents has no write_todos tool without it
        skills: ["/skills/"],
        memory: ["/memories/AGENTS.md"],
        backend: new CompositeBackend(new StateBackend(), {
-         "/memories/": new StoreBackend({ namespace: () => ["albert", ctx.studentId, ctx.courseId, "memories"] }),
-         "/course/":   new StoreBackend({ namespace: () => ["albert", "course", ctx.courseId] }),
-         "/skills/":   new FilesystemBackend({ rootDir: "./skills", virtualMode: true }),
+         "/memories/": new StoreBackend({ store, namespace: () => ["albert", ctx.studentId, ctx.courseId, "memories"] }),
+         "/course/":   new StoreBackend({ store, namespace: () => ["albert", "course", ctx.courseId] }),
+         "/skills/":   new FilesystemBackend({ rootDir: resolve(process.cwd(), "skills"), virtualMode: true }),
        }),
        store,          // MongoDB-backed when STORE=mongo, in-memory otherwise
        checkpointer,   // MongoDBSaver when STORE=mongo, MemorySaver otherwise
@@ -143,8 +144,10 @@ Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\t
    - a call to the sub-agent tool → `subagent_start`; its result → `subagent_end`
    - a file write or edit → `file`, with the path
    - a call to one of our tools → `tool`. Our tools also call `ctx.emit` themselves, so these events appear even if the stream mapping misses them
-   - the final message → `note` with label `done`
+   - the final message → `note` with label `summary` (the agent's one line); `runs.ts` then ends the run with the contract's `note` `done` whose `detail` is the run result
 6. `runs.ts`: `runIngest(courseId)` and `runReplan(courseId, trigger)` create an `AgentRun`, invoke the agent with one user message, forward events to a callback, and save the run when it ends.
+
+**Installed API (Nov 14; deepagents 1.16.5, langchain 1.6.6, @langchain/langgraph 1.7.4, @langchain/langgraph-checkpoint-mongodb 1.5.1).** Where this differs from the snippet above, the installed types win: (a) `createDeepAgent` adds no todo tool by itself; pass `middleware: [todoListMiddleware()]` from `langchain` to get `write_todos`. The built-in tools are `ls`, `read_file`, `write_file`, `edit_file`, `delete`, `glob`, `grep`, `execute` (no sandbox here) and `task` (arguments `description`, `subagent_type`). (b) `StoreBackend` takes `{ store, namespace }`; pass the store explicitly so seeding through `backend.write` works outside a run. (c) The checkpoint package also exports `MongoDBStore` (use it as the long-term store when `STORE=mongo`; collections `store`, `checkpoints`, `checkpoint_writes`). It bundles its own mongodb 6 driver, so `runtime.ts` casts the app's mongodb 7 client; verified live. (d) Stream with `streamMode: "updates"`; main-graph updates carry the AI tool calls (`write_todos`, `task`, `write_file`/`edit_file`) and their tool results, which is all `events.ts` needs. Sub-agent internals are not in that stream. The mapper does not map our own tools (they emit `tool` events themselves, P6.3). (e) `@langchain/core/testing` `fakeModel()` drives offline tests. (f) `pnpm tsx scripts/agent-hello.ts` takes `--then-ask` to run a second thread in the same process, which `STORE=memory` needs for AC2.
 
 **Acceptance**
 - [ ] **P6.2-AC1** — The agent runs a trivial task and streams events. *Verify:* `pnpm tsx scripts/agent-hello.ts` asks the agent to "write a todo list with two items and save a note to /course/hello.md", and prints at least one `todo` and one `file` event and a final `note`.
