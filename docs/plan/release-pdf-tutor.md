@@ -131,7 +131,7 @@ R2.2 onward and every human gate remain open.
 
 ### R2.4 Annotated PDF download
 
-**Build.** `src/lib/ink/pdf-export.ts` in the browser: `pdf-lib` copies the original bytes, then per page draws student
+**Build.** The pure `src/lib/ink/pdf-export.ts` library and browser adapter `pdf-export-browser.ts`: `pdf-lib` copies the original bytes, then per page draws student
 strokes (perfect-freehand outlines as SVG paths, logical → PDF points, y flipped) and Albert's marks (rough paths) and
 writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custom font embedding; math as MathJax glyph paths).
 **Save PDF** downloads `<worksheet title> - annotated.pdf`. Original boxes, rotation and page order remain unchanged. Until R3.3, below-page tutor writing goes on labelled appendix pages, paginated as complete notes; an oversized indivisible note fails visibly. This Nov 15 adjustment avoids clipping notes or overwriting print. Student-only exports keep the original page count.
@@ -141,7 +141,7 @@ writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custo
   the expected PDF coordinates.
 - [ ] **R2.4-AC2** — By hand: open the download in an independent viewer, inspect several pages (human-queue R4).
 
-**Evidence (Nov 15, this change).** Screenshot regression reproduced before fixes. Focused PDF browser flows pass for two-page input, page-scoped editing, resize/zoom, grey printed snapshots, same-session reload, annotated download and below-page notes. `pnpm verify` after published-server integration: 68 files, 905 passed / 20 live Mongo skipped. All six PDF browser flows pass, including failed restore/autosave recovery. Crop/rotation, out-of-media crop and whole-note pagination have independent PDF decode/raster tests. Independent review identified and verified fixes for worksheet identity, draft capture and note export. Full browser/build/production/CI results are recorded in the PR. R2.3-AC2 live Mongo and R2.4-AC2 independent-viewer checks remain open; no live model calls or credentials used.
+**Evidence (Nov 15, this change).** Screenshot regression reproduced before fixes. Focused PDF browser flows pass for two-page input, page-scoped editing, resize/zoom, grey printed snapshots, same-session reload, annotated download and below-page notes. `pnpm verify` after published-server/export-library integration: 69 files, 924 passed / 20 live Mongo skipped. All six PDF browser flows pass, including failed restore/autosave recovery. Crop/rotation, out-of-media crop and whole-note pagination have independent PDF decode/raster tests. Independent review identified and verified fixes for worksheet identity, draft capture and note export. Full browser/build/production/CI results are recorded in the PR. R2.3-AC2 live Mongo and R2.4-AC2 independent-viewer checks remain open; no live model calls or credentials used.
 
 **Gate R2.** By hand on the demo device: write, erase, undo on two pages, zoom, reload, download, open the PDF.
 
@@ -233,3 +233,5 @@ live checks while building ≈ 30; reserve ≈ 100 for fixes and the human gates
   (fallback: ink-only snapshot plus `statementLatex`).
 - **Latency**: about 5 s per hint, about 10 s with a repair; streaming (P3.6) is a follow-up, not a claim.
 - **Recordings**: R3's automated replay needs `missing-dx-pdf.json` from a person.
+
+**R2.4 published-library integration (Nov 15).** PR #60 provides the pure bytes-in/bytes-out `pdf-export.ts` API and its original fixtures/tests. The browser layer in `pdf-export-browser.ts` captures visible SVG and bundled font bytes, reuses the published page geometry, and adds grouped below-page notes without changing the pure API. The canvas downloads through that adapter.

@@ -60,3 +60,5 @@ checks and recorded-preview limitations accurately.
 ## Published server integration
 
 PR #58 landed during verification. Preserve its worksheet-only latest-session lookup and no-session 404 response, while accepting an optional student/file filter for PDF restoration. Event reads retain the published chronological order; atomic append sequence breaks equal-time ties. The PDF client continues requesting its exact source and treats an empty scoped result as a new-session case. Main's server tests and the PDF isolation tests run together.
+
+PR #60 subsequently published a pure export API. Preserve that module and its tests unchanged; keep DOM capture/font fetching/notes pagination in a browser adapter sharing its geometry helper. This retains the library contract while wiring the complete download flow.

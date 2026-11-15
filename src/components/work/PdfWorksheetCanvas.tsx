@@ -91,10 +91,10 @@ export function PdfWorksheetCanvas({ worksheet, pages, recorded }: { worksheet: 
     try {
       const response = await fetch(`/api/files/${encodeURIComponent(worksheet.fileId)}`);
       if (!response.ok) throw new Error("Original unavailable");
-      const { exportAnnotatedPdf } = await import("@/lib/ink/pdf-export");
+      const { exportWorksheetPdf } = await import("@/lib/ink/pdf-export-browser");
       const annotations = Array.from(root.current?.querySelectorAll<SVGSVGElement>("svg[data-page]") ?? []).flatMap(svg =>
         Array.from(svg.querySelectorAll<SVGGElement>("[data-albert-layer]")).map(layer => ({ page: Number(svg.dataset.page), svg: layer })));
-      const bytes = await exportAnnotatedPdf({ originalPdf: new Uint8Array(await response.arrayBuffer()), strokes: current.current.strokes, annotations });
+      const bytes = await exportWorksheetPdf({ originalPdf: new Uint8Array(await response.arrayBuffer()), strokes: current.current.strokes, annotations });
       const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: "application/pdf" }));
       const link = document.createElement("a"); link.href = url; link.download = `${worksheet.title} - annotated.pdf`; link.click();
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
