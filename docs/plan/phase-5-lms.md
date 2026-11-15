@@ -182,9 +182,9 @@ Moodle/Canvas integration and automatic refresh are deferred. No LMS credential 
 
 **Hackathon scope (user, Nov 14).** Under the import button, `/` lists Canvas, Moodle and Blackboard as plain "coming soon" options: names only (no logos), not clickable, no login flow. It shows the adapter design without pretending to integrate.
 
-### P5.8 — The page: worksheet PDF or open whiteboard (spec, waiting on the user's decision)
+### P5.8 — The page: worksheet PDF or open whiteboard (approved Nov 14, build after G3)
 
-Planned (user, Nov 14), after G3. **Do not build until the user has answered the open decisions below and this section says "approved".**
+Planned (user, Nov 14), after G3. **Approved (user, Nov 14)** with the decisions recorded below: page mode first, then whiteboard; problem regions found automatically; Albert writes in the page's own white space; the student picks the whiteboard's unit.
 
 **Goal.** The student writes on the worksheet itself — each PDF page is the background of the work surface, Albert writes beside it, and **Save** gives back the annotated PDF — or, with no PDF, on an open whiteboard as large as needed. Everything from Phases 2–4 (lines, clusters, stuck detection, snapshots, hints, ink) carries over unchanged; only the background, problem regions, the snapshot background and the export are new.
 
@@ -192,31 +192,33 @@ Planned (user, Nov 14), after G3. **Do not build until the user has answered the
 
 **Design (proposed).**
 1. **Page mode** (`/work/[worksheetId]?surface=pdf`).
-   - One work surface per PDF page, stacked. The page is drawn in the student column scaled to `PAGE.studentCol.w` (760 logical px; a US-letter page becomes 760 × 983), and Albert's column stays to its right (D4 unchanged). Surface height = the page's scaled height, plus free space below it that grows like the free layout.
+   - One work surface per PDF page, stacked. The page is drawn scaled to the full surface width (`PAGE.width`, 1200 logical px; a US-letter page becomes 1200 × 1553). There is no reserved column: Albert writes in the page's own white space (decision D-c, D4 page-mode variant). Surface height = the page's scaled height, plus free space below it that grows like the free layout.
    - The page image comes from a new cached render, `GET /api/files/[fileId]/page/[n]` → PNG at 2× (server render with the P6.1 renderer, cached in the Repo like other files). No PDF parsing in the browser.
    - **Problem regions.** At ingest time (or on first open), find each problem's label on its page from the PDF text layer (`pdfjs` `getTextContent`: the item whose text is the problem label followed by `.` or `)` at the left margin) and store `problems[].region: BBox` in logical page coordinates (**contract change**: optional field on `Worksheet.problems`, plus schema, contracts.md §6 and fixtures). A problem's region runs from its label down to the next label (or the page end). A stroke belongs to the problem whose region contains most of its ink; strokes below the page belong to the last problem on it. Fallback when no label is found: the student taps the problem number in a small picker above the page, and that problem stays active until changed.
    - Lines are inferred within a problem region with the existing free-layout code; the printed text is background only, never ink.
+   - **Where Albert writes (D-c).** For each hint, find free space on the page near the stuck line: rasterise an occupancy grid (8 logical px cells) from the page render's non-white pixels, the student's ink boxes and Albert's earlier notes, each padded by 12 px; then search candidate rectangles of the laid-out hint's size, nearest first, to the right of the stuck line, then below it, then left, then above, within the problem's region and then anywhere on the page. Pick the first fully free one; the arrow runs from the note's nearest edge to the circle. The search is a pure function (`findFreeSpace(grid, size, anchor)`) with unit tests. If nothing fits, lay the note out in a band below the page (the narrow-screen variant of P4.6) so a note is never dropped or drawn over ink or print.
    - **Snapshot.** The marked snapshot draws the page crop of the problem region in light grey (about 25% opacity) under the student's ink, so the model sees the printed problem but can tell print from handwriting. The text prompt still carries `statementLatex`. P3.5's image-mode comparison decides whether the grey background helps or hurts; if it hurts, send ink only.
-   - **Save.** `pdf-lib` copies the original PDF, widens each page by Albert's column (scaled), and draws the student's strokes and Albert's marks as vector paths (text as the handwriting font embedded, or as paths from MathJax for math). Download name `<worksheet title> — annotated.pdf`.
+   - **Save.** `pdf-lib` copies the original PDF (page sizes unchanged) and draws the student's strokes and Albert's marks as vector paths (text as the handwriting font embedded, or as paths from MathJax for math). Download name `<worksheet title> — annotated.pdf`.
 2. **Whiteboard mode** (`/work/whiteboard?course=<courseId>&unit=<unitId>`, or the fallback when a worksheet has no PDF).
    - The free layout with no statement area, growing down without limit (and to a fixed wider width if the student writes past the right edge: the student column widens, Albert's column moves right).
    - The student writes the problem themselves. One whiteboard is one "problem" with id `whiteboard:<sessionId>`; the hint request carries the chosen unit, and the scope bundle is built from that unit and earlier ones (D10) with no `statementLatex` (the model reads the problem from the ink).
    - Save exports the SVG from P4.6 (no PDF).
 
-**Open decisions for the user** (asked Nov 14; answers recorded here):
-- D-a: build page mode, whiteboard mode, or both — and which first.
-- D-b: problem regions from the PDF text layer (automatic, contract change) vs a problem picker only (no contract change, one tap per problem).
-- D-c: Albert writes in a column beside the page (D4, proposed) vs in the page's own white space (harder: needs free-space detection on the page image).
-- D-d: whiteboard scope: the student picks the unit, or the course's current unit by date.
+**Decisions (user, Nov 14).**
+- D-a: both modes; page mode first, whiteboard second.
+- D-b: problem regions found automatically from the PDF text layer (contract change, picker as fallback).
+- D-c: Albert writes in the page's own white space, not in a column beside it (D4 page-mode variant in `decisions.md`).
+- D-d: on the whiteboard the student picks the unit; scope is that unit and earlier.
 
 **Acceptance (draft, final after the decision).**
 - P5.8-AC1 — Worksheet 3 opens in page mode with its PDF pages as backgrounds at the right scale. *Verify:* e2e on the seeded synthetic course: one surface per page, the background image's size matches the page aspect.
 - P5.8-AC2 — Strokes written in problem 4's region carry problem 4's id. *Verify:* e2e draws a synthetic stroke inside the stored region and reads state.
 - P5.8-AC3 — A hint on page mode lands on the right symbol and the snapshot shows the grey page under the ink. *Verify:* e2e with the mock; snapshot inspected by hand once.
-- P5.8-AC4 — Save returns a PDF with the original page content and both inks. *Verify:* unit test parses the output with `pdf-lib`: page count unchanged, page width grown by the scaled column, drawing operators present; open it by hand once.
+- P5.8-AC4 — Save returns a PDF with the original page content and both inks. *Verify:* unit test parses the output with `pdf-lib`: page count and sizes unchanged, drawing operators present; open it by hand once.
+- P5.8-AC6 — Albert's note never covers print or ink. *Verify:* `tests/unit/free-space.test.ts` (crowded page, empty page, nothing fits → band below) and an e2e check that the drawn note's box intersects no non-white page pixel or student ink box.
 - P5.8-AC5 — Whiteboard mode: write a problem with no statement, get a scoped hint. *Verify:* e2e with the mock; live by hand.
 
-**Fallback.** If page mode is not reliable by G5, ship the whiteboard only (it is the free layout with no statement) and keep page mode behind `?surface=pdf`.
+**Fallback.** If free-space placement is unreliable, place notes in a column beside the page (the original D4) and keep the search behind a flag. If page mode as a whole is not reliable by G5, ship the whiteboard only (the free layout with no statement) and keep page mode behind `?surface=pdf`.
 
 ---
 
