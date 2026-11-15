@@ -178,13 +178,15 @@ Record AC2's lines containing `five-step recipe`, `Step 2`, `Example 2`, and `\t
 | `get_previous_plan` | planner | The latest plan | Plan or null |
 | `save_study_plan` | planner | `validatePlan`, then `repo.savePlan` | ok with the plan id, or problems |
 
+**Implementation (Nov 14).** `save_teaching_card` takes `CardDraftSchema` plus `unitId` (index-based file and method references; `get_course_outline` lists each unit's lecture files with `fileIndex`) and `save_worksheet` takes `WorksheetDraftSchema` plus `fileId`; code assigns ids, `taught`, due dates and `builtBy: "agent"`. `save_study_plan` takes a summary and items without ids or status. `validatePlan` (`functions/plan.ts`) is written in P6.3 because that tool needs it; P6.7 builds on it.
+
 Every tool calls `ctx.emit({ type: "tool", label })` with a short human label such as "Saved card: Unit 3 — Trigonometric Substitution".
 
 **Acceptance**
-- [ ] **P6.3-AC1** — Save tools reject bad input with usable messages. *Verify:* `tests/unit/agent-tools.test.ts` calls `save_teaching_card` with a card whose example is not in the source: the result is `ok: false` with a problem naming that example, and the `Repo` is unchanged.
-- [ ] **P6.3-AC2** — Save tools accept good input and assign ids. *Verify:* the same test file with a fixture card.
-- [ ] **P6.3-AC3** — `get_progress` works on an empty history. *Verify:* unit test returns empty lists, not an error.
-- [ ] **P6.3-AC4** — Each tool emits one event. *Verify:* unit test with a spy `emit`.
+- [x] **P6.3-AC1** — Save tools reject bad input with usable messages. *Verify:* `tests/unit/agent-tools.test.ts` calls `save_teaching_card` with a card whose example is not in the source: the result is `ok: false` with a problem naming that example, and the `Repo` is unchanged.
+- [x] **P6.3-AC2** — Save tools accept good input and assign ids. *Verify:* the same test file with a fixture card.
+- [x] **P6.3-AC3** — `get_progress` works on an empty history. *Verify:* unit test returns empty lists, not an error.
+- [x] **P6.3-AC4** — Each tool emits one event. *Verify:* unit test with a spy `emit`.
 
 ---
 
