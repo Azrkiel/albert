@@ -263,7 +263,7 @@ type HintErrorCode = "model_unavailable" | "bad_model_output" | "timeout" | "bad
 
 | Rule | Check |
 |---|---|
-| Rung 1 is a question | `kind` is `question` or `nudge`, the text ends with `?`, at most 18 words, at most one math segment |
+| Rung 1 is a question | `kind` is `question` or `nudge`, the text ends with `?`, at most 18 words, at most two math segments (raised from one on Nov 15: #65's live failures were this style rule; no-answer is enforced by the = and scope checks) |
 | Rung 2 names a step and does not perform it | `kind` is `next_step`, at most 24 words, no math segment containing `=` |
 | Rung 3 shows one step | `kind` is `worked_step`, at most two math segments |
 | Scope | `diagnose.subskillId` is in the scope bundle. No method name from `upcomingMethods` appears in the hint except inside a sentence that defers it |

@@ -53,7 +53,7 @@ const hint = WriteHintSchema.extend({
     InkSegmentSchema.options[2].extend({
       type: InkSegmentSchema.options[2].shape.type.describe("A line break in the margin note."),
     }),
-  ])).describe("Write the note in reading order: rung 1 ends in ?, at most 18 words and one math segment; rung 2 at most 24 words; rung 3 at most two math segments."),
+  ])).describe("Write the note in reading order: rung 1 ends in ?, at most 18 words and two short math segments; rung 2 at most 24 words; rung 3 at most two math segments."),
   citation: WriteHintSchema.shape.citation.unwrap().extend({
     unitId: z.string().describe("The covered lecture example's unit id."),
     label: z.string().describe("A matching label from the card, such as Lecture 9, Example 2."),
