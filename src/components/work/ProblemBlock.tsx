@@ -10,7 +10,7 @@ type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLa
 
 export type HintRequested = { rowId: string; rung: 1; trigger: StuckSignal["kind"] };
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, layout = "ruled", stuckMark, onHintRequested, hintDisabled }: {
+export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, albertLayer, layout = "ruled", stuckMark, onHintRequested, hintDisabled }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
@@ -25,6 +25,8 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   hintDisabled?: boolean;
   /** SVG drawn above the ink (the ?dev=1 cluster overlay); omitted in normal use. */
   devOverlay?: ReactNode;
+  /** Albert's ink layer (P4.3), drawn above everything else on the surface. */
+  albertLayer?: ReactNode;
   /** "free": rows are inferred lines, drawn without rules; only lines with live ink get a number. */
   layout?: CanvasLayout;
 }) {
@@ -40,7 +42,7 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
     <section data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }}>
       {/* HTML controls stay accessible outside the SVG's atomic img role. */}
       <WorkSurface problemId={problem.id} height={height} strokes={strokes}
-        onStroke={onStroke} getSessionStart={getSessionStart} tool={tool} svgOverlay={devOverlay}
+        onStroke={onStroke} getSessionStart={getSessionStart} tool={tool} svgOverlay={devOverlay} albertLayer={albertLayer}
         overlay={<>{onClearRow && numbered.map((row) => <button key={row.id} type="button" data-row-number=""
           aria-label={`Clear row ${row.index} of problem ${problem.label}`}
           title={`Clear row ${row.index}`} onClick={() => onClearRow(row.id)}

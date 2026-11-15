@@ -36,6 +36,7 @@
     "perfect-freehand": "^1.2.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "roughjs": "^4.6.6",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -45,9 +46,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "marked": "^18.2.0",
     "tsx": "^4.23.15",
     "typescript": "^5",
-    "vitest": "^5.1.0",
-    "marked": "^18.2.0"
+    "vitest": "^5.1.0"
   }
 }
