@@ -134,7 +134,7 @@ R2.2 onward and every human gate remain open.
 **Build.** `src/lib/ink/pdf-export.ts` in the browser: `pdf-lib` copies the original bytes, then per page draws student
 strokes (perfect-freehand outlines as SVG paths, logical → PDF points, y flipped) and Albert's marks (rough paths) and
 writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custom font embedding; math as MathJax glyph paths).
-**Save PDF** downloads `<worksheet title> — annotated.pdf`.
+The library is pure (bytes in, bytes out; fonts passed in as `fontBytes`; math as pre-rendered glyph path data, so MathJax stays out of it; `pageTransform` handles CropBox/MediaBox origins and /Rotate). **Save PDF** (the canvas lane) calls it and downloads `<worksheet title> — annotated.pdf`.
 
 **Acceptance**
 - [ ] **R2.4-AC1** — Unit: page count and sizes unchanged; each inked page's content stream grew; a stroke's outline lands at
