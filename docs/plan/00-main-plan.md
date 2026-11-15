@@ -1,5 +1,7 @@
 # Albert — Main Plan
 
+> **Current release (user scope change, Nov 14):** [`current-scope.md`](./current-scope.md) overrides this file's product scope, phase dependencies and gates where they disagree. Study plans, re-planning, the skill map, the tutor report and gate G4 are out of this release; the PDF tutor (P5.8) is core.
+
 > **Albert** · *Turns you into Einstein.*
 > The tutor inside **Albert and Einstein Academy**, built for HackPrinceton Fall 2026 (Nov 13–15, 36 hours).
 
