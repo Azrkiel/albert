@@ -119,7 +119,7 @@ test("R2.2-AC2: the decoded hint snapshot includes light grey printed page pixel
   expect(pixels.rows).toEqual(["calc2-ws3/p4/page2/r1"]);
 });
 
-test("R2.2: helper targets the real earlier row and writes below page 2", async ({ page }) => {
+test("R2.2: helper targets the real earlier row and writes under the work on page 2", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.route("**/api/hint", route => {
     const request = route.request().postDataJSON();
@@ -147,7 +147,9 @@ test("R2.2: helper targets the real earlier row and writes below page 2", async 
   });
   expect(geometry.target).toBe("calc2-ws3/p4/page2/r1");
   expect(geometry.circle.y).toBeLessThan(y);
-  expect(geometry.writing.y).toBeGreaterThan(geometry.pageHeight);
+  // The note sits on the page right under the student's work, not in the band below the page.
+  expect(geometry.writing.y).toBeGreaterThan(y + 70);
+  expect(geometry.writing.y).toBeLessThan(geometry.pageHeight);
   await expect(page.locator('svg[data-page="1"] [data-albert-writing]')).toHaveCount(0);
   // Student ink stays usable on the printed page after the reply.
   await draw(page, 2, 600, y + 10);
@@ -194,7 +196,7 @@ test("R2.2: PDF hint recordings wait for asynchronously mounted page layers", as
   await expect(page2.locator('[data-mark-kind="circle"]')).toHaveCount(1);
   await expect(page2.locator("[data-albert-writing]")).toContainText("AsavedPDFhint");
   const y = await page2.locator("[data-albert-writing]").evaluate(el => (el as SVGGraphicsElement).getBBox().y);
-  expect(y).toBeGreaterThan(1552);
+  expect(y).toBeLessThan(1552); // on the page, under the work
   await expect(page.locator('[data-pdf-page="1"] [data-albert-writing]')).toHaveCount(0);
   expect(hintRequests).toBe(0);
 });

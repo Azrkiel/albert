@@ -10,6 +10,11 @@ import { arrowMark, circleMark, crossOutMark, hashSeed, underlineMark } from "./
 import { breakLongWords, mathAsText, spaceSegments, wrapLines } from "./segments";
 import { prepareMeasure, renderSegment } from "./text";
 
+/** Room a PDF note needs under the work (label, two lines, citation, More help) before it falls back below the page. */
+const PDF_NOTE_ROOM = 190;
+/** Width of a PDF note's column: wide enough for a short question, narrow enough to sit beside print. */
+const PDF_NOTE_WIDTH = 600;
+
 /** One hint being conducted: ids, where it was asked, and the id its marks are seeded from. */
 export type HintContext = { hintId: string; seedId: string; problemId: string; rowId: string; rung: number;
   /** Set when a recording is replaying this hint's `hint_shown`: "instant" draws the final state at once. */
@@ -217,11 +222,26 @@ export function createConductor(host: ConductorHost) {
     const override = host.bandTop?.(ctx.problemId, ctx.rowId);
     if (override !== undefined) return override;
     const rows = host.geometry().rows;
-    const page = rows.find(r => r.id === ctx.rowId)?.page;
-    return page === undefined ? Math.max(0, ...rows.filter(r => r.problemId === ctx.problemId).map(r => r.bbox.y + r.bbox.h)) + 8
-      : pdfNoteBand(host.pageHeight?.(page) ?? 0);
+    const asked = rows.find(r => r.id === ctx.rowId);
+    const page = asked?.page;
+    if (page === undefined) return Math.max(0, ...rows.filter(r => r.problemId === ctx.problemId).map(r => r.bbox.y + r.bbox.h)) + 8;
+    // PDF: write right under the student's last line of this problem on this page, so the note sits beside the work.
+    // Fall back to the band below the page only when the page has no room left under the work.
+    const height = host.pageHeight?.(page) ?? 0;
+    const work = rows.filter(r => r.problemId === ctx.problemId && r.page === page);
+    const below = Math.max(asked!.bbox.y + asked!.bbox.h, ...work.map(r => r.bbox.y + r.bbox.h)) + 14;
+    return below + PDF_NOTE_ROOM <= height ? below : pdfNoteBand(height);
   };
-  const columnOf = (ctx: HintContext) => ctx.narrow ? { x: 0, w: PAGE.width } : PAGE.albertCol;
+  const columnOf = (ctx: HintContext) => {
+    const { rows, clusters } = host.geometry();
+    if (rows.find(r => r.id === ctx.rowId)?.page !== undefined) {
+      // PDF: line the note up under the student's ink on the asked row, kept on the page.
+      const ink = clusters.filter(c => c.rowId === ctx.rowId).map(c => c.bbox.x);
+      const left = ink.length ? Math.min(...ink) : 0;
+      return { x: Math.max(0, Math.min(left - 20, PAGE.width - PDF_NOTE_WIDTH)), w: PDF_NOTE_WIDTH };
+    }
+    return ctx.narrow ? { x: 0, w: PAGE.width } : PAGE.albertCol;
+  };
 
   /** layoutHint, then the written fallbacks: math as LaTeX source, then over-wide words broken. Never drops the hint. */
   async function layoutWithFallback(row: Row, segments: InkSegment[], citation: string | undefined, occupied: BBox[], col: { x: number; w: number }) {
@@ -269,6 +289,9 @@ export function createConductor(host: ConductorHost) {
     const writing = document.createElementNS(NS, "g");
     writing.setAttribute("data-albert-writing", "");
     writing.setAttribute("aria-hidden", "true");
+    // On a PDF page the note may sit over print: a soft paper backing (sized below) keeps Albert's ink readable.
+    const backing = asked.page !== undefined ? document.createElementNS(NS, "rect") : undefined;
+    if (backing) writing.append(backing);
     const placed = laid.items.map((item: LayoutItem, i) => {
       const y = item.y + (lineBase.get(item.line)! - rendered[i]!.baseline);
       const el = document.createElementNS(NS, "g");
@@ -283,6 +306,13 @@ export function createConductor(host: ConductorHost) {
     const top = Math.min(laid.bbox.y, ...placed.map((p) => p.y));
     const bottom = Math.max(laid.bbox.y + laid.bbox.h, ...placed.map((p) => p.y + p.item.h));
     const bbox: BBox = { x: laid.bbox.x, y: top, w: laid.bbox.w, h: bottom - top };
+    if (backing) {
+      backing.setAttribute("data-albert-backing", "");
+      backing.setAttribute("x", String(bbox.x - 10)); backing.setAttribute("y", String(bbox.y - 8));
+      backing.setAttribute("width", String(bbox.w + 20)); backing.setAttribute("height", String(bbox.h + 16));
+      backing.setAttribute("rx", "10"); backing.setAttribute("fill", "#fffdf7"); backing.setAttribute("fill-opacity", "0.94");
+      backing.setAttribute("stroke", INK.albert); backing.setAttribute("stroke-opacity", "0.25");
+    }
     made.marks.push({ id: `${ctx.hintId}/writing`, hintId: ctx.hintId, problemId: ctx.problemId,
       spec: { type: "writing", rowId: ctx.rowId, segments, ...(citationLabel === undefined ? {} : { citation: citationLabel }) },
       bbox, drawnAt: host.now() });
@@ -301,7 +331,8 @@ export function createConductor(host: ConductorHost) {
     const writing = made.marks.find((m) => m.spec.type === "writing");
     const row = host.geometry().rows.find((r) => r.id === ctx.rowId);
     const y = writing ? writing.bbox.y + writing.bbox.h : (row ? row.bbox.y + row.bbox.h : 0);
-    setState(ctx.problemId, { chip: ctx.rung < 3 ? { rowId: ctx.rowId, rung: ctx.rung + 1, x: ctx.narrow ? WRITE.padX : PAGE.albertCol.x + WRITE.padX, y } : null });
+    const chipX = row?.page !== undefined && writing ? writing.bbox.x : ctx.narrow ? WRITE.padX : PAGE.albertCol.x + WRITE.padX;
+    setState(ctx.problemId, { chip: ctx.rung < 3 ? { rowId: ctx.rowId, rung: ctx.rung + 1, x: chipX, y } : null });
     host.onShown?.(ctx, made.marks);
   }
 
