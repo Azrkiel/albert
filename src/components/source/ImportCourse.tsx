@@ -6,6 +6,8 @@ import { useState } from "react";
 import { readSourceResponse, sourceMessage, useSourceCourses } from "./source-client";
 import styles from "./source.module.css";
 
+const COMING_SOON = ["Canvas", "Moodle", "Blackboard"];
+
 export function ImportCourse() {
   const router = useRouter();
   const { courses, error: connectionError } = useSourceCourses();
