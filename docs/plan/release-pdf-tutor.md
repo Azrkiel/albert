@@ -194,7 +194,7 @@ The conductor takes a placement strategy: `column` (ruled/free) or `freeSpace` (
 then the circle draws; reduced motion skips it. Conductor step only; no Pixie code is imported.
 
 **Acceptance**
-- [ ] **R3.4-AC1** — e2e (mock): the pointer element reaches within 12 px of the target centre before the circle group exists.
+- [x] **R3.4-AC1** — e2e (mock): the pointer element reaches within 12 px of the target centre before the circle group exists.
 
 **Gate R3.** Live, by hand: on the Worksheet 3 PDF, write the missing-dx work, tap **I'm stuck**, see the right cluster
 circled with a Lecture 9 citation and no answer; ask a follow-up. Needs a new real recording in PDF mode
