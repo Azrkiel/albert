@@ -14,7 +14,7 @@ export function checkLadder(hint: WriteHint, diagnose: Diagnose, rung: Rung): st
     if (!["question", "nudge"].includes(hint.kind)) errors.push("Rung 1 kind must be question or nudge.");
     if (!text.endsWith("?")) errors.push("Rung 1 must end with a question mark (?).");
     if (words > 18) errors.push(`Rung 1 must use at most 18 words; you used ${words}. Ask a shorter question without the fix.`);
-    if (math.length > 1) errors.push("Rung 1 permits at most one math segment.");
+    if (math.length > 1) errors.push(`Rung 1 permits at most one math segment; you used ${math.length}. Keep one math segment and write every other symbol in words inside a text segment (for example "d theta").`);
   } else if (rung === 2) {
     if (hint.kind !== "next_step") errors.push("Rung 2 kind must be next_step: name the next step without performing it.");
     if (words > 24) errors.push(`Rung 2 must use at most 24 words; you used ${words}.`);

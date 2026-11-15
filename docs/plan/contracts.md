@@ -685,6 +685,7 @@ Recorded data that makes offline verification possible. The contract test (`test
 | `fixtures/github/commit.json` | none: recorded GitHub commit response | P5.2 |
 | `fixtures/github/files/*` | none: copies of manifest-listed PDFs | P5.2 |
 | `fixtures/eval/*.png` | none: images for model pings | P1.4, P2.7 |
+| `fixtures/eval/last-run.json` | none: output of the latest `pnpm eval:hints` run | P3.4 |
 
 ```ts
 type SessionRecording = {

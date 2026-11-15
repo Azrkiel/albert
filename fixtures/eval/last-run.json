@@ -1,0 +1,57 @@
+{
+  "at": "2026-11-15T02:37:09.240Z",
+  "cards": "hand",
+  "model": "us.anthropic.claude-sonnet-4-6",
+  "scores": [
+    {
+      "id": "missing-dx-r1",
+      "rung": 1,
+      "read": true,
+      "status": true,
+      "row": true,
+      "clusters": true,
+      "ladder": true,
+      "noAnswer": true,
+      "scope": true,
+      "differs": null,
+      "citation": true,
+      "kind": true,
+      "firstInkMs": 4791,
+      "totalMs": 4794,
+      "hint": "What does Step 2 give you fordx?",
+      "reading": "\\int \\frac{1}{16\\sin^2\\theta \\cdot 4\\cos\\theta}"
+    },
+    {
+      "id": "missing-dx-repeat",
+      "rung": 1,
+      "read": true,
+      "status": true,
+      "row": true,
+      "clusters": true,
+      "ladder": false,
+      "noAnswer": true,
+      "scope": true,
+      "differs": true,
+      "citation": false,
+      "kind": true,
+      "firstInkMs": 9499,
+      "totalMs": 9500,
+      "hint": "You replaced x — what doesdxbecome after differentiating your substitution?",
+      "reading": "\\int \\frac{1}{16\\sin^2\\theta \\cdot 4\\cos\\theta}"
+    }
+  ],
+  "totals": {
+    "cases": 2,
+    "status": 1,
+    "row": 1,
+    "clusters": 1,
+    "ladder": 0.5,
+    "noAnswer": 1,
+    "scope": 1,
+    "firstInkMedianMs": 4791,
+    "firstInkP95Ms": 9499,
+    "qualityPass": false,
+    "timingPass": false
+  },
+  "judgeCalls": 2
+}
