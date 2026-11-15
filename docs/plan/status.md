@@ -198,6 +198,7 @@ Newest first. One line per notable event: a gate passed, a fallback taken, a dec
 
 | When | Who | What |
 |---|---|---|
+| Nov 14 | Claude (lead) | User decision (Nov 14, ~22:45): merge P6.5 now with AC4 left open, so P6.6–P6.8 and G3 build on it. P6.5 stays unticked until AC4 (hints with agent-built cards meet the eval bars) passes after prompt tuning; AC5 is the G3 by-hand check. |
 | Nov 14 | Claude (lead) | P6.5 final live runs: fresh agent ingest 13/13 golden checks in 315 s (AC1, AC2), a rerun on the same store changed no ids or counts (AC3; it took 425 s, so ingestion time has no margin). AC4 not met: with agent-built cards the missing-dx eval leaked `dx = 4cosθ dθ` on a rung-1 repeat; a rung-1 guard now rejects `=` in math (no leak on the rerun) but rung-1 replies still need a repair (~10 s). P6.5 stays unticked. Live calls this step: course 171 (ledger 435), lead 17 (ledger 31). |
 | Nov 14 | Claude (lead) | Phase 2 exit "No flaky e2e" met: after the useHint fix (#47), `pnpm e2e` passed three runs in a row locally on main 2487690 (105 passed each, port 3100), and main CI is green on the first attempt for #43, #46, #47, #48 and #38 (the one red main run, after #41, was the flake #47 fixed). An earlier three-run attempt was stopped by the machine running low on memory and is not counted. |
 | Nov 14 | Claude (lead) | Live-call budget for this run raised from 600 to 800 by the user (Nov 14, 22:25), after P6.5's full ingests (~90 calls each). Used so far: 474 (course lane 435, lead 40, page lane 0 counted). |
