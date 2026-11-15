@@ -182,9 +182,41 @@ Moodle/Canvas integration and automatic refresh are deferred. No LMS credential 
 
 **Hackathon scope (user, Nov 14).** Under the import button, `/` lists Canvas, Moodle and Blackboard as plain "coming soon" options: names only (no logos), not clickable, no login flow. It shows the adapter design without pretending to integrate.
 
-### P5.8 — The page: worksheet PDF or open whiteboard (planned)
+### P5.8 — The page: worksheet PDF or open whiteboard (spec, waiting on the user's decision)
 
-Planned (user, Nov 14), after G3; spec and a decision first. The student writes on the uploaded worksheet's own pages (each PDF page is the background of the work surface, Albert writes in a margin beside it, and "Save" exports the annotated PDF), or, without a PDF, on a whiteboard as large as needed. Lines, clusters, stuck detection and snapshots carry over; problem regions, the snapshot background and the export are new.
+Planned (user, Nov 14), after G3. **Do not build until the user has answered the open decisions below and this section says "approved".**
+
+**Goal.** The student writes on the worksheet itself — each PDF page is the background of the work surface, Albert writes beside it, and **Save** gives back the annotated PDF — or, with no PDF, on an open whiteboard as large as needed. Everything from Phases 2–4 (lines, clusters, stuck detection, snapshots, hints, ink) carries over unchanged; only the background, problem regions, the snapshot background and the export are new.
+
+**What exists to build on.** The free layout (P2.5a) already infers lines from ink anywhere on the surface and grows the surface downward; side work (P2.5b) splits columns. `pdfjs-dist` and `@napi-rs/canvas` (P6.1) already render PDF pages to PNG on the server; `pdf-lib` is a runtime dependency. Cached worksheet PDFs are served by `/api/files/[fileId]`. `Worksheet.problems[].page` says which page each problem is on, but there is no position on the page.
+
+**Design (proposed).**
+1. **Page mode** (`/work/[worksheetId]?surface=pdf`).
+   - One work surface per PDF page, stacked. The page is drawn in the student column scaled to `PAGE.studentCol.w` (760 logical px; a US-letter page becomes 760 × 983), and Albert's column stays to its right (D4 unchanged). Surface height = the page's scaled height, plus free space below it that grows like the free layout.
+   - The page image comes from a new cached render, `GET /api/files/[fileId]/page/[n]` → PNG at 2× (server render with the P6.1 renderer, cached in the Repo like other files). No PDF parsing in the browser.
+   - **Problem regions.** At ingest time (or on first open), find each problem's label on its page from the PDF text layer (`pdfjs` `getTextContent`: the item whose text is the problem label followed by `.` or `)` at the left margin) and store `problems[].region: BBox` in logical page coordinates (**contract change**: optional field on `Worksheet.problems`, plus schema, contracts.md §6 and fixtures). A problem's region runs from its label down to the next label (or the page end). A stroke belongs to the problem whose region contains most of its ink; strokes below the page belong to the last problem on it. Fallback when no label is found: the student taps the problem number in a small picker above the page, and that problem stays active until changed.
+   - Lines are inferred within a problem region with the existing free-layout code; the printed text is background only, never ink.
+   - **Snapshot.** The marked snapshot draws the page crop of the problem region in light grey (about 25% opacity) under the student's ink, so the model sees the printed problem but can tell print from handwriting. The text prompt still carries `statementLatex`. P3.5's image-mode comparison decides whether the grey background helps or hurts; if it hurts, send ink only.
+   - **Save.** `pdf-lib` copies the original PDF, widens each page by Albert's column (scaled), and draws the student's strokes and Albert's marks as vector paths (text as the handwriting font embedded, or as paths from MathJax for math). Download name `<worksheet title> — annotated.pdf`.
+2. **Whiteboard mode** (`/work/whiteboard?course=<courseId>&unit=<unitId>`, or the fallback when a worksheet has no PDF).
+   - The free layout with no statement area, growing down without limit (and to a fixed wider width if the student writes past the right edge: the student column widens, Albert's column moves right).
+   - The student writes the problem themselves. One whiteboard is one "problem" with id `whiteboard:<sessionId>`; the hint request carries the chosen unit, and the scope bundle is built from that unit and earlier ones (D10) with no `statementLatex` (the model reads the problem from the ink).
+   - Save exports the SVG from P4.6 (no PDF).
+
+**Open decisions for the user** (asked Nov 14; answers recorded here):
+- D-a: build page mode, whiteboard mode, or both — and which first.
+- D-b: problem regions from the PDF text layer (automatic, contract change) vs a problem picker only (no contract change, one tap per problem).
+- D-c: Albert writes in a column beside the page (D4, proposed) vs in the page's own white space (harder: needs free-space detection on the page image).
+- D-d: whiteboard scope: the student picks the unit, or the course's current unit by date.
+
+**Acceptance (draft, final after the decision).**
+- P5.8-AC1 — Worksheet 3 opens in page mode with its PDF pages as backgrounds at the right scale. *Verify:* e2e on the seeded synthetic course: one surface per page, the background image's size matches the page aspect.
+- P5.8-AC2 — Strokes written in problem 4's region carry problem 4's id. *Verify:* e2e draws a synthetic stroke inside the stored region and reads state.
+- P5.8-AC3 — A hint on page mode lands on the right symbol and the snapshot shows the grey page under the ink. *Verify:* e2e with the mock; snapshot inspected by hand once.
+- P5.8-AC4 — Save returns a PDF with the original page content and both inks. *Verify:* unit test parses the output with `pdf-lib`: page count unchanged, page width grown by the scaled column, drawing operators present; open it by hand once.
+- P5.8-AC5 — Whiteboard mode: write a problem with no statement, get a scoped hint. *Verify:* e2e with the mock; live by hand.
+
+**Fallback.** If page mode is not reliable by G5, ship the whiteboard only (it is the free layout with no statement) and keep page mode behind `?surface=pdf`.
 
 ---
 
