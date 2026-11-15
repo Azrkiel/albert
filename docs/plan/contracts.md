@@ -608,6 +608,8 @@ PDF page routes only read original bytes already in the Repo. Unknown files and 
 
 Rendering rejects non-finite/non-positive dimensions, dimensions above 16384 px, or more than 16000000 pixels before native canvas allocation, returning safe `bad_reply`. Supported pages retain the 2400→1200 pipeline; P6.1's 3000-px longest-side/3.75-MB reader limits remain unchanged. Normalized text geometry is also cached by original id/content hash and geometry version. Worksheet responses derive regions from that geometry without overwriting stored worksheets. The offline demo seeds the recorded Worksheet 3 original when available and never overwrites existing bytes.
 
+Worksheet GET preserves P5.6's `Cache-Control: no-store`, unknown-worksheet 404 `{ error: "not_found", message }`, and safe worksheet/store failure 500 `{ error: "server_error", message }`. PDF parsing/rendering failures retain the source-error response (for example 502 `bad_reply`); raw source or database details are never returned.
+
 ## 12. Environment
 
 ```bash

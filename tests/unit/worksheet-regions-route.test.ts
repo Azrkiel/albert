@@ -24,7 +24,7 @@ it("serves validated PDF regions without changing the stored worksheet", async (
   await state.repo!.putFile(meta, bytes);
   const response = await call();
   expect(response.status).toBe(200);
-  expect(response.headers.get("cache-control")).toBe("private, no-store");
+  expect(response.headers.get("cache-control")).toBe("no-store");
   expect(WorksheetSchema.parse(await response.json())).toEqual(worksheet);
   expect(await state.repo!.getWorksheet(worksheet.id)).toEqual(plain);
   expect(fetch).not.toHaveBeenCalled();
@@ -33,7 +33,7 @@ it("serves validated PDF regions without changing the stored worksheet", async (
 it("returns a safe 404 for an unknown worksheet", async () => {
   const response = await call("missing%2Fworksheet");
   expect(response.status).toBe(404);
-  expect(await response.json()).toMatchObject({ code: "not_found" });
+  expect(await response.json()).toMatchObject({ error: "not_found" });
   expect(fetch).not.toHaveBeenCalled();
 });
 
@@ -51,6 +51,6 @@ it("returns safe source failures without raw PDF or database error details", asy
   expect(await invalid.text()).not.toContain("private invalid source");
   vi.spyOn(state.repo!, "getWorksheet").mockRejectedValue(new Error("private database URI"));
   const offline = await call();
-  expect(offline.status).toBe(503);
+  expect(offline.status).toBe(500);
   expect(await offline.text()).not.toContain("private database URI");
 });

@@ -33,4 +33,7 @@ test("R2.1: recorded Worksheet 3 serves five regions and decodable PNGs through 
     expect(size).toEqual([1200, 1553]);
   }
   expect((await request.get("/api/files/calc2-worksheet-3/page/3")).status()).toBe(404);
+  const missingWorksheet = await request.get("/api/worksheet/not-a-worksheet");
+  expect(missingWorksheet.status()).toBe(404);
+  expect(await missingWorksheet.json()).toMatchObject({ error: "not_found" });
 });
