@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
+// Each geometry scenario starts a fresh live session; separate workflow coverage verifies restoration.
+test.beforeEach(async ({ request }) => {
+  const response = await request.get("/api/session/latest?worksheetId=calc2-ws3&fileId=calc2-worksheet-3");
+  const body = await response.json();
+  if (body.session) await request.post(`/api/session/${body.session.id}/end`);
+});
+
 /** Synthetic geometry through real pointer capture; never presented as a human recording. */
 async function draw(page: Page, n: number, x: number, y: number) {
   const surface = page.locator(`svg[data-capture-ready=true][data-page="${n}"]`);

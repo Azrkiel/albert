@@ -10,10 +10,11 @@ import { AlbertControls, AlbertLayer } from "./AlbertLayer";
 import type { HintRequested } from "./ProblemBlock";
 
 /** A printed page owns input; the picker supplies identity where extraction found no region. */
-export function PdfPageBlock({ page, fileId, problems, regions, state, active, onActivate, onStroke, getSessionStart, tool,
+export function PdfPageBlock({ page, fileId, problems, regions, state, active, disabled = false, onActivate, onStroke, getSessionStart, tool,
   conductor, hintText, hintTarget, hintInk, hintDisabled, onHintRequested, onMoreHelp }: {
   page: PdfPage; fileId: string; problems: SessionRecording["problems"]; regions: Worksheet["problems"]; state: SessionState;
   active: boolean; onActivate: () => void; onStroke: (stroke: Stroke) => void; getSessionStart: () => number; tool: Stroke["tool"];
+  disabled?: boolean;
   onMoreHelp: (problemId: string, rowId: string, rung: Rung) => void;
   conductor: Conductor; hintText: string; hintTarget: { problemId: string; rowId: string } | null;
   hintInk: boolean; hintDisabled: boolean; onHintRequested: (problemId: string, request: HintRequested) => void;
@@ -46,7 +47,7 @@ export function PdfPageBlock({ page, fileId, problems, regions, state, active, o
         onClick={() => onHintRequested(selected, { rowId: stuck.rowId, rung: 1, trigger: stuck.kind })}>Need a hint?</button>}
     </div>
     {imageError && <p role="alert">Could not load this page image. Reload to try again.</p>}
-    <WorkSurface problemId={selected} page={page.page} pageHeight={height} height={extent}
+    <WorkSurface problemId={selected} page={page.page} pageHeight={height} height={extent} disabled={disabled}
       strokes={state.strokes.filter(s => s.page === page.page)} tool={tool} getSessionStart={getSessionStart}
       onStroke={stroke => {
         const problemId = problemForStroke(stroke, regions, selected);
@@ -54,7 +55,7 @@ export function PdfPageBlock({ page, fileId, problems, regions, state, active, o
         onStroke({ ...stroke, problemId });
       }}
       albertLayer={pageProblems.map(p => <AlbertLayer key={p.id} problemId={p.id} page={page.page} conductor={conductor} />)}
-      overlay={<>{pageProblems.map(p => <AlbertControls key={p.id} problemId={p.id} conductor={conductor} height={extent} rowIds={local.map(r => r.id)}
+      overlay={<>{!disabled && pageProblems.map(p => <AlbertControls key={p.id} problemId={p.id} conductor={conductor} height={extent} rowIds={local.map(r => r.id)}
         onMoreHelp={(rowId, rung) => { const row = local.find(r => r.id === rowId); if (row) onMoreHelp(p.id, rowId, rung as Rung); }} />)}</>}>
       <image data-pdf-background="" href={`/api/files/${encodeURIComponent(fileId)}/page/${page.page}`}
         x={0} y={0} width={PAGE.width} height={height} preserveAspectRatio="none" pointerEvents="none" onError={() => setImageError(true)} />

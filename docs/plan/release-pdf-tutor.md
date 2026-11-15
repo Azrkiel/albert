@@ -128,7 +128,7 @@ R2.2 onward and every human gate remain open.
 2. Opening a PDF worksheet replays its latest session instantly, then keeps syncing (P2.8) into the same session.
 
 **Acceptance**
-- [ ] **R2.3-AC1** — e2e: write on two pages, reload, the same strokes (ids and points) are back on the same pages.
+- [x] **R2.3-AC1** — e2e: write on two pages, reload, the same strokes (ids and points) are back on the same pages.
 - [ ] **R2.3-AC2** — Unit/live Mongo test of `listEvents` order (skipped offline like the other live Mongo tests).
 
 ### R2.4 Annotated PDF download
@@ -139,7 +139,7 @@ writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custo
 The library is pure (bytes in, bytes out; fonts passed in as `fontBytes`; math as pre-rendered glyph path data, so MathJax stays out of it; `pageTransform` handles CropBox/MediaBox origins and /Rotate). **Save PDF** (the canvas lane) calls it and downloads `<worksheet title> — annotated.pdf`.
 
 **Acceptance**
-- [ ] **R2.4-AC1** — Unit: page count and sizes unchanged; each inked page's content stream grew; a stroke's outline lands at
+- [x] **R2.4-AC1** — Unit: original pages retain their sizes/order; student-only exports retain the original count, with labelled appendix pages only for below-page notes; each inked page's content stream grew; a stroke's outline lands at
   the expected PDF coordinates.
 - [ ] **R2.4-AC2** — By hand: open the download in an independent viewer, inspect several pages (human-queue R4).
 
@@ -235,3 +235,7 @@ live checks while building ≈ 30; reserve ≈ 100 for fixes and the human gates
   (fallback: ink-only snapshot plus `statementLatex`).
 - **Latency**: about 5 s per hint, about 10 s with a repair; streaming (P3.6) is a follow-up, not a claim.
 - **Recordings**: R3's automated replay needs `missing-dx-pdf.json` from a person.
+
+**Integrated PDF save/download (Nov 15, PR #59).** The published R2.2 surface remains the UI base. PDF sessions adopt the latest matching student/worksheet/file session before capture and restore normalized events without re-posting. The browser `pdf-export-browser.ts` adapter shares the published pure export geometry, captures live SVG notes, and keeps whole below-page notes on labelled appendix pages. Original page count/geometry are unchanged for student-only/on-page ink. This adjustment prevents silently clipping outside the physical page or covering print. Live Mongo, independent-viewer and device gates remain open. Final verification is recorded in PR #59.
+
+**Consolidated verification (PR #59).** The published surface, question contract, server API and pure exporter are retained. `pnpm verify`: 70 files, 954 passed / 20 live Mongo skipped. Combined PDF surface/workflow/replay/stuck browser checks: 24 passed / 2 existing skips. Ended PDF sessions keep visible work immutable and downloadable; hint animation drains before closing. Independent reviews have no remaining blocking findings. Production and complete CI evidence is recorded in the PR; human/device/viewer gates remain open.

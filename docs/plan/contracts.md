@@ -66,6 +66,7 @@ type Stroke = {
   id: string;                  // "st_" + nanoid
   problemId: string;
   rowId: string | null;        // null only while the stroke is in progress
+  page?: number;               // positive 1-based PDF page; absent for legacy ruled/free
   tool: "pen" | "eraser";
   pointerType: "pen" | "touch" | "mouse";
   points: Point[];
@@ -76,6 +77,7 @@ type Stroke = {
 };
 
 type Row = {
+  page?: number;               // positive 1-based PDF page
   id: string;                  // `${problemId}/r${n}`: ruled, n = index; free, n = creation order, never reused
   problemId: string;
   page?: number;              // positive, 1-based PDF page; inferred lines never span pages
@@ -262,7 +264,7 @@ type HintErrorCode = "model_unavailable" | "bad_model_output" | "timeout" | "bad
 | Rung 2 names a step and does not perform it | `kind` is `next_step`, at most 24 words, no math segment containing `=` |
 | Rung 3 shows one step | `kind` is `worked_step`, at most two math segments |
 | Scope | `diagnose.subskillId` is in the scope bundle. No method name from `upcomingMethods` appears in the hint except inside a sentence that defers it |
-| Pointing | Every `clusterLabel` exists in the named row. Unknown labels are dropped and the mark falls back to the whole row |
+| Pointing | Every `clusterLabel` exists in the named row. Unknown labels are dropped and the mark falls back to existing row ink only. Empty target rows are rejected; erased or wrong-problem targets are skipped at drawing time |
 | Unreadable work | `status: "unreadable"` forces `kind: "reread"`, no marks, no evidence |
 
 ### 4.5 When the model's output is wrong
@@ -505,10 +507,10 @@ interface Repo {
   getText(id: string): Promise<string | null>;
   // sessions
   getSession(id: string): Promise<Session | null>;
+  latestOpenSession(worksheetId: string, filter?: { studentId?: string; fileId?: string }): Promise<Session | null>;
+  listEvents(sessionId: string): Promise<SessionEvent[]>;
   createSession(s: Session): Promise<void>;         appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
   endSession(sessionId: string, at: ISO): Promise<void>;
-  listEvents(sessionId: string): Promise<SessionEvent[]>;        // by `at`, then insertion order; unknown session: []
-  latestOpenSession(worksheetId: string): Promise<Session | null>; // open = no endedAt; latest startedAt (ties: lowest id)
   saveHint(h: StoredHint): Promise<void>;           listHints(filter: { sessionId?: string; courseId?: string }): Promise<StoredHint[]>;
   // progress
   addEvidence(e: EvidenceEvent[]): Promise<void>;   listEvidence(studentId: string, courseId: string): Promise<EvidenceEvent[]>;
@@ -527,7 +529,7 @@ type CourseConnection = { studentId: string; connectedAt: ISO } & (
   | { source: "github"; snapshot: GitHubSnapshot; courseId: string }
   | { source: "upload"; courseId: string }
 ); // no token in persisted connection; optional GitHub token comes from server env
-type Session = { id: string; studentId: string; courseId: string; worksheetId: string; startedAt: ISO; endedAt?: ISO };
+type Session = { id: string; studentId: string; courseId: string; worksheetId: string; startedAt: ISO; endedAt?: ISO; surface?: "pdf"; fileId?: string };
 type StoredHint = { id: string; sessionId: string; courseId: string; problemId: string; rowId: string; rung: Rung;
                     reading: ReadWork; diagnose: Diagnose; marks: AlbertMarkSpec[]; hint: WriteHint;
                     snapshotFileId?: string; ms: { firstEvent: number; total: number }; at: ISO };
@@ -603,8 +605,8 @@ Resolve `COURSE_GITHUB_REF` through `GET /repos/{owner}/{repo}/commits/{ref}`, t
 | `/api/files/[fileId]/pages` | GET | — | `Array<{ page: number; widthPt: number; heightPt: number }>`; 1-based displayed PDF pages (crop and rotation applied) |
 | `/api/files/[fileId]/page/[n]` | GET | — | One PNG, decoded width 1200 px, proportional height; render at 2x then downsample; derived files cached in the Repo by original id/content hash and renderer version |
 | `/api/scope/[worksheetId]` | GET | `?problemId=` | `ScopeBundle` |
-| `/api/session` | POST | `{ worksheetId }` | `{ sessionId }` |
-| `/api/session/latest` | GET | `?worksheetId=` (required) | `{ session: Session; events: SessionEvent[] }`: the worksheet's latest open session with its events in order (`at`, then insertion). 404 when none, 400 on a bad query |
+| `/api/session` | POST | `{ worksheetId, surface?: "pdf", fileId?: string }` | `{ sessionId }` |
+| `/api/session/latest` | GET | `?worksheetId=...&fileId=...` (`fileId` optional) | `{ session: Session \| null, events: SessionEvent[] }`; optional file selects PDF-only resume for the demo student; worksheet-only requests retain legacy 404 when no open session exists |
 | `/api/session/[id]/events` | POST | `{ events: SessionEvent[] }` | `{ ok: true }` |
 | `/api/session/[id]/end` | POST | — | `{ evidenceAdded: number; replanRunId?: string }` |
 | `/api/hint` | POST | `HintRequest` | NDJSON of `HintEvent` |
@@ -721,6 +723,8 @@ type SessionRecording = {
   events: SessionEvent[];      // in time order
   durationMs: number;
   notes?: string;              // what the recording is meant to show
+  surface?: "pdf";             // paired with fileId; requires free layout and page on strokes/rows
+  fileId?: string;
   layout?: "ruled" | "free";   // absent = "ruled"; free recordings replay with inferred lines
   surface?: "pdf";             // PDF pages use free line inference, full-page pen/erase and page-scoped history
   fileId?: string;             // original cached PDF; required by the PDF recording parser when surface=pdf
@@ -755,3 +759,13 @@ type EvalCase = {
   };
 };
 ```
+
+### PDF ink and restoration (R2.2?R2.4)
+
+PDF-backed worksheets default to stacked displayed pages unless a legacy surface/layout or replay is explicitly selected. PDF input uses width 1200, full-page bounds and proportional displayed page height. Line inference and divider history are partitioned by page and problem; row ids are `${problemId}/page${page}/r${n}`. Erasing crosses problems on the current page, and undo/redo select the latest edit on that page. Ink length inside detected problem regions sets ownership; the page picker is the fallback.
+
+PDF snapshots include the printed problem region as a light grey background beneath ink and include rows from the target page only. Tutor writing uses a below-page band. Empty-row geometry returns no mark, never a page-sized row rectangle. Implicit recorded replies require compatible current target rows/clusters; recorded mode is labelled and does not read handwriting.
+
+Session surface/fileId must occur together. Latest-session lookup precedes creation and restores events locally without syncing them again. A failed lookup disables PDF capture until retry succeeds; legacy sessions and different file ids are excluded. `listEvents` returns time-ascending events with deterministic append order for equal timestamps, without database metadata. Mongo uses an atomic sequence counter for equal-time ordering across append batches. Worksheet-only latest-session lookup remains compatible with the published server API; file-scoped lookup additionally excludes legacy sessions and other PDFs. Memory storage survives browser reload while the server runs; Mongo provides durable persistence.
+
+PDF download retains original pages, boxes and rotations. Student-only/on-page annotations keep the original page count. Below-page tutor notes are exported as labelled appendix pages, grouped by whole note (text, math and citation), with full-height pagination; an indivisible note too tall to fit returns a visible download error rather than clipping. The planned `@pdf-lib/fontkit` dependency embeds the bundled Kalam font; MathJax and rough marks remain vector paths.

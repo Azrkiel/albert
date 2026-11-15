@@ -17,12 +17,17 @@ export type HintContext = { hintId: string; seedId: string; problemId: string; r
   narrow?: boolean };
 
 export type ConductorHost = {
+  /** PDF notes use labelled below-page bands without arrows across printed content. */
+  pageMode?(): boolean;
+  noteLabel?(problemId: string): string | undefined;
   /** Rows and clusters as the page has them now. */
   geometry(): { rows: Row[]; clusters: Cluster[] };
   reducedMotion(): boolean;
   /** Under 900 CSS px: Albert's column moves into a full-width band under the rows (P4.6). */
   narrow?(): boolean;
   pageHeight?(page: number): number;
+  /** Optional placement override for a page-backed host. */
+  bandTop?(problemId: string, rowId?: string): number;
   now(): number;
   /** A hint finished drawing: the page records a `hint_shown` session event with these marks. */
   onShown?(ctx: HintContext, marks: AlbertMark[]): void;
@@ -135,10 +140,12 @@ export function createConductor(host: ConductorHost) {
     const row = rows.find((r) => r.id === rowId);
     if (!made || !svg || !row || row.problemId !== ctx.problemId
       || row.page !== rows.find(r => r.id === ctx.rowId)?.page || !clusters.some(c => c.rowId === row.id)) return;
+    if (spec.type === "arrow" && (host.pageMode?.() ?? row.page !== undefined)) return;
     const ids = spec.type === "arrow" ? spec.toClusterIds : spec.clusterIds;
     const kind = spec.type;
     if (alreadyDrawn(ctx, kind, rowId) || made.kinds.has(kind)) return;
     const box = targetBox(ids, clusters, row);
+    if (!box) return; // Ink may have been erased while the response was queued.
     const seed = hashSeed(`${ctx.seedId}/${kind}`);
     let group: SVGGElement, duration: number;
     if (spec.type === "circle") { group = circleMark(svg, box, seed); duration = WRITE.circleMs; }
@@ -170,6 +177,8 @@ export function createConductor(host: ConductorHost) {
 
   /** Page y under the problem's last row, where the narrow band starts. */
   const bandTop = (ctx: HintContext) => {
+    const override = host.bandTop?.(ctx.problemId, ctx.rowId);
+    if (override !== undefined) return override;
     const rows = host.geometry().rows;
     const page = rows.find(r => r.id === ctx.rowId)?.page;
     return page === undefined ? Math.max(0, ...rows.filter(r => r.problemId === ctx.problemId).map(r => r.bbox.y + r.bbox.h)) + 8
@@ -206,7 +215,9 @@ export function createConductor(host: ConductorHost) {
     for (const other of drawn.values()) {
       if (other.ctx !== ctx && other.ctx.problemId === ctx.problemId && other.ctx.rowId === ctx.rowId && other.writing) fadeEl(other.writing);
     }
-    const spaced = spaceSegments(segments);
+    const label = (host.pageMode?.() ?? asked.page !== undefined) ? host.noteLabel?.(ctx.problemId) : undefined;
+    const displayed: InkSegment[] = label ? [{ type: "text", text: `${label}:` }, { type: "break" }, ...segments] : segments;
+    const spaced = spaceSegments(displayed);
     const occupied = [...drawn.values()].filter((d) => d.ctx !== ctx && (asked.page === undefined ? d.ctx.problemId === ctx.problemId
       : rows.find(r => r.id === d.ctx.rowId)?.page === asked.page))
       .flatMap((d) => d.marks.flatMap((m) => m.spec.type === "writing" ? [m.bbox] : []));

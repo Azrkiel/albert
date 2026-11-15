@@ -17,7 +17,7 @@ test("P3.1-AC4: replay missing dx, tap the hint mark, see Albert's question", as
   await expect(column).toHaveCSS("color", "rgb(200, 50, 30)");
 });
 
-test("dev hint button is opt-in and displays rung 1 in red in the correct column", async ({ page }) => {
+test("dev hint button is opt-in and displays a neutral blank-work reply in the correct column", async ({ page }) => {
   await page.goto("/work/calc2-ws3");
   await expect(page.getByRole("button", { name: "Request mock hint" })).toHaveCount(0);
   await page.goto("/work/calc2-ws3?dev=1&surface=ruled");
@@ -29,7 +29,7 @@ test("dev hint button is opt-in and displays rung 1 in red in the correct column
   expect((await sent).postDataJSON()).toMatchObject({ problemId: "calc2-ws3/p1", rowId: "calc2-ws3/p1/r3", rung: 1 });
   await expect(button).toBeDisabled();
   const column = page.locator(missingDx).locator("[data-albert-column]");
-  await expect(column).toHaveText("You replaced x. What does dx become?");
+  await expect(column).toHaveText("Which part of this step needs another look?");
   await expect(column).toHaveCSS("color", "rgb(200, 50, 30)");
   await expect(page.locator('section[data-problem-id="calc2-ws3/p2"] [data-albert-column]')).toBeEmpty();
   await expect(button).toBeEnabled();

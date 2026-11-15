@@ -9,11 +9,12 @@ const FinishedStroke = memo(function FinishedStroke({ stroke }: { stroke: Stroke
     data-stroke-problem-id={stroke.problemId} data-stroke-page={stroke.page} d={strokePath(stroke.points)} fill={INK.student} />;
 });
 
-export function WorkSurface({ problemId, page, pageHeight, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay, albertLayer }: {
+export function WorkSurface({ problemId, page, pageHeight, height = 600, disabled = false, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay, albertLayer }: {
   problemId: string;
   page?: number;
   pageHeight?: number;
   height?: number;
+  disabled?: boolean;
   onStroke?: (stroke: Stroke) => void;
   strokes?: Stroke[];
   children?: ReactNode;
@@ -42,6 +43,7 @@ export function WorkSurface({ problemId, page, pageHeight, height = 600, onStrok
 
   useEffect(() => {
     const svg = surface.current!;
+    if (disabled) return;
     sessionStart.current ??= getSessionStart?.() ?? performance.now();
     let frame: number | null = null;
     let pending: readonly Point[] = [];
@@ -74,7 +76,7 @@ export function WorkSurface({ problemId, page, pageHeight, height = 600, onStrok
       cancelFrame();
       delete svg.dataset.captureReady;
     };
-  }, [problemId, page, pageHeight, getSessionStart]);
+  }, [problemId, page, pageHeight, getSessionStart, disabled]);
 
   return (
     <div style={{ position: "relative", marginTop: 24 }}>

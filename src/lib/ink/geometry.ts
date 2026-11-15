@@ -1,13 +1,13 @@
 import { PAGE, type BBox, type Cluster, type Row } from "../contracts";
 import { WRITE } from "./constants";
 
-/** Missing targets use all available ink in this row, then its band if empty. */
-export function targetBox(clusterIds: string[], clusters: Cluster[], row: Row): BBox {
+/** Missing targets use the row's current ink; an empty row has no mark target. */
+export function targetBox(clusterIds: string[], clusters: Cluster[], row: Row): BBox | null {
   const local = clusters.filter((cluster) => cluster.rowId === row.id);
   const ids = new Set(clusterIds);
   const selected = local.filter((cluster) => ids.has(cluster.id));
   const targets = ids.size > 0 && selected.length === ids.size ? selected : local;
-  if (!targets.length) return { ...row.bbox };
+  if (!targets.length) return null;
   const x = Math.min(...targets.map((cluster) => cluster.bbox.x));
   const y = Math.min(...targets.map((cluster) => cluster.bbox.y));
   return { x, y,

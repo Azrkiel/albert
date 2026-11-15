@@ -66,6 +66,11 @@ Local setup verification on `5130ec9`: `pnpm verify` passed on the lane-brief-au
 
 Rebased evidence branch onto main `d004ad2` (R2.3 server / R2.4 library): `pnpm verify` passed, 63 files, 878 passed / 18 skipped; full post-rebase browser 122 passed / 6 skipped (8.1 min), CI green. R3.1/R2.2 main `a70918c`: verify 910 passed / 18 skipped. Further integrated browser/CI results belong in the evidence PR; no release gate is ticked by this update.
 
+- [x] R2.2 automated PDF writing checks: stacked pages, full-width input, page/problem partitioning, page-scoped editing, resize/zoom and printed snapshots. This change after published API/library integration: 954 unit/contract tests passed / 20 live skipped; combined PDF/workflow/replay/stuck checks passed 24 / 2 existing skips.
+- [ ] R2.3 save/reload: implemented and offline restore/order tests passed; needs human/environment: live Mongo ordering (R2.3-AC2).
+- [ ] R2.4 annotated PDF: vector ink and grouped notes export implemented; normal/cropped/rotated geometry and download tests passed; needs human: independent-viewer check (R2.4-AC2). Below-page writing uses labelled appendix pages to avoid clipping or covering print.
+- Screenshot fix: incompatible implicit recorded hints fall back to neutral text; empty/erased/wrong-problem targets never expand to a whole blank row. Recorded mode is labelled. Review fixes include worksheet identity reset and capture stability while hints arrive. Full-browser/build/production/CI evidence is in the PR; live calls 0.
+
 **How to use it**
 - Tick a subphase only when **every** acceptance criterion in its phase file has been verified and `pnpm verify` passes.
 - In the Evidence column write the commit and what was run, briefly: `a1b2c3d · pnpm verify, e2e replay`.

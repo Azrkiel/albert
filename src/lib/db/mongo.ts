@@ -8,6 +8,7 @@ import type {
   Worksheet,
 } from "@/lib/contracts";
 import type { Repo } from "./repo";
+import { SessionEventSchema } from "../contracts";
 
 type StoredDocument = Document & { _id: string };
 const withoutId = <T>(doc: StoredDocument): T => {
@@ -103,26 +104,28 @@ export class MongoRepo implements Repo {
   }
 
   async getSession(id: string): Promise<Session | null> { return this.one("sessions", id); }
+  async latestOpenSession(worksheetId: string, filter: { studentId?: string; fileId?: string } = {}): Promise<Session | null> {
+    const query: Filter<StoredDocument> = { worksheetId, endedAt: { $exists: false } };
+    if (filter.studentId !== undefined) query.studentId = filter.studentId;
+    if (filter.fileId !== undefined) { query.fileId = filter.fileId; query.surface = "pdf"; }
+    const doc = await (await this.collection("sessions")).findOne(query, { sort: { startedAt: -1, _id: 1 } });
+    return doc ? withoutId<Session>(doc) : null;
+  }
   async createSession(s: Session): Promise<void> { await (await this.collection("sessions")).insertOne({ ...s, _id: s.id }); }
   async appendEvents(sessionId: string, events: SessionEvent[]): Promise<void> {
     if (!await this.one<Session>("sessions", sessionId)) throw new Error(`Session not found: ${sessionId}`);
-    if (events.length) await this.db.collection("session_events", { ignoreUndefined: true }).insertMany(events.map(event => ({ ...event, sessionId })));
+    if (!events.length) return;
+    // Atomic range reservation preserves batch ordering even when event timestamps tie or go backwards.
+    const counter = await this.db.collection<{ _id: string; next: number }>("session_event_counters")
+      .findOneAndUpdate({ _id: sessionId }, { $inc: { next: events.length } }, { upsert: true, returnDocument: "before" });
+    const first = counter?.next ?? 0;
+    await this.db.collection("session_events", { ignoreUndefined: true }).insertMany(events.map((event, index) => ({ ...event, sessionId, sequence: first + index })));
   }
-  /**
-   * Order is `at` ascending, then `_id` ascending. Events are inserted without an explicit _id, so the driver
-   * assigns ObjectIds in array order with a per-process counter: insertion order within a process is stable.
-   */
   async listEvents(sessionId: string): Promise<SessionEvent[]> {
-    const docs = await this.db.collection("session_events", { ignoreUndefined: true }).find({ sessionId }).sort({ at: 1, _id: 1 }).toArray();
-    return docs.map(doc => {
-      const { _id, sessionId: owner, ...event } = doc;
-      void _id; void owner;
-      return event as SessionEvent;
-    });
-  }
-  async latestOpenSession(worksheetId: string): Promise<Session | null> {
-    const doc = await (await this.collection("sessions")).findOne({ worksheetId, endedAt: { $exists: false } }, { sort: { startedAt: -1, _id: 1 } });
-    return doc ? withoutId<Session>(doc) : null;
+    await this.ensureIndexes();
+    // Time comes first; atomic positions preserve append order for ties. Legacy ties retain ObjectId order.
+    return (await this.db.collection("session_events").find({ sessionId }).sort({ at: 1, sequence: 1, _id: 1 }).toArray())
+      .map(event => SessionEventSchema.parse(event));
   }
   async endSession(sessionId: string, at: string): Promise<void> {
     const result = await (await this.collection("sessions")).updateOne({ _id: sessionId }, { $set: { endedAt: at } });

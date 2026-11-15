@@ -45,6 +45,12 @@ export class MemoryRepo implements Repo {
   }
   async getFile(id: string): Promise<{ meta: CourseFile; bytes: Uint8Array } | null> { return copy(this.files.get(id) ?? null); }
   async getSession(id: string): Promise<Session | null> { return copy(this.sessions.get(id) ?? null); }
+  async latestOpenSession(worksheetId: string, filter: { studentId?: string; fileId?: string } = {}): Promise<Session | null> {
+    return copy([...this.sessions.values()].filter(s => s.worksheetId === worksheetId && s.endedAt === undefined
+      && (filter.studentId === undefined || s.studentId === filter.studentId)
+      && (filter.fileId === undefined || (s.surface === "pdf" && s.fileId === filter.fileId)))
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || byId(a, b))[0] ?? null);
+  }
   async createSession(s: Session): Promise<void> {
     if (this.sessions.has(s.id)) throw new Error(`Session already exists: ${s.id}`);
     this.sessions.set(s.id, copy(s));
@@ -53,13 +59,9 @@ export class MemoryRepo implements Repo {
     if (!this.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
     this.sessionEvents.set(sessionId, [...(this.sessionEvents.get(sessionId) ?? []), ...copy(events)]);
   }
-  /** By `at`, then append order (Array.prototype.sort is stable, so equal `at` keeps insertion order). */
+  /** Stable time sort preserves append order when timestamps tie. */
   async listEvents(sessionId: string): Promise<SessionEvent[]> {
     return copy([...(this.sessionEvents.get(sessionId) ?? [])].sort((a, b) => a.at - b.at));
-  }
-  async latestOpenSession(worksheetId: string): Promise<Session | null> {
-    return copy([...this.sessions.values()].filter(s => s.worksheetId === worksheetId && s.endedAt === undefined)
-      .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || byId(a, b))[0] ?? null);
   }
   async endSession(sessionId: string, at: string): Promise<void> {
     const session = this.sessions.get(sessionId);

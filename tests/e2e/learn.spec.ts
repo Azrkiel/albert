@@ -6,6 +6,8 @@ import { AgentRunSchema } from "../../src/lib/contracts";
 const courseId = "github:Azrkiel/albert:seed%2Fcalc2%2Fmanifest.json~calc2:abc:2026-11-14";
 const worksheets = [1, 2, 3, 4].map(n => ({ id: `${courseId}/f/pdf%2Funit-${n}%2Fworksheet-${n}.pdf/worksheet`, title: `Worksheet ${n}` }));
 const context = { cards: 5, worksheets };
+// Learning assertions allow 60 s; include cold navigation and screenshot time in the total budget.
+test.setTimeout(90_000);
 const fixture = AgentRunSchema.parse(JSON.parse(readFileSync("fixtures/agent/ingest-run.json", "utf8")));
 
 async function courses(page: Page, ingested: boolean) {

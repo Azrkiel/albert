@@ -58,8 +58,13 @@ export function checkPointing(reply: AlbertReply, rows: HintRequest["rows"]): st
     ...(reply.diagnosis.rowIndex === undefined ? [] : [reply.diagnosis.rowIndex]),
     ...reply.marks.map((mark) => mark.type === "arrow" ? mark.toRowIndex : mark.rowIndex),
   ];
-  return [...new Set(referenced)].filter((index) => !indexes.has(index))
-    .map((index) => `Unknown row R${index}; use only the row numbers supplied in the request.`);
+  const marked = new Set(reply.marks.map((mark) => mark.type === "arrow" ? mark.toRowIndex : mark.rowIndex));
+  return [
+    ...[...new Set(referenced)].filter((index) => !indexes.has(index))
+      .map((index) => `Unknown row R${index}; use only the row numbers supplied in the request.`),
+    ...rows.filter((row) => marked.has(row.index) && row.clusterLabels.length === 0)
+      .map((row) => `Row R${row.index} has no ink; point at existing ink or omit the mark.`),
+  ];
 }
 
 /** Unknown cluster labels are deliberately repaired rather than retried (§4.4). */

@@ -35,7 +35,10 @@ const isGlyph = (stroke: Stroke) => stroke.tool === "pen" && stroke.bbox.h >= 8 
 export function dividerIds(strokes: Stroke[]): Set<string> {
   const ids = new Set<string>();
   const byProblem = new Map<string, Stroke[]>();
-  for (const s of strokes) if (s.tool === "pen") byProblem.set(s.problemId, [...(byProblem.get(s.problemId) ?? []), s]);
+  for (const s of strokes) if (s.tool === "pen") {
+    const key = `${s.problemId}/${s.page ?? "legacy"}`;
+    byProblem.set(key, [...(byProblem.get(key) ?? []), s]);
+  }
   for (const list of byProblem.values()) {
     const heights: number[] = []; // sorted
     for (const s of [...list].sort((a, b) => a.t0 - b.t0 || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {

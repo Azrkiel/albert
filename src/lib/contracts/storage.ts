@@ -22,7 +22,8 @@ export const CourseConnectionSchema = z.discriminatedUnion("source", [
 ]);
 export type CourseConnection = z.infer<typeof CourseConnectionSchema>;
 
-export const SessionSchema = z.object({ id: z.string(), studentId: z.string(), courseId: z.string(), worksheetId: z.string(), startedAt: z.iso.datetime({ offset: true }), endedAt: z.iso.datetime({ offset: true }).optional() });
+export const SessionSchema = z.object({ id: z.string(), studentId: z.string(), courseId: z.string(), worksheetId: z.string(), startedAt: z.iso.datetime({ offset: true }), endedAt: z.iso.datetime({ offset: true }).optional(), surface: z.literal("pdf").optional(), fileId: z.string().min(1).optional() })
+  .refine(s => (s.surface === "pdf") === (s.fileId !== undefined), "PDF sessions require both surface and fileId");
 export type Session = z.infer<typeof SessionSchema>;
 
 export const StoredHintSchema = z.object({ id: z.string(), sessionId: z.string(), courseId: z.string(), problemId: z.string(), rowId: z.string(), rung: RungSchema, reading: ReadWorkSchema, diagnose: DiagnoseSchema, marks: z.array(AlbertMarkSpecSchema), hint: WriteHintSchema, snapshotFileId: z.string().optional(), ms: z.object({ firstEvent: z.number().nonnegative(), total: z.number().nonnegative() }), at: z.iso.datetime({ offset: true }) });
@@ -46,13 +47,13 @@ export interface Repo {
   putText(id: string, text: string): Promise<void>;
   getText(id: string): Promise<string | null>;
   getSession(id: string): Promise<Session | null>;
+  /** Latest open worksheet session; a file filter selects only matching PDF sessions. */
+  latestOpenSession(worksheetId: string, filter?: { studentId?: string; fileId?: string }): Promise<Session | null>;
   createSession(s: Session): Promise<void>;
   appendEvents(sessionId: string, e: SessionEvent[]): Promise<void>;
-  endSession(sessionId: string, at: string): Promise<void>;
-  /** Stored events of one session ordered by `at`, then by insertion order. Unknown session: []. */
+  /** Stored events ordered by at, then append order. Unknown session: []. */
   listEvents(sessionId: string): Promise<SessionEvent[]>;
-  /** The worksheet's open session (no `endedAt`) with the latest `startedAt`, or null. */
-  latestOpenSession(worksheetId: string): Promise<Session | null>;
+  endSession(sessionId: string, at: string): Promise<void>;
   saveHint(h: StoredHint): Promise<void>;
   listHints(filter: { sessionId?: string; courseId?: string }): Promise<StoredHint[]>;
   addEvidence(e: EvidenceEvent[]): Promise<void>;

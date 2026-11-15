@@ -34,7 +34,7 @@ async function WorkProblems({ params, searchParams }: WorkPageProps) {
   const page = `/work/${encodeURIComponent(worksheetId)}`;
   const worksheetHref = worksheet || (source === "handwriting" && worksheetId !== "general-calculus")
     ? `${page}?source=worksheet` : "/courses";
-  const canvas = <WorksheetCanvas key={`${worksheetId}/${problemSource}`} worksheetId={worksheetId} problems={problems} fileId={worksheet?.fileId} pdfProblems={worksheet?.problems} problemSource={problemSource} />;
+  const canvas = <WorksheetCanvas key={`${worksheetId}/${problemSource}/${worksheet?.fileId ?? ""}`} worksheetId={worksheetId} problems={problems} worksheetTitle={worksheet?.title} fileId={worksheet?.fileId} pdfProblems={worksheet?.problems} problemSource={problemSource} />;
   return <>
     <nav aria-label="Problem source" style={{ display: "flex", gap: 16 }}>
       <Link prefetch={false} href={`${page}?source=handwriting`} aria-current={problemSource === "handwriting" ? "page" : undefined}>General calculus</Link>
@@ -43,7 +43,8 @@ async function WorkProblems({ params, searchParams }: WorkPageProps) {
     </nav>
     <p data-problem-source={problemSource}>{worksheet ? `${worksheet.title}: hints use these assigned questions and your course notes.`
       : "General calculus: hints follow the problem and steps you write."}</p>
-    <p>Choose a source before writing. Switching opens a fresh page.</p>
+    <p>Choose a source before writing.</p>
+    {process.env.MOCK_LLM === "1" && <p data-recorded-preview="">Recorded preview: replies use saved examples and do not read your handwriting.</p>}
     {worksheet ? <WorksheetShell worksheet={worksheet}>{canvas}</WorksheetShell> : canvas}
   </>;
 }
