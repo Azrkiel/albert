@@ -9,6 +9,8 @@ import { fixtureManifest } from "./github-fixtures";
 
 const state = vi.hoisted(() => ({ repo: null as Repo | null }));
 vi.mock("../../src/lib/db", () => ({ getRepo: () => state.repo }));
+// Route handlers call connection(), which needs a Next request scope; tests call them directly.
+vi.mock("next/server", async (orig) => ({ ...(await orig<typeof import("next/server")>()), connection: async () => {} }));
 import { POST as connect } from "../../src/app/api/source/connect/route";
 import { GET as courses } from "../../src/app/api/source/courses/route";
 import { GET as original } from "../../src/app/api/files/[fileId]/route";
