@@ -51,6 +51,8 @@ const INK = {
 type BBox = { x: number; y: number; w: number; h: number };  // logical px
 ```
 
+PDF page mode uses the entire 1200-px width for pen and eraser (no reserved column). Logical height is `1200 × heightPt / widthPt`; notes use the band below the page. Page coordinates are displayed, crop/rotation-normalized PDF points, with origin at the top left.
+
 ## 2. Strokes
 
 ```ts
@@ -69,13 +71,15 @@ type Stroke = {
   points: Point[];
   t0: number; t1: number;      // first and last point time
   bbox: BBox;
+  page?: number;              // positive, 1-based PDF page; absent for legacy surfaces
   erasedAt?: number;           // set when an eraser or undo removed it; strokes are never deleted
 };
 
 type Row = {
   id: string;                  // `${problemId}/r${n}`: ruled, n = index; free, n = creation order, never reused
   problemId: string;
-  index: number;               // 1-based within the problem, top to bottom
+  page?: number;              // positive, 1-based PDF page; inferred lines never span pages
+  index: number;               // 1-based within the problem/page, top to bottom
   bbox: BBox;                  // ruled: the student-column band; free: the line's column (dividers bound it) around its ink ± LINE.PAD
 };
 
@@ -714,6 +718,8 @@ type SessionRecording = {
   durationMs: number;
   notes?: string;              // what the recording is meant to show
   layout?: "ruled" | "free";   // absent = "ruled"; free recordings replay with inferred lines
+  surface?: "pdf";             // PDF pages use free line inference, full-page pen/erase and page-scoped history
+  fileId?: string;             // original cached PDF; required by the PDF recording parser when surface=pdf
 };
 
 type MockHint = {
