@@ -103,27 +103,35 @@ describe("exportAnnotatedPdf", () => {
     near((b2.minX + b2.maxX) / 2, 200 * 500 / 1200, 2);
   });
 
+  // Expected points are derived by hand from the page geometry, not from pageTransform. The stroke runs logical
+  // (300, 200) -> (500, 200); its midpoint (400, 200) must land at (x, y) in PDF user space.
+  // Crop [100, 50, 400, 450]: visible 300 x 400 pt. /Rotate is clockwise as displayed.
+  const crop: [number, number, number, number] = [100, 50, 400, 450];
   it.each([
-    ["cropped", { size: [612, 792] as [number, number], cropBox: [100, 50, 400, 450] as [number, number, number, number] }, 150, 100],
-    ["rotated 90", { size: [600, 800] as [number, number], rotate: 90 }, 0, 0],
-    ["rotated 180", { size: [600, 800] as [number, number], rotate: 180 }, 0, 0],
-    ["rotated 270", { size: [600, 800] as [number, number], rotate: 270 }, 0, 0],
-  ])("%s page: a stroke lands where pageTransform says", async (_name, spec, _x, _y) => {
+    // visible 300 wide, scale 0.25: x = 100 + 400/4, y = 450 - 200/4
+    ["cropped", { size: [612, 792] as [number, number], cropBox: crop }, 200, 400],
+    // displayed 800 x 600, scale 2/3; display top-left = user (0, 0), right = +y, down = +x
+    ["rotated 90", { size: [600, 800] as [number, number], rotate: 90 }, 200 * 2 / 3, 400 * 2 / 3],
+    // scale 0.5; display top-left = user (600, 0), right = -x, down = +y
+    ["rotated 180", { size: [600, 800] as [number, number], rotate: 180 }, 600 - 200, 100],
+    // scale 2/3; display top-left = user (600, 800), right = -y, down = -x
+    ["rotated 270", { size: [600, 800] as [number, number], rotate: 270 }, 600 - 200 * 2 / 3, 800 - 400 * 2 / 3],
+    // displayed 400 x 300, scale 1/3; display top-left = crop (100, 50)
+    ["cropped + rotated 90", { size: [612, 792] as [number, number], cropBox: crop, rotate: 90 }, 100 + 200 / 3, 50 + 400 / 3],
+    // scale 1/3; display top-left = crop (400, 450)
+    ["cropped + rotated 270", { size: [612, 792] as [number, number], cropBox: crop, rotate: 270 }, 400 - 200 / 3, 450 - 400 / 3],
+  ])("%s page: a stroke lands at the hand-derived PDF point; page 2 is inked too", async (_name, spec, x, y) => {
     const original = await makePdf([spec, { size: [500, 700] }]);
     const probe = await PDFDocument.load(original);
-    const { geometryOf } = await import("../../src/lib/ink/pdf-export");
-    const t = pageTransform(geometryOf(probe.getPage(0)));
     const out = await exportAnnotatedPdf({ pdf: original, pages: [{ page: 1, strokes: [line(300, 200, 500, 200)] }, { page: 2, strokes: [line(10, 10, 60, 10)] }] });
     const after = await PDFDocument.load(out);
-    const prior = pageContent(probe, 0).length;
-    const pts = pathPoints(pageContent(after, 0));
-    const stroke = pts.slice(pathPoints(pageContent(probe, 0)).length);
-    expect(prior).toBeGreaterThan(0);
+    expect(after.getPage(0).getRotation().angle).toBe(spec.rotate ?? 0);
+    expect(after.getPage(0).getCropBox()).toEqual(probe.getPage(0).getCropBox());
+    const stroke = pathPoints(pageContent(after, 0)).slice(pathPoints(pageContent(probe, 0)).length);
+    expect(stroke.length).toBeGreaterThan(0);
     const c = bounds(stroke);
-    const mid = t.toPdf(400, 200);
-    near((c.minX + c.maxX) / 2, mid.x, 2);
-    near((c.minY + c.maxY) / 2, mid.y, 2);
-    // Page 2 was also inked.
+    near((c.minX + c.maxX) / 2, x, 2);
+    near((c.minY + c.maxY) / 2, y, 2);
     expect(pageContent(after, 1).length).toBeGreaterThan(pageContent(probe, 1).length);
   });
 

@@ -1,5 +1,6 @@
 import { PDFArray, PDFDocument, PDFName, PDFRawStream, PDFStream, decodePDFRawStream, degrees, StandardFonts } from "pdf-lib";
 
+/** `cropBox` is [x1, y1, x2, y2] in user space, as in the PDF /CropBox entry. */
 export type FixturePage = { size: [number, number]; mediaOrigin?: [number, number]; cropBox?: [number, number, number, number]; rotate?: number };
 
 /** Deterministic PDF built with pdf-lib: one page per spec, each with a line of Helvetica text so it has content. */
@@ -9,7 +10,10 @@ export async function makePdf(pages: FixturePage[]): Promise<Uint8Array> {
   pages.forEach((spec, i) => {
     const page = doc.addPage(spec.size);
     if (spec.mediaOrigin) page.setMediaBox(spec.mediaOrigin[0], spec.mediaOrigin[1], spec.size[0], spec.size[1]);
-    if (spec.cropBox) page.setCropBox(...spec.cropBox);
+    if (spec.cropBox) {
+      const [x1, y1, x2, y2] = spec.cropBox;
+      page.setCropBox(x1, y1, x2 - x1, y2 - y1); // pdf-lib takes x, y, width, height
+    }
     if (spec.rotate) page.setRotation(degrees(spec.rotate));
     const [x, y] = spec.mediaOrigin ?? [0, 0];
     page.drawText(`Page ${i + 1}`, { x: x + 20, y: y + 20, size: 12, font });
