@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+test-results
+playwright-report
+.p57-r21-qa
+work
+*.log
+docs/brand/templates
+docs/brand/qa
