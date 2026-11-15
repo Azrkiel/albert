@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "name": "Synthetic PDF geometry (not human handwriting)",
+  "worksheetId": "pdf",
+  "surface": "pdf",
+  "fileId": "synthetic.pdf",
+  "layout": "free",
+  "problems": [
+    {
+      "id": "pdf/p1",
+      "label": "1",
+      "statementLatex": "Synthetic browser/unit geometry only"
+    }
+  ],
+  "rows": [
+    {
+      "id": "pdf/p1/page1/r1",
+      "problemId": "pdf/p1",
+      "page": 1,
+      "index": 1,
+      "bbox": {
+        "x": 0,
+        "y": 292,
+        "w": 1200,
+        "h": 36
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "stroke_end",
+      "at": 10,
+      "stroke": {
+        "id": "pdf-s1",
+        "problemId": "pdf/p1",
+        "rowId": "pdf/p1/page1/r1",
+        "page": 1,
+        "tool": "pen",
+        "pointerType": "mouse",
+        "points": [
+          {
+            "x": 1100,
+            "y": 300,
+            "t": 0,
+            "p": 0.5
+          },
+          {
+            "x": 1150,
+            "y": 320,
+            "t": 10,
+            "p": 0.5
+          }
+        ],
+        "t0": 0,
+        "t1": 10,
+        "bbox": {
+          "x": 1100,
+          "y": 300,
+          "w": 50,
+          "h": 20
+        }
+      }
+    }
+  ],
+  "durationMs": 10
+}

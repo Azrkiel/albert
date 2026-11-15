@@ -117,7 +117,7 @@ export function assignLine(stroke: Stroke, strokes: Stroke[]): string {
  * bottom. Lines whose ink is all erased keep a row (so undo can restore them) and come after; divider
  * rows come last. A row's box spans its column: from the divider on its left to the one on its right.
  */
-export function lineRows(problemIds: string[], strokes: Stroke[]): Row[] {
+export function lineRows(problemIds: string[], strokes: Stroke[], fullPage = false): Row[] {
   return problemIds.flatMap((problemId) => {
     const ids = dividerIds(strokes);
     const dividers = dividersOf(strokes, problemId, ids);
@@ -131,7 +131,7 @@ export function lineRows(problemIds: string[], strokes: Stroke[]): Row[] {
     const rows: Row[] = ordered.map((band, i) => {
       const xs = spanning(band).map((d) => centerX(d.bbox));
       const left = Math.max(PAGE.studentCol.x, ...xs.filter((x) => x <= band.left));
-      const right = Math.min(PAGE.studentCol.x + PAGE.studentCol.w, ...xs.filter((x) => x >= band.right));
+      const right = Math.min(fullPage ? PAGE.width : PAGE.studentCol.x + PAGE.studentCol.w, ...xs.filter((x) => x >= band.right));
       return { id: band.rowId, problemId, index: i + 1,
         bbox: { x: left, y: band.top - LINE.PAD, w: right - left, h: band.bottom - band.top + 2 * LINE.PAD } };
     });

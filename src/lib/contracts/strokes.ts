@@ -8,11 +8,11 @@ export const StrokeSchema = z.object({
   id: z.string(), problemId: z.string(), rowId: z.string().nullable(),
   tool: z.enum(["pen", "eraser"]), pointerType: z.enum(["pen", "touch", "mouse"]),
   points: z.array(PointSchema), t0: z.number().nonnegative(), t1: z.number().nonnegative(),
-  bbox: BBoxSchema, erasedAt: z.number().nonnegative().optional(),
+  bbox: BBoxSchema, page: z.number().int().positive().optional(), erasedAt: z.number().nonnegative().optional(),
 });
 export type Stroke = z.infer<typeof StrokeSchema>;
 
-export const RowSchema = z.object({ id: z.string(), problemId: z.string(), index: z.number().int().positive(), bbox: BBoxSchema });
+export const RowSchema = z.object({ id: z.string(), problemId: z.string(), index: z.number().int().positive(), page: z.number().int().positive().optional(), bbox: BBoxSchema });
 export type Row = z.infer<typeof RowSchema>;
 
 export const ClusterSchema = z.object({ id: z.string(), rowId: z.string(), label: z.number().int().positive(), strokeIds: z.array(z.string()), bbox: BBoxSchema });

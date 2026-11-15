@@ -3,7 +3,7 @@ import { RowSchema } from "./strokes";
 import { SessionEventSchema } from "./events";
 import { DiagnoseSchema, HintEventSchema, HintTurnSchema, questionField, RungSchema, WriteHintSchema } from "./hints";
 
-export const SessionRecordingSchema = z.object({ version: z.literal(1), name: z.string(), worksheetId: z.string(), problems: z.array(z.object({ id: z.string(), label: z.string(), statementLatex: z.string() })), rows: z.array(RowSchema), events: z.array(SessionEventSchema), durationMs: z.number().nonnegative(), notes: z.string().optional(), layout: z.enum(["ruled", "free"]).optional() });
+export const SessionRecordingSchema = z.object({ version: z.literal(1), name: z.string(), worksheetId: z.string(), problems: z.array(z.object({ id: z.string(), label: z.string(), statementLatex: z.string() })), rows: z.array(RowSchema), events: z.array(SessionEventSchema), durationMs: z.number().nonnegative(), notes: z.string().optional(), layout: z.enum(["ruled", "free"]).optional(), surface: z.literal("pdf").optional(), fileId: z.string().min(1).optional() });
 export type SessionRecording = z.infer<typeof SessionRecordingSchema>;
 /** Absent on a recording means "ruled". */
 export type CanvasLayout = NonNullable<SessionRecording["layout"]>;

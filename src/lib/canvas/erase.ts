@@ -21,16 +21,18 @@ function intersects([a, b]: Segment, [c, d]: Segment): boolean {
 }
 
 /** Clip both paths to visible student ink, including segments whose endpoints lie outside. */
-function segments(points: readonly XY[]): Segment[] {
+function segments(points: readonly XY[], fullPage = false): Segment[] {
   const result: Segment[] = [];
+  const left = fullPage ? 0 : PAGE.studentCol.x;
+  const right = fullPage ? PAGE.width : PAGE.studentCol.x + PAGE.studentCol.w;
   for (let i = 0; i < points.length; i++) {
     const a = points[i]!, b = points[Math.min(i + 1, points.length - 1)]!;
     if (![a.x, a.y, b.x, b.y].every(Number.isFinite)) continue;
     const dx = b.x - a.x;
     let lo = 0, hi = 1;
-    if (dx === 0) { if (a.x < PAGE.studentCol.x || a.x > PAGE.studentCol.x + PAGE.studentCol.w) continue; }
+    if (dx === 0) { if (a.x < left || a.x > right) continue; }
     else {
-      const ends = [(PAGE.studentCol.x - a.x) / dx, (PAGE.studentCol.x + PAGE.studentCol.w - a.x) / dx];
+      const ends = [(left - a.x) / dx, (right - a.x) / dx];
       lo = Math.max(0, Math.min(...ends)); hi = Math.min(1, Math.max(...ends));
       if (lo > hi) continue;
     }
@@ -43,12 +45,13 @@ function segments(points: readonly XY[]): Segment[] {
 function live(stroke: Stroke): boolean { return stroke.tool === "pen" && stroke.erasedAt === undefined; }
 
 /** One completed eraser gesture, grouped by row. No DOM, clock, mutation, or history deletion. */
-export function eraseGesture(state: SessionState, problemId: string, points: readonly XY[], at: number): SessionEvent[] {
-  const path = segments(points);
+export function eraseGesture(state: SessionState, problemId: string, points: readonly XY[], at: number, page?: number): SessionEvent[] {
+  if (state.surface === "pdf" && page === undefined) return [];
+  const path = segments(points, state.surface === "pdf");
   const rows = new Map<string, string[]>();
   for (const stroke of state.strokes) {
-    if (!live(stroke) || stroke.problemId !== problemId || !stroke.rowId) continue;
-    if (!segments(stroke.points).some((ink) => path.some((eraser) => intersects(ink, eraser)))) continue;
+    if (!live(stroke) || (state.surface === "pdf" ? stroke.page !== page : stroke.problemId !== problemId) || !stroke.rowId) continue;
+    if (!segments(stroke.points, state.surface === "pdf").some((ink) => path.some((eraser) => intersects(ink, eraser)))) continue;
     const ids = rows.get(stroke.rowId) ?? [];
     ids.push(stroke.id); rows.set(stroke.rowId, ids);
   }
@@ -60,8 +63,10 @@ export function clearRow(state: SessionState, rowId: string, at: number): Sessio
   return strokeIds.length ? { type: "erase", at, strokeIds, rowId } : null;
 }
 
-export function historyEvent(state: SessionState, direction: "undo" | "redo", at: number): SessionEvent | null {
-  const edit = (direction === "undo" ? state.undoStack : state.redoStack).at(-1);
+export function historyEvent(state: SessionState, direction: "undo" | "redo", at: number, page?: number): SessionEvent | null {
+  if (state.surface === "pdf" && page === undefined) return null;
+  const stack = direction === "undo" ? state.undoStack : state.redoStack;
+  const edit = state.surface === "pdf" ? stack.findLast(edit => state.rows.find(r => r.id === edit.rowId)?.page === page) : stack.at(-1);
   return edit ? { type: "undo", at, strokeIds: [...edit.strokeIds], rowId: edit.rowId,
     ...(direction === "redo" ? { redo: true as const } : {}) } : null;
 }

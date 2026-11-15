@@ -1,3 +1,4 @@
+export { pageHeight, pageToLogical, logicalToPage, problemForStroke, pdfNoteBand, type PdfPage, type PdfProblem } from "./pdf-pages";
 export { attachCapture, toLogicalPoint } from "./capture";
 export { clusterRow } from "./clusters";
 export { strokeOutline, strokePath } from "./path";

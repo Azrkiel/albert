@@ -48,7 +48,7 @@ for (const { fixtureId, note, ...rest } of cases) {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     const forwarded = await useFixtureOnce(page, fixtureId);
-    await page.goto("/work/calc2-ws3?dev=1");
+    await page.goto("/work/calc2-ws3?dev=1&surface=ruled");
     // Wait for hydration: a click before React attaches is lost (Nov 14 CI flake).
     await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
     const problem = page.locator(missingDx);

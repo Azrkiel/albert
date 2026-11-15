@@ -131,6 +131,20 @@ describe("manifest validation", () => {
 });
 
 describe("contract variants and bounds", () => {
+  it("R2.2: preserves optional PDF identity and rejects invalid page numbers", () => {
+    const stroke = { ...examples.Stroke.valid, page: 2 };
+    const row = { ...examples.Row.valid, page: 2 };
+    const recording = { ...examples.SessionRecording.valid, surface: "pdf", fileId: "worksheet.pdf" };
+    expect(contracts.StrokeSchema.parse(stroke)).toEqual(stroke);
+    expect(contracts.RowSchema.parse(row)).toEqual(row);
+    expect(contracts.SessionRecordingSchema.parse(recording)).toEqual(recording);
+    for (const page of [0, -1, 1.5]) {
+      expect(contracts.StrokeSchema.safeParse({ ...stroke, page }).success).toBe(false);
+      expect(contracts.RowSchema.safeParse({ ...row, page }).success).toBe(false);
+    }
+    expect(contracts.SessionRecordingSchema.safeParse({ ...recording, surface: "unknown" }).success).toBe(false);
+  });
+
   it("R2.1: preserves optional worksheet regions and rejects invalid page/box geometry", () => {
     const worksheet = examples.Worksheet.valid;
     const problem = worksheet.problems[0];
