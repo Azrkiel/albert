@@ -26,6 +26,8 @@ async function post(url: string, body?: unknown): Promise<unknown> {
 
 export type SessionSyncOptions = {
   resume?: boolean;
+  /** Superseded or unmounted connections cannot restore or create a session. */
+  isCurrent?: () => boolean;
   fileId?: string;
   /** Restore locally; these historical events must not be pushed back through sync. */
   onRestore?: (session: Session, events: SessionEvent[]) => void;
@@ -34,6 +36,7 @@ const LatestReply = z.object({ session: SessionSchema.nullable(), events: z.arra
 
 /** IO adapter shared by the hook and its offline lifecycle tests. */
 export function createSessionConnection(worksheetId: string, options: SessionSyncOptions = {}, onReady?: (id: string) => void): Active {
+  const checkCurrent = () => { if (options.isCurrent && !options.isCurrent()) throw new Error("Superseded session lookup"); };
   let sessionId: string | undefined;
   let creating: Promise<string> | undefined;
   const self: Active = { used: false, id: () => sessionId,
@@ -44,8 +47,10 @@ export function createSessionConnection(worksheetId: string, options: SessionSyn
           if (!options.fileId) throw new Error("PDF resume requires fileId");
           const query = new URLSearchParams({ worksheetId, fileId: options.fileId });
           const response = await fetch(`/api/session/latest?${query}`);
+          checkCurrent();
           if (!response.ok) throw new Error("Could not load saved session");
           const latest = LatestReply.parse(await response.json());
+          checkCurrent();
           if (latest.session) {
             if (latest.session.worksheetId !== worksheetId || latest.session.fileId !== options.fileId
               || latest.session.surface !== "pdf" || latest.session.endedAt !== undefined) throw new Error("Saved session does not match this page");
@@ -54,6 +59,8 @@ export function createSessionConnection(worksheetId: string, options: SessionSyn
             restored = latest.session.id;
           } else if (latest.events.length) throw new Error("Saved events have no session");
         }
+        // Used legacy queues still need their final unmount flush after an initial create failure.
+        if (options.resume || !self.used) checkCurrent();
         const id = restored ?? z.object({ sessionId: z.string().min(1) }).parse(await post("/api/session", {
           worksheetId, ...(options.fileId ? { surface: "pdf", fileId: options.fileId } : {}),
         })).sessionId;
@@ -77,6 +84,7 @@ export function createSessionConnection(worksheetId: string, options: SessionSyn
 export function useSessionSync(worksheetId: string, onSessionId: (id: string | undefined) => void, options: SessionSyncOptions = {}) {
   const active = useRef<Active | null>(null);
   const ended = useRef(false);
+  const mounted = useRef(false);
   const [status, setStatus] = useState<SyncStatus>("open");
   const [ready, setReady] = useState(!options.resume);
   const notify = useRef(onSessionId);
@@ -85,7 +93,7 @@ export function useSessionSync(worksheetId: string, onSessionId: (id: string | u
   const { resume = false, fileId } = options;
 
   const open = useCallback((allowResume = true): Active => {
-    const self = createSessionConnection(worksheetId, { resume: resume && allowResume, fileId, onRestore: (session, events) => restore.current?.(session, events) }, id => {
+    const self = createSessionConnection(worksheetId, { resume: resume && allowResume, fileId, isCurrent: () => mounted.current && active.current === self, onRestore: (session, events) => restore.current?.(session, events) }, id => {
       if (active.current === self) { notify.current(id); setReady(true); setStatus("open"); }
     });
     return self;
@@ -99,6 +107,7 @@ export function useSessionSync(worksheetId: string, onSessionId: (id: string | u
   }, []);
 
   useEffect(() => {
+    mounted.current = true;
     const current = active.current ??= open();
     void current.ensure().catch(() => { if (resume && active.current === current) setStatus("error"); });
     const timer = setInterval(() => { void flush(); }, FLUSH_INTERVAL_MS);
@@ -113,6 +122,7 @@ export function useSessionSync(worksheetId: string, onSessionId: (id: string | u
     };
     document.addEventListener("visibilitychange", hide);
     return () => {
+      mounted.current = false;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", hide);
       void active.current?.sync.flush();
@@ -135,7 +145,7 @@ export function useSessionSync(worksheetId: string, onSessionId: (id: string | u
   /** A replay replaces the page's history, so it gets its own session; an untouched session is reused. */
   const restart = useCallback(() => {
     const old = active.current;
-    if (!old?.used) return;
+    if (!old || (!old.used && old.id() !== undefined)) return;
     void old.sync.flush();
     const next = active.current = open(false);
     notify.current(undefined);

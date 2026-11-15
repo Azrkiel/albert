@@ -1,5 +1,7 @@
 "use client";
 
+import { mergeRestoredEvents } from "@/lib/canvas/session-restore";
+
 import { useCallback, useEffect, useId, useImperativeHandle, useRef, useState, useSyncExternalStore, type Ref } from "react";
 import { useSearchParams } from "next/navigation";
 import type { AlbertMark, CanvasLayout, HintEvent, HintRequest, Rung, SessionEvent, SessionRecording, Stroke, StuckSignal, Worksheet } from "@/lib/contracts";
@@ -106,8 +108,7 @@ export function WorksheetCanvas({ worksheetId, worksheetTitle, problems, fileId,
     resume: pdf,
     fileId: pdf ? fileId : undefined,
     onRestore: (session, events) => {
-      let restored: SessionState = { ...createSessionState(problems, worksheetId, undefined, "free"), surface: "pdf", fileId: session.fileId };
-      for (const event of events) restored = reduceSessionEvent(restored, event);
+      const restored = mergeRestoredEvents({ ...createSessionState(problems, worksheetId, undefined, "free"), surface: "pdf", fileId: session.fileId }, events);
       origin.current = performance.now() - Math.max(restored.durationMs, ...restored.strokes.map(stroke => stroke.t1));
       restoredHints.current = events.filter((event): event is Extract<SessionEvent, { type: "hint_shown" }> => event.type === "hint_shown");
       current.current = restored;

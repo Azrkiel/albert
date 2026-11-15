@@ -125,7 +125,8 @@ R2.2 onward and every human gate remain open.
 **Build.**
 1. **Contract:** `Repo.listEvents(sessionId)` in the interface and both implementations (today memory-only and outside the
    contract); `GET /api/session/latest?worksheetId=` → the latest open session's events.
-2. Opening a PDF worksheet replays its latest session instantly, then keeps syncing (P2.8) into the same session.
+2. Opening a PDF worksheet first asks for its latest open session, replays events directly through the reducer without posting them again, then keeps syncing new events (P2.8) into that same session. Only a successful file-scoped lookup with `session: null` creates a session; the unscoped compatibility route still returns 404. Stroke ids, points, page numbers and undo/redo stacks survive restore. A failed lookup never forks saved work. Legacy unpaged work reopens on its legacy canvas instead of acquiring invented PDF page numbers.
+3. Memory sessions last only while the server runs; Mongo is the durable store. Capture starts after restore completes so new event times follow the saved timeline.
 
 **Acceptance**
 - [x] **R2.3-AC1** — e2e: write on two pages, reload, the same strokes (ids and points) are back on the same pages.

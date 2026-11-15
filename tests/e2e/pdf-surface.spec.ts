@@ -1,11 +1,17 @@
 import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 
-// Each geometry scenario starts a fresh live session; separate workflow coverage verifies restoration.
+// All tests share the offline memory server; close the preceding test's session for isolation.
 test.beforeEach(async ({ request }) => {
-  const response = await request.get("/api/session/latest?worksheetId=calc2-ws3&fileId=calc2-worksheet-3");
-  const body = await response.json();
-  if (body.session) await request.post(`/api/session/${body.session.id}/end`);
+  for (let n = 0; n < 200; n++) {
+    const latest = await request.get("/api/session/latest?worksheetId=calc2-ws3");
+    if (latest.status() === 404) return;
+    expect(latest.ok()).toBe(true);
+    const { session } = await latest.json();
+    expect((await request.post(`/api/session/${encodeURIComponent(session.id)}/end`)).ok()).toBe(true);
+  }
+  throw new Error("Too many open test sessions");
+
 });
 
 /** Synthetic geometry through real pointer capture; never presented as a human recording. */
