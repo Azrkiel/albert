@@ -12,6 +12,7 @@ export async function loadMockHint(req: HintRequest): Promise<MockHint> {
     if (!safeStem.test(req.fixtureId)) throw new Error("Invalid hint fixtureId");
     return read(req.fixtureId);
   }
+  if (req.problemSource === "handwriting") return read(`handwriting-r${req.rung}`);
   const derived = `${req.problemId.replaceAll("/", "_")}-r${req.rung}`;
   if (!safeStem.test(derived)) throw new Error("Invalid hint problemId for mock lookup");
   try {

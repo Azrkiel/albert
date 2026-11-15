@@ -54,9 +54,11 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
       timer = setTimeout(() => { controller.abort(); reject(new Error("Hint deadline exceeded")); }, timeout);
     });
     const withinDeadline = <T>(work: Promise<T>) => Promise.race([work, expired]);
-    const repo = deps.repo ?? getRepo();
-    const scope = await withinDeadline((deps.scopeLoader ?? getScopeBundle)(request.worksheetId, request.problemId, repo));
-    if (!scope.taught) {
+    const handwriting = request.problemSource === "handwriting";
+    // General practice must not acquire hidden worksheet context or course evidence.
+    const repo = handwriting ? undefined : deps.repo ?? getRepo();
+    const scope = repo ? await withinDeadline((deps.scopeLoader ?? getScopeBundle)(request.worksheetId, request.problemId, repo)) : undefined;
+    if (scope && !scope.taught) {
       clearTimeout(timer);
       yield { type: "started", hintId, at: start };
       yield { type: "diagnosis", status: "stalled", inScope: true };
@@ -96,7 +98,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     const marks = reply.marks.map((mark) => mapMark(mark, request.rows));
     const diagnosis = reply.diagnosis;
     const deferred = diagnosis.easierOutOfScope;
-    const upcoming = deferred && scope.upcomingMethods.find((method) => method.unitId === deferred.unitId);
+    const upcoming = deferred && scope?.upcomingMethods.find((method) => method.unitId === deferred.unitId);
     const wrongRow = request.rows.find((row) => row.index === diagnosis.rowIndex);
     yield { type: "started", hintId, at: start };
     yield { type: "reading", rows: reply.reading.rows.map((row) => ({
@@ -118,18 +120,21 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     for (const mark of marks) yield { type: "mark", mark };
     yield { type: "hint", ...reply.hint };
     const ms = { firstEvent, total: Math.max(firstEvent, clock() - start) };
-    const stored = StoredHintSchema.parse({
-      id: hintId, sessionId: request.sessionId, courseId: scope.card.courseId,
-      problemId: request.problemId, rowId: request.rowId, rung: request.rung,
-      reading: reply.reading, diagnose: diagnosis, marks, hint: reply.hint, ms,
-      at: new Date(start).toISOString(),
-    });
-    const session = await repo.getSession(request.sessionId);
-    if (session && !session.endedAt && session.worksheetId === request.worksheetId && session.courseId === scope.card.courseId) {
-      await recordHintEvidence(repo, stored, session);
-    } else {
-      await repo.saveHint(stored);
+    if (scope && repo) {
+      const stored = StoredHintSchema.parse({
+        id: hintId, sessionId: request.sessionId, courseId: scope.card.courseId,
+        problemId: request.problemId, rowId: request.rowId, rung: request.rung,
+        reading: reply.reading, diagnose: diagnosis, marks, hint: reply.hint, ms,
+        at: new Date(start).toISOString(),
+      });
+      const session = await repo.getSession(request.sessionId);
+      if (session && !session.endedAt && session.worksheetId === request.worksheetId && session.courseId === scope.card.courseId) {
+        await recordHintEvidence(repo, stored, session);
+      } else {
+        await repo.saveHint(stored);
+      }
     }
+    // General practice has no course identity: stream it without storing a course hint.
     status = "done";
     completedMs = ms;
     yield { type: "done", hintId, ms };

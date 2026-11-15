@@ -6,7 +6,7 @@ const stroke = { id: "st_1", problemId: "p1", rowId: null, tool: "pen", pointerT
 const row = { id: "p1/r1", problemId: "p1", index: 1, bbox };
 const signal = { kind: "pause", problemId: "p1", rowId: row.id, at: 8000 };
 const turn = { hintId: "h1", rung: 1, rowId: row.id, text: "What changes?", studentWroteAfter: false };
-const request = { sessionId: "s1", worksheetId: "w1", problemId: "p1", rowId: row.id, rung: 1, trigger: "pause", image: { marked: "iVBORw0KGgo=", width: 100, height: 100 }, rows: [{ rowId: row.id, index: 1, clusterLabels: [1] }], history: [turn] };
+const request = { problemSource: "worksheet", sessionId: "s1", worksheetId: "w1", problemId: "p1", rowId: row.id, rung: 1, trigger: "pause", image: { marked: "iVBORw0KGgo=", width: 100, height: 100 }, rows: [{ rowId: row.id, index: 1, clusterLabels: [1] }], history: [turn] };
 const reading = { rows: [{ index: 1, latex: "x=2", confidence: "high" }] };
 const diagnose = { status: "stalled", privateNote: "No new step yet." };
 const hint = { kind: "question", segments: [{ type: "text", text: "What changes?" }] };
@@ -49,7 +49,7 @@ export const examples = {
   AlbertMarkSpec: { valid: spec, invalid: { type: "arrow", rowId: row.id } },
   HintErrorCode: { valid: "timeout", invalid: "oops" },
   AlbertMark: { valid: mark, invalid: { ...mark, bbox: null } },
-  CheckRequest: { valid: { sessionId: request.sessionId, worksheetId: request.worksheetId, problemId: request.problemId, image: request.image, rows: request.rows, history: request.history, finalRowId: row.id }, invalid: { sessionId: "s1", finalRowId: row.id } },
+  CheckRequest: { valid: { problemSource: request.problemSource, sessionId: request.sessionId, worksheetId: request.worksheetId, problemId: request.problemId, image: request.image, rows: request.rows, history: request.history, finalRowId: row.id }, invalid: { sessionId: "s1", finalRowId: row.id } },
   Verdict: { valid: "not_yet", invalid: "wrong" },
   CheckResponse: { valid: { verdict: "not_yet", reading: [{ rowId: row.id, latex: "x" }], firstWrongRowId: row.id, subskillIds: ["sk1"] }, invalid: { verdict: "wrong", reading: [], subskillIds: [] } },
   Course: { valid: course, invalid: { ...course, snapshot: undefined } },

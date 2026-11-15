@@ -70,3 +70,10 @@ describe("buildHintRequest (P2.7-AC5)", () => {
     await expect(buildHintRequest(session(), "p1/r99", 1, "manual", { render })).rejects.toThrow("Unknown row");
   });
 });
+
+
+it("preserves an explicit handwriting source in the real snapshot request", async () => {
+  const request = await buildHintRequest(session(), "p1/r2", 1, "manual", { render, problemSource: "handwriting" });
+  expect(request).toHaveProperty("problemSource", "handwriting");
+  expect(request.image.clean).toBe(`${PNG}clean`);
+});

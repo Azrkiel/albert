@@ -337,3 +337,74 @@ describe("prompt and forced tool", () => {
     expect(destroy).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe("handwriting is the problem source", () => {
+  const generalReply = () => {
+    const reply = valid();
+    delete reply.diagnosis.subskillId;
+    delete reply.hint.citation;
+    return reply;
+  };
+  const generalRequest = () => HintRequestSchema.parse({ ...request, problemSource: "handwriting" });
+
+  it("preserves the source enum and rejects unknown sources without changing legacy requests", () => {
+    expect(generalRequest()).toHaveProperty("problemSource", "handwriting");
+    expect(HintRequestSchema.safeParse({ ...request, problemSource: "screen-ish" }).success).toBe(false);
+    const legacy = { ...request };
+    delete legacy.problemSource;
+    expect(HintRequestSchema.parse(legacy)).not.toHaveProperty("problemSource");
+  });
+
+  it("uses only handwriting, rows and history, with no scope lookup or course writes", async () => {
+    const scopeLoader = vi.fn(async () => { throw new Error("Course lookup is forbidden"); });
+    const getSession = vi.spyOn(repo, "getSession");
+    const saveHint = vi.spyOn(repo, "saveHint");
+    const log = vi.fn();
+    const invoke = vi.fn(async (messages: BaseMessage[]) => {
+      const prompt = JSON.stringify(messages);
+      expect(prompt).toContain(request.image.marked);
+      expect(prompt).toContain("first handwritten");
+      expect(prompt).not.toContain("sqrt{16-x^2}");
+      expect(prompt).not.toContain("Course scope (data)");
+      expect(prompt).not.toContain("Lecture 9");
+      return response(generalReply());
+    });
+    const events = await collect({ model: { invoke }, repo, scopeLoader, log }, generalRequest());
+    expect(events.at(-1)?.type).toBe("done");
+    expect(scopeLoader).not.toHaveBeenCalled();
+    expect(getSession).not.toHaveBeenCalled();
+    expect(saveHint).not.toHaveBeenCalled();
+    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(events)).not.toContain(privateNote);
+    expect(events.find(event => event.type === "diagnosis")).not.toHaveProperty("subskillId");
+    expect(events.find(event => event.type === "hint")).not.toHaveProperty("citation");
+  });
+
+  it("works without a configured course store", async () => {
+    vi.stubEnv("STORE", "must-not-open");
+    const events = await collect({ model: { invoke: async () => response(generalReply()) }, log: vi.fn() }, generalRequest());
+    expect(events.at(-1)?.type).toBe("done");
+  });
+
+  it.each(["subskillId", "citation", "easierOutOfScope"] as const)("repairs invented course metadata: %s", async field => {
+    const bad = generalReply();
+    if (field === "subskillId") bad.diagnosis.subskillId = "u3.find_dx";
+    if (field === "citation") bad.hint.citation = { unitId: "calc2/u3", label: "Lecture 9" };
+    if (field === "easierOutOfScope") bad.diagnosis.easierOutOfScope = { unitId: "calc2/u4", methodName: "Partial fractions" };
+    const invoke = vi.fn().mockResolvedValueOnce(response(bad)).mockResolvedValueOnce(response(generalReply()));
+    const events = await collect({ model: { invoke }, repo, log: vi.fn() }, generalRequest());
+    expect(events.at(-1)?.type).toBe("done");
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(events)).not.toContain("calc2/u");
+  });
+
+  it("still enforces row references and the hint ladder without course scope", async () => {
+    const bad = generalReply(); bad.reading.rows[0]!.index = 999; bad.hint.kind = "worked_step";
+    const invoke = vi.fn(async () => response(bad));
+    const events = await collect({ model: { invoke }, repo, log: vi.fn() }, generalRequest());
+    expect(events).toEqual([expect.objectContaining({ type: "error", code: "bad_model_output" })]);
+    expect(invoke).toHaveBeenCalledTimes(2);
+  });
+});

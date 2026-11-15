@@ -17,12 +17,16 @@ const cases = [
 // Send the next hint request through the real route and mock loader with this fixture.
 async function useFixtureOnce(page: Page, fixtureId: string) {
   let pending: string | undefined = fixtureId;
+  let forwarded: Record<string, unknown> | undefined;
   await page.route("**/api/hint", async (route) => {
     const body = route.request().postDataJSON() as Record<string, unknown>;
-    const postData = JSON.stringify(pending ? { ...body, fixtureId: pending } : body);
+    const injected = pending ? { ...body, fixtureId: pending } : body;
+    const postData = JSON.stringify(injected);
+    forwarded = injected;
     pending = undefined;
     await route.continue({ postData });
   });
+  return () => forwarded;
 }
 
 async function drawInFirstRow(page: Page, problem: Locator) {
@@ -43,16 +47,17 @@ for (const { fixtureId, note, ...rest } of cases) {
   test(`P3.8-AC1: ${fixtureId} shows its note, no partial text, and the page stays usable`, async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
-    await useFixtureOnce(page, fixtureId);
+    const forwarded = await useFixtureOnce(page, fixtureId);
     await page.goto("/work/calc2-ws3?dev=1");
     // Wait for hydration: a click before React attaches is lost (Nov 14 CI flake).
-    await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
+    await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
     const problem = page.locator(missingDx);
     const column = problem.locator("[data-albert-column]");
     const button = page.getByRole("button", { name: "Request mock hint" });
     const sent = page.waitForRequest((request) => request.url().endsWith("/api/hint") && request.method() === "POST");
     await button.click();
-    expect((await sent).postDataJSON()).toMatchObject({ fixtureId });
+    await sent;
+    await expect.poll(forwarded).toMatchObject({ fixtureId });
 
     if ("partial" in rest) await expect(column).toHaveText(rest.partial, { timeout: 15000 });
     await expect(column).toHaveText(note, { timeout: 15000 });

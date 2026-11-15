@@ -42,7 +42,7 @@ export type WorksheetCanvasHandle = { requestHint: (problemId: string, rowId: st
   /** Remove all of a problem's Albert notes. */
   clearAlbertNotes: (problemId: string) => void };
 
-export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: string; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
+export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksheet", ref }: { worksheetId: string; problemSource?: HintRequest["problemSource"]; problems: SessionRecording["problems"]; ref?: Ref<WorksheetCanvasHandle> }) {
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
   const devTools = devBuild && params.get("dev") === "1";
@@ -62,6 +62,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const seeking = useRef(false);
   const markVisibleSince = useRef(new WeakMap<StuckSignal, number>());
   const loadId = useRef(0);
+  const hintRequestId = useRef(0);
   const [revision, setRevision] = useState(0);
   const [replayDone, setReplayDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -118,32 +119,74 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
         rung: rung?.type === "hint_requested" ? rung.rung : 1 });
     }
     if (!seeking.current) detect(event.at);
-  }, [replace, detect, syncPush, conductor]);
-  // P2.6 can call this same entry point through the canvas ref. P2.7 will
-  // replace the placeholder PNG and empty cluster lists with a real snapshot.
+    }, [replace, detect, syncPush, conductor]);
+  // Manual, stuck-mark and ref requests share the real P2.7 snapshot builder
   const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual") => {
+    const id = ++hintRequestId.current;
+    setError("");
     sink({ type: "hint_requested", at: now(), hintId: `hint-${sessionId}-${current.current.events.length}`, rowId, rung });
     setHintTarget({ problemId, rowId });
-    await sendHint({ sessionId, worksheetId: current.current.worksheetId, problemId, rowId, rung, trigger,
-      image: { marked: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC", width: 1, height: 1 },
-      rows: current.current.rows.filter((row) => row.problemId === problemId).map((row) => ({ rowId: row.id, index: row.index, clusterLabels: [] })), history: [] });
-  }, [sendHint, sessionId, sink, now]);
-  useImperativeHandle(ref, () => ({ requestHint, fadeAlbertNotes: (problemId) => conductor.fadeProblem(problemId),
-    clearAlbertNotes: (problemId) => conductor.clearProblem(problemId) }), [requestHint, conductor]);
+    try {
+      const request = await buildHintRequest(
+        current.current,
+        rowId,
+        rung,
+        trigger,
+        { sessionId, problemSource },
+      );
+      // A slower snapshot from an older click must not replace a newer request.
+      if (id === hintRequestId.current) await sendHint(request);
+    } catch {
+      if (id === hintRequestId.current) {
+        setError("Could not prepare your writing for a hint. Try again.");
+      }
+    }
+  }, [sendHint, sessionId, sink, now, problemSource]);
+
+  useImperativeHandle(ref, () => ({
+    requestHint,
+    fadeAlbertNotes: (problemId) => conductor.fadeProblem(problemId),
+    clearAlbertNotes: (problemId) => conductor.clearProblem(problemId),
+  }), [requestHint, conductor]);
+
   // A finished hint is part of the session: its drawn marks go in as a hint_shown event (replayed in P4.6).
-  useEffect(() => { shownRef.current = (ctx, marks) => sink({ type: "hint_shown", at: now(), hintId: ctx.hintId, marks }); }, [sink, now]);
+  useEffect(() => {
+    shownRef.current = (ctx, marks) => sink({
+      type: "hint_shown",
+      at: now(),
+      hintId: ctx.hintId,
+      marks,
+    });
+  }, [sink, now]);
+
   useEffect(() => {
     const f = feed.current;
     const events = hint.events;
     if (!events.length) return;
+
     if (events[0] !== f.first) {
-      const requested = current.current.events.findLast((e) => e.type === "hint_requested");
-      const problemId = requested && current.current.rows.find((row) => row.id === requested.rowId)?.problemId;
+      const requested = current.current.events.findLast(
+        (e) => e.type === "hint_requested",
+      );
+      const problemId = requested && current.current.rows.find(
+        (row) => row.id === requested.rowId,
+      )?.problemId;
+
       f.first = events[0];
       f.n = 0;
-      f.ctx = requested && problemId ? { hintId: requested.hintId, seedId: requested.hintId, problemId, rowId: requested.rowId, rung: requested.rung } : null;
+      f.ctx = requested && problemId ? {
+        hintId: requested.hintId,
+        seedId: requested.hintId,
+        problemId,
+        rowId: requested.rowId,
+        rung: requested.rung,
+      } : null;
     }
-    while (f.n < events.length) { const event = events[f.n++]!; if (f.ctx) conductor.handle(f.ctx, event); }
+
+    while (f.n < events.length) {
+      const event = events[f.n++]!;
+      if (f.ctx) conductor.handle(f.ctx, event);
+    }
   }, [hint.events, conductor]);
   // P3.8: an error shows only its plain note; partial hint text before it is dropped.
   // The writing is drawn as ink once a hint event is in and no error followed; until then the plain text shows.
@@ -264,7 +307,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     return () => { controller.abort(); player.current?.cancel(); player.current = null; };
   }, [fixture, initialSpeed, start]);
 
-  useEffect(() => () => { loadId.current++; player.current?.cancel(); player.current = null; }, []);
+  useEffect(() => () => { loadId.current++; hintRequestId.current++; player.current?.cancel(); player.current = null; }, []);
   const snapshotHook = useCallback<SnapshotHook>(({ upToRowId, problemId, marked = true }) => {
     const state = current.current;
     const row = state.rows.find((r) => r.id === upToRowId);
@@ -272,7 +315,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
       problemId: problemId ?? row?.problemId ?? "", upToRowId, marked });
   }, []);
   const hintRequestHook = useCallback<HintRequestHook>((rowId, rung, trigger) =>
-    buildHintRequest(current.current, rowId, rung, trigger, { sessionId }), [sessionId]);
+    buildHintRequest(current.current, rowId, rung, trigger, { sessionId, problemSource }), [sessionId, problemSource]);
   // P4.2: load the hand font and MathJax when the work page mounts, before the first hint.
   const [mathReady, setMathReady] = useState(false);
   useEffect(() => {

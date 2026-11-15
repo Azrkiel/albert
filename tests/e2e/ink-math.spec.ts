@@ -5,7 +5,7 @@ const FORMULA = String.raw`\frac{dx}{d\theta} = 4\cos\theta`;
 
 async function openWork(page: Page) {
   await page.goto("/work/calc2-ws3");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
+  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
   await page.waitForFunction(() => window.__albert?.mathReady === true, null, { timeout: 15000 });
 }
 
@@ -119,7 +119,7 @@ test("revealWipe grows a clip from 0 to the element's width, then removes it", a
 test("production: P4.2 dev hooks are absent but the handwriting font still loads", async ({ page }) => {
   test.skip(process.env.ALBERT_E2E_PRODUCTION !== "1", "Run with ALBERT_E2E_PRODUCTION=1 after pnpm build");
   await page.goto("/work/calc2-ws3");
-  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(2);
+  await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
   expect(await page.evaluate(() => "__albert" in window)).toBe(false);
   await page.waitForFunction(() => document.fonts.check('26px "Albert Hand"'), null, { timeout: 5000 });
 });

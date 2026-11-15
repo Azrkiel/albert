@@ -10,6 +10,7 @@ export type HintTurn = z.infer<typeof HintTurnSchema>;
 
 export const HintRequestSchema = z.object({
   sessionId: z.string(), worksheetId: z.string(), problemId: z.string(), rowId: z.string(), rung: RungSchema,
+  problemSource: z.enum(["worksheet", "handwriting"]).optional(),
   trigger: z.lazy(() => StuckSignalSchema.shape.kind),
   image: z.object({ marked: z.string(), clean: z.string().optional(), width: z.number().int().positive(), height: z.number().int().positive() }),
   rows: z.array(z.object({ rowId: z.string(), index: z.number().int().positive(), clusterLabels: z.array(z.number().int().positive()) })),

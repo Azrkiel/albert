@@ -74,10 +74,14 @@ export function mapMark(mark: Mark, rows: HintRequest["rows"]): AlbertMarkSpec {
     : { type: mark.type, rowId: row.rowId, clusterIds: targetClusterIds(row, mark.clusterLabels) };
 }
 
-export function checkReply(reply: AlbertReply, request: HintRequest, scope: ScopeBundle): string[] {
+export function checkReply(reply: AlbertReply, request: HintRequest, scope?: ScopeBundle): string[] {
   return [
     ...checkLadder(reply.hint, reply.diagnosis, request.rung),
-    ...checkScope(reply.hint, reply.diagnosis, scope),
+    ...(request.problemSource === "handwriting" ? [
+      ...(reply.diagnosis.subskillId === undefined ? [] : ["General handwriting has no course subskillId; omit it."]),
+      ...(reply.diagnosis.easierOutOfScope === undefined ? [] : ["General handwriting has no upcoming course units; omit easierOutOfScope."]),
+      ...(reply.hint.citation === undefined ? [] : ["No course notes were supplied; omit hint.citation."]),
+    ] : scope ? checkScope(reply.hint, reply.diagnosis, scope) : ["Worksheet hints require course scope."]),
     ...checkUnreadable(reply.hint, reply.diagnosis, reply.marks),
     ...checkPointing(reply, request.rows),
   ];

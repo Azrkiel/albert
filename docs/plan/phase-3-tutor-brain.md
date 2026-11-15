@@ -114,6 +114,8 @@ scripts/eval-hints.ts
 
    Implementation: `runHint(request, deps?)` accepts an already-bound model, Repo, scope loader and clock for offline tests. Its model deadline includes scope loading and the one repair attempt, and aborts at `HINT_TIMEOUT_MS` (default 12000). The validated reply is emitted in the order above; persistence completes before `done`. For an active matching session, pass the complete stored diagnosis through `recordHintEvidence` to preserve P7.1. The route's existing stream-to-storage reconstruction remains mock-only, so it cannot duplicate a live hint or lose its private note. The `MOCK_LLM=1` fixture branch is unchanged.
 
+   Live-button integration follow-up: `WorksheetCanvas.requestHint` now calls the existing `buildHintRequest`, sending the marked writing snapshot, row-local cluster labels and history instead of the old one-pixel placeholder. Manual, stuck-mark and ref requests share this path. A request generation drops snapshots completed after a newer click or unmount. Snapshot preparation failures show a plain note without sending a model request; retry clears that note. Browser tests verify real PNG dimensions and black ink pixels, row/cluster bounds, and preparation-error recovery.
+
    Bind with `maxRetries: 0`: LangChain otherwise defaults to six transport retries, which are separate from the one permitted reply-validation repair and were invisible to the original CLI counter. The installed Bedrock adapter already sets SDK `maxAttempts` to one. Each hint owns its model; `getHintModel` supplies an idempotent `dispose`, and `runHint` aborts and disposes in `finally` on success or failure. An injected model may supply `dispose` as well. The CLI forwards it rather than dropping lifecycle cleanup.
 
    Before P3.4 exists, `pnpm exec tsx scripts/build-eval-request.ts` runs the offline dev page headlessly and saves `fixtures/eval/requests/missing-dx-r1-snapshot.json` through the real request builder. Keep the original placeholder request intact. Decode and inspect the snapshot before any live call, then use `scripts/hint-once.ts <request.json>` to print public results, timing and repair count. This one-off check seeds a memory Repo and uses only the live model; it does not write demo data into MongoDB.
@@ -201,6 +203,8 @@ scripts/eval-hints.ts
 1. Run the eval in four configurations: two candidate models (a larger and a faster Claude model available on the provider) × marked image only vs marked plus clean image (`SEND_CLEAN_IMAGE=1`).
 2. Choose by this order: both 100% bars met → highest row accuracy → lowest median time.
 3. Write the chosen `HINT_MODEL_ID` and `SEND_CLEAN_IMAGE` into `.env.local`, `.env.example` comments and `status.md`, with the four score lines.
+
+   User-requested local trial: hint role switched to Haiku 4.5 (`us.anthropic.claude-haiku-4-5-20251001-v1:0`) in git-ignored configuration, using Bedrock `us-east-1` with the 12000 ms timeout unchanged. Agent and reader remain on their existing Sonnet model. Node's system CA store is enabled at process startup for this machine's trusted TLS interception; certificate verification stays enabled. One CLI missing-dx snapshot returned a valid question in 5461 ms with one repair (two model invocations). One live browser replay sent the real 970 by 942 PNG and returned a question with zero repairs, server total 2753 ms; automated click-to-display was 5080 ms. These are two checks of one case, not the four-configuration eval or evidence of meeting all P3.4 quality bars. P3.5 remains unticked.
 
 **Acceptance**
 - [ ] **P3.5-AC1** — Four runs recorded in `status.md` with their totals.
@@ -299,3 +303,14 @@ pnpm eval:hints --checks
 
 - [ ] `status.md` has the chosen hint model, the image mode, the latest eval totals and the three consecutive 100% lines.
 - [ ] By hand, with the real model: write the missing-`dx` work, tap the mark, and read the question. Tap twice more for rungs 2 and 3. Nothing gives away more than its rung allows.
+
+
+### User-approved follow-up: handwritten general calculus (Nov 14)
+
+The live buttons now send the real ink snapshot. A user trial exposed a separate source mismatch: the page said only "Write one step per row" while the server supplied the fixed worksheet exercise. The user explicitly requested general calculus driven by handwriting, with course material used for worksheet work, and approved changing the shared request contract and related tests.
+
+`HintRequest.problemSource` is optional (`worksheet` or `handwriting`); omitted means worksheet for existing callers. Worksheet pages load and display all assigned statements from the same stored worksheet used by scope loading. `/work/general-calculus` and `?source=handwriting` open blank practice; mode navigation remounts the canvas to keep requests/history apart. This general-practice option is an explicit user-approved exception to P5.8's proposed unit-picked whiteboard; it does not implement PDF page mode or its unit scope.
+
+General practice uses its first handwritten problem and subsequent visible rows, with no worksheet statement, teaching card, covered/upcoming methods or lecture examples loaded. It includes clean and numbered copies of the same ink; the model reads the clean copy and locates marks in the numbered copy. The normal ladder, reread, pointing, repair, timeout and safe-log rules still apply. Validation rejects course citations, subskills and deferred units. `inScope: true` here makes no claim about course coverage. Neither live nor mock general hints store course hints or skill evidence, because no course is selected. Session ink recording is unchanged. Legacy worksheet no-notes behavior and mocks are retained. Source-labelled request fixtures, examples, schema and contracts.md ship together.
+
+Live trial, run by agent with the user's recorded two-row ink: numbered image alone removed the unrelated worksheet but misread the denominator. With the clean copy, Haiku 4.5 transcribed the first line as `\int \frac{x^2}{3x^3} dx` and asked what power remains after cancellation; server total 3403 ms. This is a single-case check, not proof of reliable handwriting recognition or the P3.5 evaluation. The second line was incomplete; do not claim a complete transcription benchmark. The 12000 ms timeout stays unchanged; P3.8-AC3 remains needs human.

@@ -120,3 +120,13 @@ it("preserves repeated mock hint timestamps while deduplicating evidence and rec
   expect(await repo.listEvidence(session.studentId, session.courseId)).toHaveLength(1);
   expect((await repo.listSkills(session.studentId, session.courseId)).find(s => s.subskillId === card.subskills[0]!.id)).toMatchObject({ level: 1, recentErrorTypes: ["missing_dx"] });
 });
+
+it("general mock hints complete without opening a course repository or citing a lecture", async () => {
+  vi.stubEnv("STORE", "not-a-course-store");
+  const stream = mock.streamMockHint;
+  vi.spyOn(mock, "streamMockHint").mockImplementation(fixture => stream(fixture, async () => {}));
+  const events = await lines(await POST(request(JSON.stringify({ ...input, problemSource: "handwriting" }))));
+  expect(events.at(-1)?.type).toBe("done");
+  expect(events.find(event => event.type === "hint")).not.toHaveProperty("citation");
+  expect(events.find(event => event.type === "diagnosis")).not.toHaveProperty("subskillId");
+});
