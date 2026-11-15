@@ -56,7 +56,7 @@ export function hintHistory(events: SessionEvent[], problemId: string, rowProble
 /**
  * A full `HintRequest` for a stuck row: the marked snapshot of rows 1..rowId, the rows and their
  * cluster labels as drawn, and the hint history. Parsed with `HintRequestSchema` before it is returned.
- * Not wired into the page's hint flow yet (P3.3 / P4.4).
+ * Shared by the page's live hint flow and its dev request hook.
  */
 export async function buildHintRequest(state: SessionState, rowId: string, rung: Rung, trigger: StuckSignal["kind"],
   options: BuildHintRequestOptions = {}): Promise<HintRequest> {

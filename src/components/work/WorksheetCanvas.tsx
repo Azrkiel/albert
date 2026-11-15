@@ -57,6 +57,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const seeking = useRef(false);
   const markVisibleSince = useRef(new WeakMap<StuckSignal, number>());
   const loadId = useRef(0);
+  const hintRequestId = useRef(0);
   const [revision, setRevision] = useState(0);
   const [replayDone, setReplayDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -91,14 +92,19 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     syncPush(event);
     if (!seeking.current) detect(event.at);
   }, [replace, detect, syncPush]);
-  // P2.6 can call this same entry point through the canvas ref. P2.7 will
-  // replace the placeholder PNG and empty cluster lists with a real snapshot.
+  // Manual, stuck-mark and ref requests share the real P2.7 snapshot builder.
   const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual") => {
+    const id = ++hintRequestId.current;
+    setError("");
     sink({ type: "hint_requested", at: now(), hintId: `hint-${sessionId}-${current.current.events.length}`, rowId, rung });
     setHintTarget({ problemId, rowId });
-    await sendHint({ sessionId, worksheetId: current.current.worksheetId, problemId, rowId, rung, trigger,
-      image: { marked: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC", width: 1, height: 1 },
-      rows: current.current.rows.filter((row) => row.problemId === problemId).map((row) => ({ rowId: row.id, index: row.index, clusterLabels: [] })), history: [] });
+    try {
+      const request = await buildHintRequest(current.current, rowId, rung, trigger, { sessionId });
+      // A slower snapshot from an older click must not replace a newer request.
+      if (id === hintRequestId.current) await sendHint(request);
+    } catch {
+      if (id === hintRequestId.current) setError("Could not prepare your writing for a hint. Try again.");
+    }
   }, [sendHint, sessionId, sink, now]);
   useImperativeHandle(ref, () => ({ requestHint }), [requestHint]);
   // P3.8: an error shows only its plain note; partial hint text before it is dropped.
@@ -215,7 +221,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
     return () => { controller.abort(); player.current?.cancel(); player.current = null; };
   }, [fixture, initialSpeed, start]);
 
-  useEffect(() => () => { loadId.current++; player.current?.cancel(); player.current = null; }, []);
+  useEffect(() => () => { loadId.current++; hintRequestId.current++; player.current?.cancel(); player.current = null; }, []);
   const snapshotHook = useCallback<SnapshotHook>(({ upToRowId, problemId, marked = true }) => {
     const state = current.current;
     const row = state.rows.find((r) => r.id === upToRowId);
