@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import { AlbertReplySchema, StoredHintSchema, type AlbertReply, type HintEvent, type HintRequest, type Repo, type ScopeBundle } from "../contracts";
+import { AlbertReplySchema, StoredHintSchema, type AlbertReply, type HintErrorCode, type HintEvent, type HintRequest, type Repo, type ScopeBundle } from "../contracts";
 import { getRepo } from "../db";
 import { checkReply, mapMark, targetClusterIds } from "./ladder";
 import { buildMessages } from "./prompt";
@@ -14,11 +14,21 @@ export type HintModel = {
   invoke(messages: BaseMessage[], options: { signal: AbortSignal }): Promise<unknown>;
   dispose?: () => void;
 };
+/** Server-only telemetry: never include request content or provider/model details. */
+export type HintLogLine = {
+  hintId: string;
+  case: Pick<HintRequest, "worksheetId" | "problemId" | "rowId">;
+  status: "done" | HintErrorCode;
+  rung: HintRequest["rung"];
+  ms: { firstEvent: number; total: number } | number;
+  retryCount: 0 | 1;
+};
 export type HintDeps = {
   model?: HintModel;
   repo?: Repo;
   scopeLoader?: (worksheetId: string, problemId: string, repo: Repo) => Promise<ScopeBundle>;
   clock?: () => number;
+  log?: (line: HintLogLine) => void;
 };
 
 const toolOutput = z.object({
@@ -34,6 +44,9 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
   const controller = new AbortController();
   let model = deps.model;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let status: HintLogLine["status"] = "model_unavailable";
+  let retryCount: 0 | 1 = 0;
+  let completedMs: { firstEvent: number; total: number } | undefined;
   try {
     const timeout = timeoutSetting.parse(process.env.HINT_TIMEOUT_MS || 12_000);
     // Race as well as abort: a broken provider (or test fake) may ignore the signal.
@@ -43,10 +56,23 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     const withinDeadline = <T>(work: Promise<T>) => Promise.race([work, expired]);
     const repo = deps.repo ?? getRepo();
     const scope = await withinDeadline((deps.scopeLoader ?? getScopeBundle)(request.worksheetId, request.problemId, repo));
+    if (!scope.taught) {
+      clearTimeout(timer);
+      yield { type: "started", hintId, at: start };
+      yield { type: "diagnosis", status: "stalled", inScope: true };
+      const firstEvent = Math.max(0, clock() - start);
+      yield { type: "hint", kind: "reread", segments: [{ type: "text", text: "Your notes for this unit aren't posted yet, so I can't tell how your teacher does this." }] };
+      // Missing course material says nothing about skill. Do not store a hint or evidence.
+      completedMs = { firstEvent, total: Math.max(firstEvent, clock() - start) };
+      status = "done";
+      yield { type: "done", hintId, ms: completedMs };
+      return;
+    }
     model ??= getHintModel();
     const messages = buildMessages(request, scope);
     let reply: AlbertReply | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt === 1) retryCount = 1;
       // Transport errors are not malformed replies and do not consume a repair call.
       const output = await withinDeadline(model.invoke(messages, { signal: controller.signal }));
       const parsed = toolOutput.safeParse(output);
@@ -60,6 +86,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
       ));
     }
     if (!reply) {
+      status = "bad_model_output";
       yield { type: "error", hintId, code: "bad_model_output", message: "Albert couldn't read that. Try again?" };
       return;
     }
@@ -68,6 +95,8 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     clearTimeout(timer);
     const marks = reply.marks.map((mark) => mapMark(mark, request.rows));
     const diagnosis = reply.diagnosis;
+    const deferred = diagnosis.easierOutOfScope;
+    const upcoming = deferred && scope.upcomingMethods.find((method) => method.unitId === deferred.unitId);
     const wrongRow = request.rows.find((row) => row.index === diagnosis.rowIndex);
     yield { type: "started", hintId, at: start };
     yield { type: "reading", rows: reply.reading.rows.map((row) => ({
@@ -81,6 +110,9 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
       ...(diagnosis.errorType === undefined ? {} : { errorType: diagnosis.errorType }),
       ...(diagnosis.subskillId === undefined ? {} : { subskillId: diagnosis.subskillId }),
       inScope: true,
+      ...(upcoming && deferred ? { deferredMethod: {
+        name: deferred.methodName, unitId: deferred.unitId, unitTitle: upcoming.unitTitle,
+      } } : {}),
     };
     const firstEvent = Math.max(0, clock() - start);
     for (const mark of marks) yield { type: "mark", mark };
@@ -98,15 +130,26 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     } else {
       await repo.saveHint(stored);
     }
+    status = "done";
+    completedMs = ms;
     yield { type: "done", hintId, ms };
   } catch {
     // Provider/storage exceptions may contain credentials or private data.
-    yield controller.signal.aborted
+    status = controller.signal.aborted ? "timeout" : "model_unavailable";
+    yield status === "timeout"
       ? { type: "error", hintId, code: "timeout", message: "That took too long. Try again?" }
       : { type: "error", hintId, code: "model_unavailable", message: "Albert could not finish this hint. Try again." };
   } finally {
     clearTimeout(timer);
     controller.abort();
     model?.dispose?.();
+    const elapsed = Math.max(completedMs?.total ?? 0, clock() - start, 0);
+    const line: HintLogLine = {
+      hintId,
+      case: { worksheetId: request.worksheetId, problemId: request.problemId, rowId: request.rowId },
+      status, rung: request.rung,
+      ms: completedMs ? { firstEvent: completedMs.firstEvent, total: elapsed } : elapsed, retryCount,
+    };
+    (deps.log ?? ((line) => console.info(JSON.stringify(line))))(line);
   }
 }
