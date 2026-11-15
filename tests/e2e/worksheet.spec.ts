@@ -59,3 +59,10 @@ test("P5.6-AC4: a stroke written under problem 4 carries problem 4's id", async 
   expect(strokes).toHaveLength(1);
   expect(strokes[0]).toMatchObject({ problemId: "calc2-ws3/p4", rowId: "calc2-ws3/p4/r1" });
 });
+
+test("#62: a percent-encoded worksheet id segment resolves the stored worksheet and its problems", async ({ page }) => {
+  // Next gives pages the raw segment; "%2D" is "-", so this only resolves if the page decodes it once.
+  await page.goto("/work/calc2%2Dws3?source=worksheet&layout=ruled");
+  await expect(page.locator("[data-worksheet-title]")).toHaveText("Worksheet 3");
+  await expect(page.locator("[data-problem-id]")).toHaveCount(5);
+});
