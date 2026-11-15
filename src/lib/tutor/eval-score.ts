@@ -33,6 +33,7 @@ export type CaseScore = {
   error?: string;
   hint?: string;
   reading?: string;
+  repair?: string;          // why the one repair call was needed (rule messages, no student content)
 };
 
 /** Spacing and TeX spelling differences that do not change the expression. */

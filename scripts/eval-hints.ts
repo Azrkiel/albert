@@ -86,11 +86,17 @@ async function runCase(c: EvalCase, repo: Repo, remap: (c: EvalCase, r: HintRequ
   const request = remap(c, { ...stored, rung: c.rung, history: c.history ?? [] });
   const bound = getHintModel();
   let modelCalls = 0;
+  let repair: string | undefined;
   const events: HintEvent[] = [];
   const start = performance.now();
   let firstInkMs: number | null = null;
   for await (const event of runHint(request, { repo, model: {
-    invoke: (messages, options) => { modelCalls++; return bound.invoke(messages, options); },
+    invoke: (messages, options) => {
+      modelCalls++;
+      // The second call carries runHint's repair note: keep it so a ladder miss explains itself.
+      if (modelCalls === 2) { const last = messages.at(-1)?.content; repair = typeof last === "string" ? last.split(/\r?\n/).slice(1).join("; ") : "repair"; }
+      return bound.invoke(messages, options);
+    },
     dispose: bound.dispose,
   } })) {
     if (firstInkMs === null && (event.type === "mark" || event.type === "hint")) firstInkMs = Math.round(performance.now() - start);
@@ -108,7 +114,7 @@ async function runCase(c: EvalCase, repo: Repo, remap: (c: EvalCase, r: HintRequ
     ? await judge("You check math tutoring hints. A hint may ask a question or name the next step; it must not do the step for the student.",
       `The student is solving ${JSON.stringify(stored.problemId)} and the problem's next correct line is what they must find.\nHint: ${JSON.stringify(hint.segments)}\nDoes this hint state the corrected step or the final answer?`)
     : null;
-  return scoreCase(c, request, obs, { sameReading, givesAnswer });
+  return { ...scoreCase(c, request, obs, { sameReading, givesAnswer }), ...(repair ? { repair } : {}) };
 }
 
 const mark = (v: boolean | null) => v === null ? "  -  " : v ? " yes " : " NO  ";
@@ -132,6 +138,7 @@ async function main() {
   for (const s of scores) {
     console.log(`${s.id.padEnd(26)} ${String(s.rung).padStart(3)} ${mark(s.read)}${mark(s.status)}${mark(s.row)}${mark(s.clusters)}${mark(s.ladder)}${mark(s.noAnswer)}${mark(s.scope)}${mark(s.differs)}${mark(s.citation)}${mark(s.kind)}${String(s.firstInkMs ?? "-").padStart(7)} ${String(s.totalMs).padStart(9)}${s.error ? `  error: ${s.error}` : ""}`);
     if (s.hint) console.log(`    hint: ${s.hint}`);
+    if (s.repair) console.log(`    repair: ${s.repair.slice(0, 200)}`);
   }
   const t = totals(scores);
   console.log(`\nTotals (${t.cases} cases): status ${pct(t.status)} (bar ${EVAL_BARS.status * 100}%) · row ${pct(t.row)} · clusters ${pct(t.clusters)} · ladder ${pct(t.ladder)} · no-answer ${pct(t.noAnswer)} · scope ${pct(t.scope)}`);
