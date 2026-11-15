@@ -57,7 +57,7 @@ for (const error of errors) {
 }
 
 for (const manifest of [recorded, live]) {
-  test(`P5.5-AC2: imports recorded ${manifest.course.title} and lists the learning placeholder`, async ({ page }, info) => {
+  test(`P5.5-AC2: imports recorded ${manifest.course.title} and offers Learn this course`, async ({ page }, info) => {
     let imported = false;
     await page.route("**/api/source/courses", route => route.fulfill({ json: imported ? [course(manifest)] : [] }));
     await page.route("**/api/source/connect", route => {
@@ -70,8 +70,7 @@ for (const manifest of [recorded, live]) {
     await page.getByRole("button", { name: "Import course", exact: true }).click();
     await expect(page).toHaveURL(/\/courses$/);
     await expect(page.getByRole("heading", { level: 2, name: manifest.course.title, exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Learn this course", exact: true })).toBeDisabled();
-    await expect(page.getByText("Course learning is not available yet.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Learn this course", exact: true })).toBeEnabled();
     await expect(page.getByRole("link", { name: "Open", exact: true })).toHaveCount(0);
     if (manifest === live) await screenshot(page, info, "courses-not-ingested");
   });

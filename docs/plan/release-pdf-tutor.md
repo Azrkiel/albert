@@ -36,8 +36,8 @@ evidence and levels (P7.1–P7.2). Not yet: the real worksheet page (P5.6), Lear
 3. `scripts/agent-ingest.ts` unchanged apart from the checks.
 
 **Acceptance**
-- [ ] **R1.1-AC1** — Unit: the ingest agent's sub-agent list has no planner; check 13 passes on a stored ingest and fails when a
-  plan exists or a problem tag is unresolved (`tests/unit/check-ingest-agent.test.ts`).
+- [ ] **R1.1-AC1** — Unit: the ingest agent's sub-agent list has no planner; check 13 passes on a stored ingest and fails when the
+  run saved a plan (a plan from an earlier run is fine) or a problem tag is unresolved (`tests/unit/check-ingest-agent.test.ts`).
 - [ ] **R1.1-AC2** — Live, one run: on the saved P6.5 state, a repeat ingest through the R1.2 route succeeds, golden checks
   1–13 (new 13) pass, card/worksheet ids and counts are unchanged, and `latestPlan` is unchanged. Record calls and time.
 
