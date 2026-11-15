@@ -9,12 +9,18 @@ import { breakLongWords, mathAsText, spaceSegments, wrapLines } from "./segments
 import { prepareMeasure, renderSegment } from "./text";
 
 /** One hint being conducted: ids, where it was asked, and the id its marks are seeded from. */
-export type HintContext = { hintId: string; seedId: string; problemId: string; rowId: string; rung: number };
+export type HintContext = { hintId: string; seedId: string; problemId: string; rowId: string; rung: number;
+  /** Set when a recording is replaying this hint's `hint_shown`: "instant" draws the final state at once. */
+  replay?: "instant" | "animate";
+  /** Set when the hint starts: the screen is under 900 px, so the writing goes in a band under the rows. */
+  narrow?: boolean };
 
 export type ConductorHost = {
   /** Rows and clusters as the page has them now. */
   geometry(): { rows: Row[]; clusters: Cluster[] };
   reducedMotion(): boolean;
+  /** Under 900 CSS px: Albert's column moves into a full-width band under the rows (P4.6). */
+  narrow?(): boolean;
   now(): number;
   /** A hint finished drawing: the page records a `hint_shown` session event with these marks. */
   onShown?(ctx: HintContext, marks: AlbertMark[]): void;
@@ -23,7 +29,7 @@ export type ConductorHost = {
 /** What the page shows around a problem's Albert layer. */
 export type ProblemInk = {
   /** "More help" chip: asks for `rung` on `rowId`; `y` is the bottom of the writing, in page px. */
-  chip: { rowId: string; rung: number; y: number } | null;
+  chip: { rowId: string; rung: number; x: number; y: number } | null;
   /** True while any of Albert's notes are on the problem (shows "Clear Albert's notes"). */
   hasInk: boolean;
   /** Page y a surface must reach so Albert's writing and its chip fit; 0 when there is none. */
@@ -43,6 +49,9 @@ type Drawn = { ctx: HintContext; group: SVGGElement; marks: AlbertMark[]; kinds:
  */
 export function createConductor(host: ConductorHost) {
   const layers = new Map<string, SVGGElement>();
+  // A layer that unmounted keeps receiving ink until its replacement attaches, then hands its notes over.
+  const orphans = new Map<string, SVGGElement>();
+  const layerOf = (problemId: string) => layers.get(problemId) ?? orphans.get(problemId);
   const drawn = new Map<string, Drawn>();
   const cancelled = new Set<string>();
   const dots = new Map<string, SVGElement>();
@@ -72,14 +81,15 @@ export function createConductor(host: ConductorHost) {
       if (--pendingSteps === 0) skip.now = false;
     });
   };
-  const ms = (value: number) => host.reducedMotion() || skip.now ? 0 : value;
+  const ms = (value: number, ctx?: HintContext) => host.reducedMotion() || skip.now || ctx?.replay === "instant" ? 0 : value;
   const gone = (ctx: HintContext) => cancelled.has(ctx.hintId);
 
   const entry = (ctx: HintContext): Drawn | null => {
     const existing = drawn.get(ctx.hintId);
     if (existing) return existing;
-    const layer = layers.get(ctx.problemId);
+    const layer = layerOf(ctx.problemId);
     if (!layer) return null;
+    ctx.narrow ??= host.narrow?.() ?? false;
     const group = document.createElementNS(NS, "g");
     group.setAttribute("data-albert-hint", ctx.hintId);
     group.setAttribute("data-rung", String(ctx.rung));
@@ -129,8 +139,14 @@ export function createConductor(host: ConductorHost) {
       // Point at the circle's edge when this hint (or an earlier rung) circled the same row, else at the clusters.
       const circled = made.marks.some((m) => m.spec.type === "circle" && m.spec.rowId === rowId) || alreadyDrawn(ctx, "circle", rowId);
       const c = circleFor(box);
-      const aim: BBox = circled ? { x: c.cx - c.rx + WRITE.circlePad, y: c.cy, w: 2 * (c.rx - WRITE.circlePad), h: 0 } : box;
-      group = arrowMark(svg, marginAnchor(row), aim, seed).group;
+      let from = marginAnchor(row);
+      let aim: BBox = box;
+      if (ctx.narrow) {
+        // Narrow: the arrow rises from the band under the rows to the bottom of the circle (or the clusters).
+        from = { x: box.x + box.w / 2, y: bandTop(ctx.problemId) };
+        aim = circled ? { x: c.cx - c.rx + WRITE.circlePad, y: c.cy - c.ry + WRITE.circlePad, w: 2 * (c.rx - WRITE.circlePad), h: 2 * (c.ry - WRITE.circlePad) } : box;
+      } else if (circled) aim = { x: c.cx - c.rx + WRITE.circlePad, y: c.cy, w: 2 * (c.rx - WRITE.circlePad), h: 0 };
+      group = arrowMark(svg, from, aim, seed).group;
       duration = WRITE.arrowMs;
     }
     group.setAttribute("data-target-row", rowId);
@@ -140,14 +156,18 @@ export function createConductor(host: ConductorHost) {
     const bb = group.getBBox();
     made.marks.push({ id: `${ctx.hintId}/${kind}${made.marks.length + 1}`, hintId: ctx.hintId, problemId: ctx.problemId, spec,
       bbox: { x: bb.x, y: bb.y, w: bb.width, h: bb.height }, drawnAt: host.now() });
-    await revealStroke(group, ms(duration), skip);
+    await revealStroke(group, ms(duration, ctx), skip);
   }
 
+  /** Page y under the problem's last row, where the narrow band starts. */
+  const bandTop = (problemId: string) => Math.max(0, ...host.geometry().rows.filter((r) => r.problemId === problemId).map((r) => r.bbox.y + r.bbox.h)) + 8;
+  const columnOf = (ctx: HintContext) => ctx.narrow ? { x: 0, w: PAGE.width } : PAGE.albertCol;
+
   /** layoutHint, then the written fallbacks: math as LaTeX source, then over-wide words broken. Never drops the hint. */
-  async function layoutWithFallback(row: Row, segments: InkSegment[], citation: string | undefined, occupied: BBox[]) {
+  async function layoutWithFallback(row: Row, segments: InkSegment[], citation: string | undefined, occupied: BBox[], col: { x: number; w: number }) {
     const attempt = async (segs: InkSegment[], cite: string | undefined) =>
-      layoutHint({ row, segments: segs, ...(cite === undefined ? {} : { citation: cite }), measure: await prepareMeasure(segs), occupied });
-    const column = PAGE.albertCol.w - 2 * WRITE.padX;
+      layoutHint({ row, segments: segs, ...(cite === undefined ? {} : { citation: cite }), measure: await prepareMeasure(segs), occupied, column: col });
+    const column = col.w - 2 * WRITE.padX;
     try { return await attempt(segments, citation); } catch (error) { if (!(error instanceof RangeError)) throw error; }
     const plain = mathAsText(segments);
     try { return await attempt(plain, citation); } catch (error) { if (!(error instanceof RangeError)) throw error; }
@@ -156,11 +176,13 @@ export function createConductor(host: ConductorHost) {
     return attempt(broken, cite);
   }
 
-  async function writeHint(ctx: HintContext, event: Extract<HintEvent, { type: "hint" }>) {
+  async function writeHint(ctx: HintContext, segments: InkSegment[], citationLabel: string | undefined) {
     const made = entry(ctx);
     const { rows } = host.geometry();
-    const row = rows.find((r) => r.id === ctx.rowId);
-    if (!made || !row) return;
+    const asked = rows.find((r) => r.id === ctx.rowId);
+    if (!made || !asked) return;
+    // Narrow screens write in a full-width band under the problem's last row.
+    const row: Row = ctx.narrow ? { ...asked, bbox: { x: 0, y: bandTop(ctx.problemId), w: PAGE.width, h: WRITE.lineHeight } } : asked;
     // An arrow always accompanies a circle, so the note points at what it is about.
     const circle = made.marks.find((m) => m.spec.type === "circle");
     if (circle && circle.spec.type === "circle" && !made.kinds.has("arrow") && !alreadyDrawn(ctx, "arrow", circle.spec.rowId)) {
@@ -170,10 +192,10 @@ export function createConductor(host: ConductorHost) {
     for (const other of drawn.values()) {
       if (other.ctx !== ctx && other.ctx.problemId === ctx.problemId && other.ctx.rowId === ctx.rowId && other.writing) fadeEl(other.writing);
     }
-    const spaced = spaceSegments(event.segments);
+    const spaced = spaceSegments(segments);
     const occupied = [...drawn.values()].filter((d) => d.ctx !== ctx && d.ctx.problemId === ctx.problemId)
       .flatMap((d) => d.marks.flatMap((m) => m.spec.type === "writing" ? [m.bbox] : []));
-    const laid = await layoutWithFallback(row, spaced, event.citation?.label, occupied);
+    const laid = await layoutWithFallback(row, spaced, citationLabel, occupied, columnOf(ctx));
     if (gone(ctx)) return;
     const rendered = await Promise.all(laid.items.map((item) =>
       renderSegment(item.seg, item.seg.type === "citation" ? WRITE.citationSize : WRITE.fontSize)));
@@ -199,33 +221,34 @@ export function createConductor(host: ConductorHost) {
     const bottom = Math.max(laid.bbox.y + laid.bbox.h, ...placed.map((p) => p.y + p.item.h));
     const bbox: BBox = { x: laid.bbox.x, y: top, w: laid.bbox.w, h: bottom - top };
     made.marks.push({ id: `${ctx.hintId}/writing`, hintId: ctx.hintId, problemId: ctx.problemId,
-      spec: { type: "writing", rowId: ctx.rowId, segments: event.segments, ...(event.citation ? { citation: event.citation.label } : {}) },
+      spec: { type: "writing", rowId: ctx.rowId, segments, ...(citationLabel === undefined ? {} : { citation: citationLabel }) },
       bbox, drawnAt: host.now() });
     setState(ctx.problemId, {});
     for (const p of placed) {
       if (gone(ctx)) return;
       p.el.removeAttribute("visibility");
-      await revealWipe(p.el, ms(revealMs(p.item.seg, p.glyphs)), skip);
+      await revealWipe(p.el, ms(revealMs(p.item.seg, p.glyphs), ctx), skip);
     }
   }
 
   function finish(ctx: HintContext) {
     removeDot(ctx.hintId);
     const made = drawn.get(ctx.hintId);
-    if (!made) { setState(ctx.problemId, {}); return; }
+    if (!made || ctx.replay) { setState(ctx.problemId, {}); return; } // a replayed hint has no chip and is not recorded again
     const writing = made.marks.find((m) => m.spec.type === "writing");
     const row = host.geometry().rows.find((r) => r.id === ctx.rowId);
     const y = writing ? writing.bbox.y + writing.bbox.h : (row ? row.bbox.y + row.bbox.h : 0);
-    setState(ctx.problemId, { chip: ctx.rung < 3 ? { rowId: ctx.rowId, rung: ctx.rung + 1, y } : null });
+    setState(ctx.problemId, { chip: ctx.rung < 3 ? { rowId: ctx.rowId, rung: ctx.rung + 1, x: ctx.narrow ? WRITE.padX : PAGE.albertCol.x + WRITE.padX, y } : null });
     host.onShown?.(ctx, made.marks);
   }
 
   function showDot(ctx: HintContext) {
-    const layer = layers.get(ctx.problemId);
+    const layer = layerOf(ctx.problemId);
     const row = host.geometry().rows.find((r) => r.id === ctx.rowId);
     if (!layer || !row) return;
+    ctx.narrow ??= host.narrow?.() ?? false;
     removeDot(ctx.hintId);
-    const { x, y } = marginAnchor(row);
+    const { x, y } = ctx.narrow ? { x: WRITE.padX, y: bandTop(ctx.problemId) + WRITE.lineHeight / 2 } : marginAnchor(row);
     const dot = document.createElementNS(NS, "circle");
     dot.setAttribute("class", "albert-dot");
     dot.setAttribute("data-albert-dot", ctx.hintId);
@@ -237,7 +260,7 @@ export function createConductor(host: ConductorHost) {
 
   /** A grey margin note: the method this problem does not need yet. */
   async function note(ctx: HintContext, text: string) {
-    const layer = layers.get(ctx.problemId);
+    const layer = layerOf(ctx.problemId);
     const made = entry(ctx);
     if (!layer || !made) return;
     const lines = wrapLines(text, PAGE.albertCol.w - 2 * WRITE.padX, (t) => measureText(t, 16).w);
@@ -251,25 +274,34 @@ export function createConductor(host: ConductorHost) {
       el.append(t);
     });
     made.group.append(el);
-    await revealWipe(el, ms(text.length / WRITE.charsPerSec * 1000), skip);
+    await revealWipe(el, ms(text.length / WRITE.charsPerSec * 1000, ctx), skip);
   }
 
   return {
     /** The `<g class="albert">` of one problem; `null` when it unmounts. */
     attach(problemId: string, layer: SVGGElement | null) {
-      if (layer) layers.set(problemId, layer); else layers.delete(problemId);
+      const old = layers.get(problemId) ?? orphans.get(problemId);
+      if (layer) {
+        layers.set(problemId, layer);
+        orphans.delete(problemId);
+        if (old && old !== layer) layer.append(...old.childNodes); // the layer was recreated (a replay restarted the page)
+      } else {
+        const detached = layers.get(problemId);
+        layers.delete(problemId);
+        if (detached) orphans.set(problemId, detached);
+      }
     },
     handle(ctx: HintContext, event: HintEvent) {
       if (event.type === "started") {
         ctx.seedId = event.hintId; // the stream's id seeds the wobble
         setState(ctx.problemId, { chip: null });
         showDot(ctx);
-      } else if (event.type === "reading") readings = event.rows;
+      } else if (event.type === "reading") { readings = event.rows; version++; listeners.forEach((l) => l()); }
       else if (event.type === "diagnosis") {
         const method = event.deferredMethod;
         if (method) enqueue(ctx, () => note(ctx, `You'll meet ${method.name} in ${method.unitTitle}.`));
       } else if (event.type === "mark") enqueue(ctx, () => drawMark(ctx, event.mark));
-      else if (event.type === "hint") enqueue(ctx, () => writeHint(ctx, event));
+      else if (event.type === "hint") enqueue(ctx, () => writeHint(ctx, event.segments, event.citation?.label));
       else if (event.type === "done") enqueue(ctx, () => finish(ctx));
       else if (event.type === "error") {
         // No half-drawn hint survives an error: stop the queue's work on it and remove every mark.
@@ -278,6 +310,26 @@ export function createConductor(host: ConductorHost) {
         remove(ctx.hintId);
         setState(ctx.problemId, { chip: null });
       }
+    },
+    /**
+     * A recording's `hint_shown` event: redraw its marks. `instant` (seek / instant speed) draws the final state at
+     * once; otherwise they animate. Live hints are already on the page, so they are skipped. Marks are seeded from
+     * the recorded hint id, so a replay's wobble can differ from the live one.
+     */
+    replayShown(marks: AlbertMark[], opts: { instant: boolean; rung: number }) {
+      const first = marks[0];
+      if (!first || drawn.has(first.hintId)) return;
+      const writing = marks.find((m) => m.spec.type === "writing");
+      const spec = (writing ?? first).spec;
+      const rowId = spec.type === "arrow" ? spec.toRowId : spec.rowId;
+      const ctx: HintContext = { hintId: first.hintId, seedId: first.hintId, problemId: first.problemId, rowId, rung: opts.rung,
+        replay: opts.instant ? "instant" : "animate" };
+      for (const mark of marks) {
+        const s = mark.spec;
+        if (s.type === "writing") enqueue(ctx, () => writeHint(ctx, s.segments, s.citation));
+        else enqueue(ctx, () => drawMark(ctx, s));
+      }
+      enqueue(ctx, () => finish(ctx));
     },
     /** Rows of the latest `reading` event (P4.6's "What Albert read"). */
     latestReading: () => readings,
@@ -307,6 +359,7 @@ export function createConductor(host: ConductorHost) {
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     reset() {
       cancelled.clear();
+      readings = [];
       for (const d of drawn.values()) d.group.remove();
       for (const dot of dots.values()) dot.remove();
       dots.clear();

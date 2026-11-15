@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { INK, PAGE } from "@/lib/contracts";
-import type { Conductor } from "@/lib/ink";
+import { mathToSvg, type Conductor } from "@/lib/ink";
 
 /**
  * Albert's ink for one problem: an empty `<g class="albert">` the conductor draws into. It sits above
@@ -28,7 +28,7 @@ export function AlbertControls({ problemId, conductor, height, onMoreHelp }: {
   const { chip } = ink;
   return <>
     {chip && <button type="button" data-albert-chip="" onClick={() => onMoreHelp(chip.rowId, chip.rung)}
-      style={{ position: "absolute", left: `${(PAGE.albertCol.x + 16) / PAGE.width * 100}%`,
+      style={{ position: "absolute", left: `${chip.x / PAGE.width * 100}%`,
         top: `${Math.min(chip.y + 6, height - 36) / height * 100}%`, padding: "4px 12px", cursor: "pointer",
         border: `1px solid ${INK.albert}`, borderRadius: 14, background: "transparent", color: INK.albert, font: "inherit", fontSize: 15 }}>
       More help
@@ -39,4 +39,27 @@ export function AlbertControls({ problemId, conductor, height, onMoreHelp }: {
       Clear Albert&apos;s notes
     </button>}
   </>;
+}
+
+/**
+ * "What Albert read" (P4.6): the row as Albert's reader transcribed it in the latest `reading` event, typeset,
+ * with its confidence. Rendered inside a row-number button and shown by CSS on hover or focus (or by a long press).
+ */
+export function ReadingTip({ reading }: { reading: { latex: string; confidence: string } | undefined }) {
+  const host = useRef<HTMLSpanElement>(null);
+  const latex = reading?.latex;
+  useEffect(() => {
+    const el = host.current;
+    if (!el || latex === undefined) return;
+    let live = true;
+    void mathToSvg(latex, 20).then((math) => { if (live) el.replaceChildren(math.node.cloneNode(true)); });
+    return () => { live = false; };
+  }, [latex]);
+  if (!reading) return null;
+  return <span role="tooltip" data-reading-tip="" style={{ position: "absolute", left: 34, top: -2, zIndex: 5, display: "none",
+    background: "#fff", border: "1px solid #ded8cf", borderRadius: 6, padding: "6px 10px", whiteSpace: "nowrap",
+    textAlign: "left", color: "#1b1b1f", fontSize: 13, boxShadow: "0 2px 8px rgba(0,0,0,.12)", pointerEvents: "none" }}>
+    <span style={{ display: "block", color: "#76726b" }}>What Albert read ({reading.confidence})</span>
+    <span ref={host} data-reading-math="" style={{ display: "block", minHeight: 24 }} />
+  </span>;
 }

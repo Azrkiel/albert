@@ -8,7 +8,7 @@ import { hintMarginText } from "@/lib/tutor/error-notes";
 import { createConductor, mathToSvg, preloadInk, renderSegment, revealWipe, type HintContext } from "@/lib/ink";
 import "@/lib/ink/ink.css";
 import { buildHintRequest, clearRow, createSessionState, detectStuck, eraseGesture, exportRecording, historyEvent, isProblemSolved, listClusters, parseRecording, reduceSessionEvent, renderSnapshot, Replayer, type SessionState, type Snapshot } from "@/lib/canvas";
-import { AlbertControls, AlbertLayer } from "./AlbertLayer";
+import { AlbertControls, AlbertLayer, ReadingTip } from "./AlbertLayer";
 import { ClusterOverlay } from "./ClusterOverlay";
 import { DevToolbar, type PlaybackSpeed } from "./DevToolbar";
 import { ProblemBlock, type HintRequested } from "./ProblemBlock";
@@ -91,6 +91,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const [conductor] = useState(() => createConductor({
     geometry: () => ({ rows: current.current.rows, clusters: listClusters(current.current) }),
     reducedMotion: () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    narrow: () => window.matchMedia("(max-width: 899px)").matches,
     now: () => nowRef.current(),
     onShown: (ctx, marks) => shownRef.current(ctx, marks),
   }));
@@ -110,8 +111,14 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
   const sink = useCallback((event: SessionEvent) => {
     replace(reduceSessionEvent(current.current, event));
     syncPush(event);
+    // P4.6: a recording's hint redraws its marks (a live one is already on the page and is skipped).
+    if (event.type === "hint_shown") {
+      const rung = current.current.events.find((e) => e.type === "hint_requested" && e.hintId === event.hintId);
+      conductor.replayShown(event.marks, { instant: seeking.current || replayClock.current?.instant === true,
+        rung: rung?.type === "hint_requested" ? rung.rung : 1 });
+    }
     if (!seeking.current) detect(event.at);
-  }, [replace, detect, syncPush]);
+  }, [replace, detect, syncPush, conductor]);
   // P2.6 can call this same entry point through the canvas ref. P2.7 will
   // replace the placeholder PNG and empty cluster lists with a real snapshot.
   const requestHint = useCallback(async (problemId: string, rowId: string, rung: Rung, trigger: StuckSignal["kind"] = "manual") => {
@@ -346,6 +353,7 @@ export function WorksheetCanvas({ worksheetId, problems, ref }: { worksheetId: s
         onHintRequested={(request) => onHintRequested(problem.id, request)}
         getSessionStart={getSessionStart} onStroke={capture} tool={tool} onClearRow={clear} layout={state.layout}
         albertLayer={<AlbertLayer problemId={problem.id} conductor={conductor} />}
+        rowTip={(rowId) => <ReadingTip reading={conductor.latestReading().find((r) => r.rowId === rowId)} />}
         albertExtent={conductor.problemInk(problem.id).extent}
         albertOverlay={({ height }) => <AlbertControls problemId={problem.id} conductor={conductor} height={height}
           onMoreHelp={(rowId, rung) => { if (!isProblemSolved(current.current.events, problem.id)) void requestHint(problem.id, rowId, rung as Rung); }} />}

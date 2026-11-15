@@ -7,4 +7,5 @@ export { preloadInk, renderSegment, prepareMeasure } from "./text";
 export { revealMs, revealWipe, revealStroke, type Skip } from "./animate";
 export { hashSeed, circleMark, underlineMark, crossOutMark, arrowMark } from "./marks";
 export { createConductor, type Conductor, type ConductorHost, type HintContext, type ProblemInk } from "./conductor";
+export { pageSvgMarkup } from "./export";
 export { spaceSegments, mathAsText, breakLongWords, wrapLines } from "./segments";

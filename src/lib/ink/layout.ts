@@ -16,9 +16,12 @@ export type LayoutItem = {
 export function layoutHint(args: {
   row: Row; segments: InkSegment[]; citation?: string;
   measure: Measure; occupied: BBox[];
+  /** Where the text goes: Albert's column (default), or the full-width band on narrow screens (P4.6). */
+  column?: { x: number; w: number };
 }): { items: LayoutItem[]; bbox: BBox } {
-  const left = PAGE.albertCol.x + WRITE.padX;
-  const width = PAGE.albertCol.w - 2 * WRITE.padX;
+  const column = args.column ?? PAGE.albertCol;
+  const left = column.x + WRITE.padX;
+  const width = column.w - 2 * WRITE.padX;
   const top = args.row.bbox.y + PAGE.rowPaddingTop;
   const items: LayoutItem[] = [];
   let x = left, y = top, line = 0;
