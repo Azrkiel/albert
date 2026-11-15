@@ -5,6 +5,7 @@ import { WorksheetCanvas } from "@/components/work/WorksheetCanvas";
 import { WorksheetShell } from "@/components/work/WorksheetShell";
 import { worksheetWithRegions } from "@/lib/lms/pdf-files";
 import { getRepo } from "@/lib/db";
+import { decodeRouteId } from "@/lib/route-id";
 
 type WorkPageProps = {
   params: Promise<{ worksheetId: string }>;
@@ -12,7 +13,8 @@ type WorkPageProps = {
 };
 
 async function WorkProblems({ params, searchParams }: WorkPageProps) {
-  const { worksheetId } = await params;
+  const { worksheetId: rawWorksheetId } = await params;
+  const worksheetId = decodeRouteId(rawWorksheetId);
   const { source } = await searchParams;
   await connection();
   const general = source === "handwriting" || worksheetId === "general-calculus";
