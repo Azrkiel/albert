@@ -5,7 +5,18 @@ import { StuckSignalSchema } from "./events";
 export const RungSchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
 export type Rung = z.infer<typeof RungSchema>;
 
-export const HintTurnSchema = z.object({ hintId: z.string(), rung: RungSchema, rowId: z.string(), text: z.string(), studentWroteAfter: z.boolean() });
+export const QUESTION_MAX_CHARS = 200;
+/**
+ * A student's typed question: plain text, at most 200 characters after cleaning. Cleaning: every run of
+ * whitespace or control characters (newlines, tabs, C0/C1 controls, Unicode line separators) becomes one space,
+ * then the ends are trimmed. Empty after cleaning is rejected (omit the field instead). The length limit applies
+ * to the cleaned text. Cleaning is not a security boundary: the prompt treats the question as data.
+ */
+export const questionField = z.string()
+  .transform((value) => value.replace(/[\p{Cc}\p{Zl}\p{Zp}\s]+/gu, " ").trim())
+  .pipe(z.string().min(1).max(QUESTION_MAX_CHARS));
+
+export const HintTurnSchema = z.object({ hintId: z.string(), rung: RungSchema, rowId: z.string(), text: z.string(), studentWroteAfter: z.boolean(), question: questionField.optional() });
 export type HintTurn = z.infer<typeof HintTurnSchema>;
 
 export const HintRequestSchema = z.object({
@@ -15,6 +26,7 @@ export const HintRequestSchema = z.object({
   image: z.object({ marked: z.string(), clean: z.string().optional(), width: z.number().int().positive(), height: z.number().int().positive() }),
   rows: z.array(z.object({ rowId: z.string(), index: z.number().int().positive(), clusterLabels: z.array(z.number().int().positive()) })),
   history: z.array(HintTurnSchema), fixtureId: z.string().optional(),
+  question: questionField.optional(),
 });
 export type HintRequest = z.infer<typeof HintRequestSchema>;
 
