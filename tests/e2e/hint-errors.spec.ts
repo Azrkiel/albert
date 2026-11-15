@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // P3.8-AC1: each error mock shows exactly its note, leaves no partial text or Albert ink,
 // and the page stays usable. The mocks in fixtures/llm/error-*.json are reused by P4.4-AC3.
 const missingDx = 'section[data-problem-id="calc2-ws3/p1"]';
-const firstHint = "You replaced x. What does dx become?";
+const firstHint = "Which part of this step needs another look?";
 const albertRed = "rgb(200, 50, 30)";
 const albertInk = "[data-ink-segment], [data-ink-math], [data-ink-text], [data-ink-revealing]";
 
@@ -48,7 +48,7 @@ for (const { fixtureId, note, ...rest } of cases) {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
     const forwarded = await useFixtureOnce(page, fixtureId);
-    await page.goto("/work/calc2-ws3?dev=1");
+    await page.goto("/work/calc2-ws3?dev=1&surface=ruled");
     // Wait for hydration: a click before React attaches is lost (Nov 14 CI flake).
     await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
     const problem = page.locator(missingDx);

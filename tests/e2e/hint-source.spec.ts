@@ -37,7 +37,7 @@ test("switching to general practice starts a fresh canvas and drops the workshee
     { type: "hint", kind: "question", segments: [{ type: "text", text: "What does the assigned problem ask?" }] },
     { type: "done", hintId: "worksheet-only", ms: { firstEvent: 1, total: 2 } },
   ].map(event => JSON.stringify(event) + "\n").join("") }));
-  await page.goto("/work/calc2-ws3");
+  await page.goto("/work/calc2-ws3?surface=ruled");
   await expect(page.locator("svg[data-capture-ready=true]")).toHaveCount(5);
   await page.getByRole("button", { name: "I'm stuck", exact: true }).first().click();
   await expect(page.locator("[data-albert-column]").first()).toHaveText("What does the assigned problem ask?");

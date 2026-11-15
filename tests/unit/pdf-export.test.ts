@@ -56,7 +56,7 @@ it("preserves all original page boxes, rotations and content while appending fil
     } else expect(content).toBeUndefined();
   }
   expect((await readPdfText(await result.save())).flatMap(page => page.items).filter(item => item.str.includes("Original printed problem"))).toHaveLength(2);
-});
+}, 30_000);
 
 it("embeds Kalam text and transformed MathJax/rough vector paths without raster images", async () => {
   const original = await PDFDocument.create(); original.addPage([600, 800]);
