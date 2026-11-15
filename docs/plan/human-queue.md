@@ -12,6 +12,22 @@ Recordings: write on the real canvas with `?dev=1`, press **Export** in the dev 
 `~/Downloads/albert-recordings/` with the file name below. An agent validates it, looks at a snapshot, sets `name` and
 `notes`, and checks it in under `fixtures/sessions/`.
 
+## Local release checks — port 3002 (Nov 15)
+
+User choice: "Show mock flow only"; Part 2 live ingest is skipped. Reports from Nov 15:
+
+- Course and enabled Learn button: "Yes, course and button appear".
+- Mock Learn finishes with ready context: "Yes, ready context and Worksheet 3 appear".
+- Open Worksheet 3: "No, it failed or content is missing"; clarification: "Worksheet title, but missing problems" — **FAILED**, [defect #62](https://github.com/Azrkiel/albert/issues/62); no gate pass. Page lookup uses the encoded URL segment; same-request raw lookup misses while decoded lookup finds the worksheet.
+
+All other checks still wait. Checkout: `~/albert-live`. Load `~/albert-p1.4/.env.local` in place. Use the budget preload on every real-model process; mock model mode keeps health probes at zero calls. The walkthrough loads the existing synthetic saved context into local memory without saving the source snapshot; it does not satisfy P5.6's real-import requirement.
+
+1. **P5.6-AC3:** open Worksheet 3 from the real imported course at `http://localhost:3002/work/<worksheetId>?source=worksheet`, press **Original**, scroll all PDF pages, then **Close**. Record the person's exact quoted report and date here and in status.md.
+2. **Gate R1:** import, **Learn this course**, open Worksheet 3 with ready context. Live learning stays skipped unless the user says “run the ingest”; do it together with Part 2's fresh-server/state/synthetic-source harness and `r1-ingest-2.json`, cap 100. A user-chosen mock walkthrough is flow evidence only. Record the exact quote here and in status.md.
+3. **Gate R2 / R2.4-AC2:** after R2.2–R2.4 merge, write on two PDF pages on the demo device, erase and undo on each, zoom, reload and check ink positions, **Save PDF**, then inspect both pages in another viewer. Record each reported result verbatim here and in status.md; file a defect for a failure.
+4. **PDF recording:** after PDF capture merges, open Worksheet 3 with `?surface=pdf&dev=1`. Write the integral, `x = 4 sin θ`, then substitute the denominator but omit the differential. Export with the existing recording toolbar to `~/Downloads/albert-recordings/missing-dx-pdf.json`. Agent validates SessionRecording, `surface: "pdf"`, fileId/page ownership, inspects a rendered snapshot, then commits the genuine export under `fixtures/sessions/`. Never relabel ruled ink as PDF ink. Prompt 14/R4 waits for this file.
+5. **Gate R3:** after helper merges and the recording exists, use `r3-gate.json`, cap 10 (0 used). Press **I'm stuck** once: confirm the right cluster, Lecture 9 citation, no answer; ask a follow-up. Record exact hint/question/reply, user report, calls and elapsed time here and in status.md. Never retry a failed live run without user approval.
+
 ## Recordings (block P3.4, P3.7-AC1, P2.6-AC3 and the Phase 2 exit)
 
 Demo problem `∫ dx / (x²√(16 − x²))` on `/work/demo?dev=1` unless stated. Write neatly, one step per row.
