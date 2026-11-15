@@ -259,6 +259,8 @@ Every tool calls `ctx.emit({ type: "tool", label })` with a short human label su
 3. Run ingestion twice. The second run must update, not duplicate.
 4. Re-run the hint eval against the agent's cards: `pnpm eval:hints --cards ingested` loads cards and Worksheet 3 from the store instead of `fixtures/cards/` and `fixtures/worksheets/`.
 
+**Implementation notes (Nov 14).** Flow change: card-checker runs before the worksheets are mapped, because re-saving a card renumbers its index-based subskill ids and orphans worksheet tags (found live; `save_teaching_card` now also returns `staleWorksheets`). The main agent has `list_cards` (it writes `/course/scope.md` itself) and `list_cards` takes `full: true` so card-checker can compare steps and notation. `pnpm agent:ingest` replaces the stub; `--twice` reruns on a fresh thread and compares ids and counts. Checks 12 and 13 run when `checkIngest` is given the run; check 6 now judges rows whose concept names the angle and whose `teacherWrites` is one symbol (TeX dollars ignored). Live lessons: the agent wrote `$\theta$` and a row named `Square root simplification requires angle restriction`; the card skill now demands every substitution-table row and a literal-symbol `errorType`.
+
 **Acceptance**
 - [ ] **P6.5-AC1** — All thirteen golden checks pass on a fresh run. *Verify:* `pnpm agent:ingest -- --course <id> --check`.
 - [ ] **P6.5-AC2** — Ingestion finishes in under six minutes. *Verify:* the elapsed time printed by the script.
