@@ -3,7 +3,7 @@ import { HumanMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { AlbertReplySchema, StoredHintSchema, type AlbertReply, type HintErrorCode, type HintEvent, type HintRequest, type Repo, type ScopeBundle } from "../contracts";
 import { getRepo } from "../db";
-import { checkReply, mapMark, targetClusterIds } from "./ladder";
+import { checkPointing, checkReply, checkUnreadable, mapMark, targetClusterIds } from "./ladder";
 import { buildMessages } from "./prompt";
 import { recordHintEvidence } from "./record-evidence";
 import { getScopeBundle } from "./scope";
@@ -73,6 +73,7 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     model ??= getHintModel();
     const messages = buildMessages(request, scope);
     let reply: AlbertReply | undefined;
+    let lastCandidate: AlbertReply | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       if (attempt === 1) retryCount = 1;
       // Transport errors are not malformed replies and do not consume a repair call.
@@ -83,9 +84,21 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
         `Call albert_reply exactly once with valid AlbertReply input. ${parsed.error?.message ?? "Missing tool input."}`,
       ];
       if (candidate && violations.length === 0) { reply = candidate; break; }
+      if (candidate) lastCandidate = candidate;
+      // Rule names and counts only (no student content), so failed replies can be diagnosed from the server log.
+      console.warn(JSON.stringify({ hintId, attempt, rung: request.rung, violations }));
       if (attempt === 0) messages.push(new HumanMessage(
         `Your reply failed validation. Return a complete corrected albert_reply call addressing these violations:\n${violations.join("\n")}`,
       ));
+    }
+    // Still invalid after the repair: keep the safe, structural parts of the last draft (reading, diagnosis,
+    // marks when they point at real ink) and replace its wording with a neutral question for this rung,
+    // instead of leaving the student with nothing on the page.
+    if (!reply && lastCandidate) {
+      // First try the draft's own words with every equation cut to its left side ("dx = ..." -> "dx"):
+      // that keeps the question but not the result. Otherwise use the neutral wording.
+      const stripped = stripEquations(lastCandidate);
+      reply = stripped && checkReply(stripped, request, scope).length === 0 ? stripped : neutralReply(lastCandidate, request);
     }
     if (!reply) {
       status = "bad_model_output";
@@ -157,4 +170,41 @@ export async function* runHint(request: HintRequest, deps: HintDeps = {}): Async
     };
     (deps.log ?? ((line) => console.info(JSON.stringify(line))))(line);
   }
+}
+
+const NEUTRAL: Record<1 | 2 | 3, { kind: "question" | "next_step" | "worked_step"; text: string }> = {
+  1: { kind: "question", text: "Which part of this line needs another look?" },
+  2: { kind: "next_step", text: "Compare this line with the matching step in your course notes, then write that step on its own line." },
+  3: { kind: "worked_step", text: "Follow the worked example in your notes one line at a time, and match each of your lines to it." },
+};
+
+/** A safe reply built from a draft that kept failing the ladder rules: never writes the draft's own words. */
+export function neutralReply(draft: AlbertReply, request: HintRequest): AlbertReply {
+  const indexes = new Set(request.rows.map((row) => row.index));
+  const pointingOk = checkPointing(draft, request.rows).length === 0 && checkUnreadable(draft.hint, draft.diagnosis, draft.marks).length === 0;
+  const unreadable = draft.diagnosis.status === "unreadable";
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- dropped on purpose: a fallback never defers a method
+  const { easierOutOfScope: _dropped, rowIndex, ...diagnosis } = draft.diagnosis;
+  const neutral = NEUTRAL[request.rung];
+  return {
+    reading: { ...draft.reading, rows: draft.reading.rows.filter((row) => indexes.has(row.index)) },
+    diagnosis: { ...diagnosis, ...(rowIndex !== undefined && indexes.has(rowIndex) ? { rowIndex } : {}) },
+    marks: pointingOk && !unreadable ? draft.marks : [],
+    hint: unreadable
+      ? { kind: "reread", segments: [{ type: "text", text: "I couldn't read this line clearly. Could you rewrite it a little larger?" }] }
+      : { kind: neutral.kind, segments: [{ type: "text", text: neutral.text }],
+        ...(draft.hint.citation && request.problemSource !== "handwriting" ? { citation: draft.hint.citation } : {}) },
+  };
+}
+
+/** The draft with each math segment's equation cut to its left-hand side, or undefined when nothing changed. */
+export function stripEquations(draft: AlbertReply): AlbertReply | undefined {
+  let changed = false;
+  const segments = draft.hint.segments.flatMap((segment) => {
+    if (segment.type !== "math" || !segment.latex.includes("=")) return [segment];
+    changed = true;
+    const left = segment.latex.split("=")[0]!.trim();
+    return left ? [{ ...segment, latex: left }] : [];
+  });
+  return changed ? { ...draft, hint: { ...draft.hint, segments } } : undefined;
 }

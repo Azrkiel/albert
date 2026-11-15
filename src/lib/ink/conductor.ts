@@ -416,7 +416,9 @@ export function createConductor(host: ConductorHost) {
       } else if (event.type === "reading") { readings = event.rows; version++; listeners.forEach((l) => l()); }
       else if (event.type === "diagnosis") {
         const method = event.deferredMethod;
-        if (method) {
+        // PDF pages have no margin column for this aside; it would overlap the hint note, so it is not drawn there.
+        const onPdf = host.geometry().rows.find(r => r.id === ctx.rowId)?.page !== undefined;
+        if (method && !onPdf) {
           // Unit titles often repeat the method name ("Partial fractions in Partial Fractions"): say "later" instead.
           const same = method.unitTitle.trim().toLowerCase() === method.name.trim().toLowerCase();
           const text = same ? `You'll meet ${method.name} later in the course.` : `You'll meet ${method.name} in ${method.unitTitle}.`;
