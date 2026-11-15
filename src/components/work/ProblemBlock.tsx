@@ -1,8 +1,9 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { INK, PAGE, type CanvasLayout, type Row, type Stroke, type StuckSignal, type Worksheet } from "@/lib/contracts";
 import { freeSurfaceHeight, inkedRowIds } from "@/lib/canvas";
+import { pageSvgMarkup } from "@/lib/ink";
 import { WorkSurface } from "./WorkSurface";
 
 // Phase 5 owns loading/typesetting. Accept its existing contract metadata directly.
@@ -10,7 +11,7 @@ type Problem = Pick<Worksheet["problems"][number], "id" | "label" | "statementLa
 
 export type HintRequested = { rowId: string; rung: 1; trigger: StuckSignal["kind"] };
 
-export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, albertLayer, albertExtent, albertOverlay, hintInk, onPenDown, layout = "ruled", stuckMark, onHintRequested, hintDisabled }: {
+export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart, tool, onClearRow, hintText, hintRowId, devOverlay, albertLayer, albertExtent, albertOverlay, rowTip, hintInk, onPenDown, layout = "ruled", stuckMark, onHintRequested, hintDisabled }: {
   problem: Problem;
   rows: Row[];
   strokes: Stroke[];
@@ -30,6 +31,8 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   /** Albert's HTML controls (More help, Clear notes), given the surface's logical height. */
   /** Page y Albert's writing reaches; the surface grows to fit it. */
   albertExtent?: number;
+  /** "What Albert read" (P4.6): the tooltip content for a row's number, shown on hover, focus or long press. */
+  rowTip?: (rowId: string) => ReactNode;
   albertOverlay?: (info: { height: number }) => ReactNode;
   /** True once Albert's writing is drawn as ink: the plain-text column then stays for screen readers only. */
   hintInk?: boolean;
@@ -39,6 +42,19 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   layout?: CanvasLayout;
 }) {
   const headingId = useId();
+  const section = useRef<HTMLElement>(null);
+  const [tipRow, setTipRow] = useState<string | null>(null);
+  const press = useRef<{ timer: number; long: boolean }>({ timer: 0, long: false });
+  const cancelPress = () => window.clearTimeout(press.current.timer);
+  /** P4.6 "Save page": download this problem's surface as an SVG with both inks. */
+  function savePage() {
+    const surface = section.current?.querySelector<SVGSVGElement>("svg[data-capture-ready]");
+    if (!surface) return;
+    const url = URL.createObjectURL(new Blob([pageSvgMarkup(surface)], { type: "image/svg+xml" }));
+    const link = document.createElement("a");
+    link.href = url; link.download = `problem-${problem.label}.svg`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
   const free = layout === "free";
   const rowsHeight = free ? freeSurfaceHeight(rows) : Math.max(...rows.map((row) => row.bbox.y + row.bbox.h));
   const height = Math.max(rowsHeight, albertExtent ?? 0);
@@ -48,16 +64,23 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
   const manualRow = strokes.findLast((stroke) => stroke.tool === "pen" && stroke.erasedAt === undefined && inked.has(stroke.rowId ?? ""))?.rowId ?? rows[0]?.id;
 
   return (
-    <section data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }} onPointerDownCapture={onPenDown}>
+    <section ref={section} data-problem-id={problem.id} aria-labelledby={headingId} style={{ marginTop: 32 }} onPointerDownCapture={onPenDown}>
       {/* HTML controls stay accessible outside the SVG's atomic img role. */}
       <WorkSurface problemId={problem.id} height={height} strokes={strokes}
         onStroke={onStroke} getSessionStart={getSessionStart} tool={tool} svgOverlay={devOverlay} albertLayer={albertLayer}
         overlay={<>{albertOverlay?.({ height })}{onClearRow && numbered.map((row) => <button key={row.id} type="button" data-row-number=""
           aria-label={`Clear row ${row.index} of problem ${problem.label}`}
-          title={`Clear row ${row.index}`} onClick={() => onClearRow(row.id)}
+          title={`Clear row ${row.index}`} data-tip-open={tipRow === row.id ? "" : undefined}
+          onClick={() => { if (press.current.long) { press.current.long = false; return; } onClearRow(row.id); }}
+          onPointerDown={(event) => {
+            if (event.pointerType === "mouse") return; // hover covers the mouse; touch and pen long-press
+            cancelPress();
+            press.current.timer = window.setTimeout(() => { press.current.long = true; setTipRow(row.id); window.setTimeout(() => setTipRow(null), 4000); }, 500);
+          }}
+          onPointerUp={cancelPress} onPointerCancel={cancelPress} onPointerLeave={cancelPress}
           style={{ position: "absolute", left: `${row.bbox.x / PAGE.width * 100 + 0.5}%`, top: `${(row.bbox.y + 2) / height * 100}%`,
             width: 32, height: 32, padding: 0, background: "transparent", border: 0, color: "#76726b", cursor: "pointer" }}>
-          {row.index}
+          {row.index}{rowTip?.(row.id)}
         </button>)}
           {stuckMark && markRow && <button key={`${stuckMark.rowId}/${stuckMark.at}`} type="button"
             aria-label="Need a hint?" data-stuck-row={stuckMark.rowId} disabled={hintDisabled}
@@ -100,9 +123,10 @@ export function ProblemBlock({ problem, rows, strokes, onStroke, getSessionStart
           ))}
         </g>
       </WorkSurface>
+      <button type="button" data-save-page="" onClick={savePage}>Save page</button>
       <button type="button" disabled={hintDisabled || !manualRow}
         onClick={() => manualRow && onHintRequested?.({ rowId: manualRow, rung: 1, trigger: "manual" })}>I&apos;m stuck</button>
-      <style>{"@keyframes albert-hint-appear { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-stuck-row] { animation: none !important; } }"}</style>
+      <style>{"[data-row-number]:hover > [data-reading-tip], [data-row-number]:focus > [data-reading-tip], [data-row-number][data-tip-open] > [data-reading-tip] { display: block !important; } @keyframes albert-hint-appear { from { opacity: 0; } to { opacity: 1; } } @media (prefers-reduced-motion: reduce) { [data-stuck-row] { animation: none !important; } }"}</style>
     </section>
   );
 }

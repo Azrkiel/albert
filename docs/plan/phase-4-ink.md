@@ -201,6 +201,8 @@ const WRITE = {
 3. **Narrow screens.** Under 900 CSS px wide, Albert's column moves below each row: the hint is laid out in a full-width band under the row and the arrow points up. (Layout variant of D4.)
 4. **Print and export.** A "Save page" control downloads the SVG of the problem with both inks. Useful for the tutor report and for the write-up's screenshots.
 
+**As built (Nov 14).** The tooltip is a `ReadingTip` inside each row-number button, fed by the conductor's latest `reading` event (shown on hover or focus, long press for touch and pen). `hint_shown` replay goes through `conductor.replayShown`; the live hint's own `hint_shown` is skipped because it is already drawn. Under 900 px the hint is written in a full-width band under the problem's last row (the surface grows to fit) and the arrow rises from the band to the circle; ruled rows are fixed bands, so "under the row" was not possible without moving later rows. "Save page" (`pageSvgMarkup`) names the hand font by family and does not embed it.
+
 **Acceptance**
 - [ ] **P4.6-AC1** — The tooltip shows the reading. *Verify:* e2e test with the mock.
 - [ ] **P4.6-AC2** — A recording with hints replays with its marks. *Verify:* record a session with one hint, add it as `fixtures/sessions/with-hint.json`, and test that replay shows the circle.
