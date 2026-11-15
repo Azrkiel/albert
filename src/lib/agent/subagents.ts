@@ -43,6 +43,9 @@ const DESCRIPTIONS: Record<SubAgentName, string> = {
 
 export const SUBAGENT_NAMES = Object.keys(SUBAGENT_TOOLS) as SubAgentName[];
 
+/** The ingest agent gets these three; the planner and save_study_plan stay exported for later (R1.1). */
+export const INGEST_SUBAGENT_NAMES: SubAgentName[] = ["unit-reader", "worksheet-mapper", "card-checker"];
+
 /** Four sub-agents. Custom sub-agents do not inherit the main agent's skills, so each lists the skills folder. */
 export function subagents(ctx: ToolContext): SubAgent[] {
   const tools = createTools(ctx);
@@ -53,4 +56,8 @@ export function subagents(ctx: ToolContext): SubAgent[] {
     tools: SUBAGENT_TOOLS[name].map((tool) => tools[tool]),
     skills: ["/skills/"],
   }));
+}
+
+export function ingestSubagents(ctx: ToolContext): SubAgent[] {
+  return subagents(ctx).filter((s) => (INGEST_SUBAGENT_NAMES as string[]).includes(s.name));
 }
