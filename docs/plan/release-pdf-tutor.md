@@ -110,12 +110,12 @@ R2.2 onward and every human gate remain open.
 2. **Contract:** optional `page?: number` on `Stroke` and `Row`; `SessionRecording.surface?: "pdf"` plus `fileId`.
    A stroke's `problemId` is the region holding most of its ink, else the active problem from the picker.
 3. A compact problem picker above each page ("Problem 1 2 3 4 5") shows the active problem and overrides it.
-4. Albert's column: none on PDF pages (D4 page-mode variant); R3.3 places notes.
+4. Albert's column: none on PDF pages (D4 page-mode variant). Until R3.3, labelled notes share a non-overlapping below-page band; suppress page-spanning arrows across print. R3.3 places notes in white space.
 
 **Acceptance**
-- [ ] **R2.2-AC1** — `tests/e2e/pdf-surface.spec.ts`: on Worksheet 3, synthetic strokes on pages 1 and 2 carry the right page
+- [x] **R2.2-AC1** — `tests/e2e/pdf-surface.spec.ts`: on Worksheet 3, synthetic strokes on pages 1 and 2 carry the right page
   and problem; erase and undo work per page; geometry is identical at two viewport widths and after browser zoom.
-- [ ] **R2.2-AC2** — Snapshots on PDF pages draw the problem's page crop in light grey under the ink (P2.7 renderer takes a
+- [x] **R2.2-AC2** — Snapshots on PDF pages draw the problem's page crop in light grey under the ink (P2.7 renderer takes a
   background image); unit test on the plan, e2e decodes the PNG.
 
 ### R2.3 Save and reload
@@ -126,7 +126,7 @@ R2.2 onward and every human gate remain open.
 2. Opening a PDF worksheet replays its latest session instantly, then keeps syncing (P2.8) into the same session.
 
 **Acceptance**
-- [ ] **R2.3-AC1** — e2e: write on two pages, reload, the same strokes (ids and points) are back on the same pages.
+- [x] **R2.3-AC1** — e2e: write on two pages, reload, the same strokes (ids and points) are back on the same pages.
 - [ ] **R2.3-AC2** — Unit/live Mongo test of `listEvents` order (skipped offline like the other live Mongo tests).
 
 ### R2.4 Annotated PDF download
@@ -134,12 +134,14 @@ R2.2 onward and every human gate remain open.
 **Build.** `src/lib/ink/pdf-export.ts` in the browser: `pdf-lib` copies the original bytes, then per page draws student
 strokes (perfect-freehand outlines as SVG paths, logical → PDF points, y flipped) and Albert's marks (rough paths) and
 writing (embedded Kalam via `@pdf-lib/fontkit` — new dependency, reason: custom font embedding; math as MathJax glyph paths).
-**Save PDF** downloads `<worksheet title> — annotated.pdf`.
+**Save PDF** downloads `<worksheet title> - annotated.pdf`. Original boxes, rotation and page order remain unchanged. Until R3.3, below-page tutor writing goes on labelled appendix pages, paginated as complete notes; an oversized indivisible note fails visibly. This Nov 15 adjustment avoids clipping notes or overwriting print. Student-only exports keep the original page count.
 
 **Acceptance**
-- [ ] **R2.4-AC1** — Unit: page count and sizes unchanged; each inked page's content stream grew; a stroke's outline lands at
+- [x] **R2.4-AC1** — Unit: original page count/sizes unchanged for student-only ink; labelled notes pages are appended only for below-page writing; each inked original page's content stream grew; a stroke's outline lands at
   the expected PDF coordinates.
 - [ ] **R2.4-AC2** — By hand: open the download in an independent viewer, inspect several pages (human-queue R4).
+
+**Evidence (Nov 15, this change).** Screenshot regression reproduced before fixes. Focused PDF browser flows pass for two-page input, page-scoped editing, resize/zoom, grey printed snapshots, same-session reload, annotated download and below-page notes. `pnpm verify`: 67 files, 898 passed / 18 live Mongo skipped. Crop/rotation, out-of-media crop and whole-note pagination have independent PDF decode/raster tests. Independent review identified and verified fixes for worksheet identity, draft capture and note export. Full browser/build/production/CI results are recorded in the PR. R2.3-AC2 live Mongo and R2.4-AC2 independent-viewer checks remain open; no live model calls or credentials used.
 
 **Gate R2.** By hand on the demo device: write, erase, undo on two pages, zoom, reload, download, open the PDF.
 

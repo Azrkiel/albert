@@ -45,6 +45,11 @@ export class MemoryRepo implements Repo {
   }
   async getFile(id: string): Promise<{ meta: CourseFile; bytes: Uint8Array } | null> { return copy(this.files.get(id) ?? null); }
   async getSession(id: string): Promise<Session | null> { return copy(this.sessions.get(id) ?? null); }
+  async latestOpenSession(studentId: string, worksheetId: string, fileId: string): Promise<Session | null> {
+    return copy([...this.sessions.values()].filter(s => s.studentId === studentId && s.worksheetId === worksheetId
+      && s.surface === "pdf" && s.fileId === fileId && s.endedAt === undefined)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt) || byId(a, b))[0] ?? null);
+  }
   async createSession(s: Session): Promise<void> {
     if (this.sessions.has(s.id)) throw new Error(`Session already exists: ${s.id}`);
     this.sessions.set(s.id, copy(s));
@@ -53,7 +58,7 @@ export class MemoryRepo implements Repo {
     if (!this.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
     this.sessionEvents.set(sessionId, [...(this.sessionEvents.get(sessionId) ?? []), ...copy(events)]);
   }
-  /** Dev read-back (not in the Repo contract): the stored events of one session, in append order. */
+  /** The stored events of one session, in append order. */
   async listEvents(sessionId: string): Promise<SessionEvent[]> { return copy(this.sessionEvents.get(sessionId) ?? []); }
   async endSession(sessionId: string, at: string): Promise<void> {
     const session = this.sessions.get(sessionId);

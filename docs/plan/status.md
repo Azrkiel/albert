@@ -13,6 +13,11 @@ User changed the target to PDF annotation, course learning/context and stroke-aw
 
 - [x] R2.1 server PDF pages and served problem regions — `35fc43d` contract/schema/fixture/test update, `0e6c4ef` allocation guard/integration, `a4962b2` P5.6 API compatibility. Combined R1.1/R1.2/P5.6 main verify: 61 files, 852 passed / 16 skipped. Three completed pre-Learn-integration full local suites each passed 114 / 6 skipped; that base also passed build, production PDF/replay 3 and gating 5. Final combined-main browser/build/production and CI evidence is recorded in the PR; independent review and diff check clear. Real Next/browser coverage decodes both pages and verifies all five regions. CI evidence is in the PR. Live calls 0; R2.2 onward and human gates remain open.
 
+- [x] R2.2 automated PDF writing checks: stacked pages, full-width input, page/problem partitioning, page-scoped editing, resize/zoom and printed snapshots. This change: 898 unit/contract tests passed / 18 live skipped; focused browser checks passed.
+- [ ] R2.3 save/reload: implemented and offline restore/order tests passed; needs human/environment: live Mongo ordering (R2.3-AC2).
+- [ ] R2.4 annotated PDF: vector ink and grouped notes export implemented; normal/cropped/rotated geometry and download tests passed; needs human: independent-viewer check (R2.4-AC2). Below-page writing uses labelled appendix pages to avoid clipping or covering print.
+- Screenshot fix: incompatible implicit recorded hints fall back to neutral text; empty/erased/wrong-problem targets never expand to a whole blank row. Recorded mode is labelled. Review fixes include worksheet identity reset and capture stability while hints arrive. Full-browser/build/production/CI evidence is in the PR; live calls 0.
+
 **How to use it**
 - Tick a subphase only when **every** acceptance criterion in its phase file has been verified and `pnpm verify` passes.
 - In the Evidence column write the commit and what was run, briefly: `a1b2c3d · pnpm verify, e2e replay`.

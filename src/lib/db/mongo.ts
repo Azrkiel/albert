@@ -8,6 +8,7 @@ import type {
   Worksheet,
 } from "@/lib/contracts";
 import type { Repo } from "./repo";
+import { SessionEventSchema } from "../contracts";
 
 type StoredDocument = Document & { _id: string };
 const withoutId = <T>(doc: StoredDocument): T => {
@@ -103,10 +104,25 @@ export class MongoRepo implements Repo {
   }
 
   async getSession(id: string): Promise<Session | null> { return this.one("sessions", id); }
+  async latestOpenSession(studentId: string, worksheetId: string, fileId: string): Promise<Session | null> {
+    const sessions = await this.list<Session>("sessions", { studentId, worksheetId, surface: "pdf", fileId, endedAt: { $exists: false } }, { startedAt: -1, id: 1 });
+    return sessions[0] ?? null;
+  }
   async createSession(s: Session): Promise<void> { await (await this.collection("sessions")).insertOne({ ...s, _id: s.id }); }
   async appendEvents(sessionId: string, events: SessionEvent[]): Promise<void> {
     if (!await this.one<Session>("sessions", sessionId)) throw new Error(`Session not found: ${sessionId}`);
-    if (events.length) await this.db.collection("session_events", { ignoreUndefined: true }).insertMany(events.map(event => ({ ...event, sessionId })));
+    if (!events.length) return;
+    // Atomic range reservation preserves batch ordering even when event timestamps tie or go backwards.
+    const counter = await this.db.collection<{ _id: string; next: number }>("session_event_counters")
+      .findOneAndUpdate({ _id: sessionId }, { $inc: { next: events.length } }, { upsert: true, returnDocument: "before" });
+    const first = counter?.next ?? 0;
+    await this.db.collection("session_events", { ignoreUndefined: true }).insertMany(events.map((event, index) => ({ ...event, sessionId, sequence: first + index })));
+  }
+  async listEvents(sessionId: string): Promise<SessionEvent[]> {
+    await this.ensureIndexes();
+    // Legacy unsequenced events sort first, retaining their insertion order through ObjectId.
+    return (await this.db.collection("session_events").find({ sessionId }).sort({ sequence: 1, _id: 1 }).toArray())
+      .map(event => SessionEventSchema.parse(event));
   }
   async endSession(sessionId: string, at: string): Promise<void> {
     const result = await (await this.collection("sessions")).updateOne({ _id: sessionId }, { $set: { endedAt: at } });

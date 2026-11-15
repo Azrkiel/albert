@@ -16,11 +16,16 @@ export type HintContext = { hintId: string; seedId: string; problemId: string; r
   narrow?: boolean };
 
 export type ConductorHost = {
+  /** PDF notes share a labelled below-page band; long arrows across print are omitted. */
+  pageMode?: boolean;
+  noteLabel?(problemId: string): string;
   /** Rows and clusters as the page has them now. */
   geometry(): { rows: Row[]; clusters: Cluster[] };
   reducedMotion(): boolean;
   /** Under 900 CSS px: Albert's column moves into a full-width band under the rows (P4.6). */
   narrow?(): boolean;
+  /** Optional page-backed surface: keep the narrow writing band below its printed content. */
+  bandTop?(problemId: string, rowId?: string): number;
   now(): number;
   /** A hint finished drawing: the page records a `hint_shown` session event with these marks. */
   onShown?(ctx: HintContext, marks: AlbertMark[]): void;
@@ -120,16 +125,18 @@ export function createConductor(host: ConductorHost) {
       && d.group.querySelector(`[data-mark-kind="${kind}"][data-target-row="${rowId}"]`));
 
   async function drawMark(ctx: HintContext, spec: AlbertMarkSpec) {
+    if (host.pageMode && spec.type === "arrow") return;
     const made = entry(ctx);
     const svg = made?.group.ownerSVGElement;
     const { rows, clusters } = host.geometry();
     const rowId = spec.type === "arrow" ? spec.toRowId : spec.rowId;
     const row = rows.find((r) => r.id === rowId);
-    if (!made || !svg || !row) return;
+    if (!made || !svg || !row || row.problemId !== ctx.problemId) return;
     const ids = spec.type === "arrow" ? spec.toClusterIds : spec.clusterIds;
     const kind = spec.type;
     if (alreadyDrawn(ctx, kind, rowId) || made.kinds.has(kind)) return;
     const box = targetBox(ids, clusters, row);
+    if (!box) return; // The student may have erased this ink while the reply was queued.
     const seed = hashSeed(`${ctx.seedId}/${kind}`);
     let group: SVGGElement, duration: number;
     if (spec.type === "circle") { group = circleMark(svg, box, seed); duration = WRITE.circleMs; }
@@ -143,7 +150,7 @@ export function createConductor(host: ConductorHost) {
       let aim: BBox = box;
       if (ctx.narrow) {
         // Narrow: the arrow rises from the band under the rows to the bottom of the circle (or the clusters).
-        from = { x: box.x + box.w / 2, y: bandTop(ctx.problemId) };
+        from = { x: box.x + box.w / 2, y: bandTop(ctx.problemId, rowId) };
         aim = circled ? { x: c.cx - c.rx + WRITE.circlePad, y: c.cy - c.ry + WRITE.circlePad, w: 2 * (c.rx - WRITE.circlePad), h: 2 * (c.ry - WRITE.circlePad) } : box;
       } else if (circled) aim = { x: c.cx - c.rx + WRITE.circlePad, y: c.cy, w: 2 * (c.rx - WRITE.circlePad), h: 0 };
       group = arrowMark(svg, from, aim, seed).group;
@@ -160,7 +167,8 @@ export function createConductor(host: ConductorHost) {
   }
 
   /** Page y under the problem's last row, where the narrow band starts. */
-  const bandTop = (problemId: string) => Math.max(0, ...host.geometry().rows.filter((r) => r.problemId === problemId).map((r) => r.bbox.y + r.bbox.h)) + 8;
+  const bandTop = (problemId: string, rowId?: string) => host.bandTop?.(problemId, rowId)
+    ?? Math.max(0, ...host.geometry().rows.filter((r) => r.problemId === problemId).map((r) => r.bbox.y + r.bbox.h)) + 8;
   const columnOf = (ctx: HintContext) => ctx.narrow ? { x: 0, w: PAGE.width } : PAGE.albertCol;
 
   /** layoutHint, then the written fallbacks: math as LaTeX source, then over-wide words broken. Never drops the hint. */
@@ -182,7 +190,7 @@ export function createConductor(host: ConductorHost) {
     const asked = rows.find((r) => r.id === ctx.rowId);
     if (!made || !asked) return;
     // Narrow screens write in a full-width band under the problem's last row.
-    const row: Row = ctx.narrow ? { ...asked, bbox: { x: 0, y: bandTop(ctx.problemId), w: PAGE.width, h: WRITE.lineHeight } } : asked;
+    const row: Row = ctx.narrow ? { ...asked, bbox: { x: 0, y: bandTop(ctx.problemId, ctx.rowId), w: PAGE.width, h: WRITE.lineHeight } } : asked;
     // An arrow always accompanies a circle, so the note points at what it is about.
     const circle = made.marks.find((m) => m.spec.type === "circle");
     if (circle && circle.spec.type === "circle" && !made.kinds.has("arrow") && !alreadyDrawn(ctx, "arrow", circle.spec.rowId)) {
@@ -192,8 +200,10 @@ export function createConductor(host: ConductorHost) {
     for (const other of drawn.values()) {
       if (other.ctx !== ctx && other.ctx.problemId === ctx.problemId && other.ctx.rowId === ctx.rowId && other.writing) fadeEl(other.writing);
     }
-    const spaced = spaceSegments(segments);
-    const occupied = [...drawn.values()].filter((d) => d.ctx !== ctx && d.ctx.problemId === ctx.problemId)
+    const label = host.noteLabel?.(ctx.problemId);
+    const displayed: InkSegment[] = label ? [{ type: "text", text: label }, { type: "break" }, ...segments] : segments;
+    const spaced = spaceSegments(displayed);
+    const occupied = [...drawn.values()].filter((d) => d.ctx !== ctx && (host.pageMode || d.ctx.problemId === ctx.problemId))
       .flatMap((d) => d.marks.flatMap((m) => m.spec.type === "writing" ? [m.bbox] : []));
     const laid = await layoutWithFallback(row, spaced, citationLabel, occupied, columnOf(ctx));
     if (gone(ctx)) return;
@@ -248,7 +258,7 @@ export function createConductor(host: ConductorHost) {
     if (!layer || !row) return;
     ctx.narrow ??= host.narrow?.() ?? false;
     removeDot(ctx.hintId);
-    const { x, y } = ctx.narrow ? { x: WRITE.padX, y: bandTop(ctx.problemId) + WRITE.lineHeight / 2 } : marginAnchor(row);
+    const { x, y } = ctx.narrow ? { x: WRITE.padX, y: bandTop(ctx.problemId, ctx.rowId) + WRITE.lineHeight / 2 } : marginAnchor(row);
     const dot = document.createElementNS(NS, "circle");
     dot.setAttribute("class", "albert-dot");
     dot.setAttribute("data-albert-dot", ctx.hintId);

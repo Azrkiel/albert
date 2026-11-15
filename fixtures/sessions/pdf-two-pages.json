@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "name": "pdf-two-pages",
+  "worksheetId": "calc2-ws3",
+  "surface": "pdf",
+  "fileId": "calc2-worksheet-3",
+  "layout": "free",
+  "problems": [
+    {
+      "id": "calc2-ws3/p1",
+      "label": "1",
+      "statementLatex": "x^2"
+    },
+    {
+      "id": "calc2-ws3/p4",
+      "label": "4",
+      "statementLatex": "x^2"
+    }
+  ],
+  "rows": [
+    {
+      "id": "calc2-ws3/p1/page1/r1",
+      "problemId": "calc2-ws3/p1",
+      "page": 1,
+      "index": 1,
+      "bbox": {
+        "x": 0,
+        "y": 412,
+        "w": 1200,
+        "h": 36
+      }
+    },
+    {
+      "id": "calc2-ws3/p4/page2/r1",
+      "problemId": "calc2-ws3/p4",
+      "page": 2,
+      "index": 1,
+      "bbox": {
+        "x": 0,
+        "y": 252,
+        "w": 1200,
+        "h": 36
+      }
+    }
+  ],
+  "events": [
+    {
+      "type": "stroke_end",
+      "at": 10,
+      "stroke": {
+        "id": "pdf-s1",
+        "page": 1,
+        "problemId": "calc2-ws3/p1",
+        "rowId": "calc2-ws3/p1/page1/r1",
+        "tool": "pen",
+        "pointerType": "pen",
+        "t0": 0,
+        "t1": 10,
+        "points": [
+          {
+            "x": 1000,
+            "y": 420,
+            "t": 0,
+            "p": 0.5
+          },
+          {
+            "x": 1020,
+            "y": 440,
+            "t": 10,
+            "p": 0.5
+          }
+        ],
+        "bbox": {
+          "x": 1000,
+          "y": 420,
+          "w": 20,
+          "h": 20
+        }
+      }
+    },
+    {
+      "type": "stroke_end",
+      "at": 30,
+      "stroke": {
+        "id": "pdf-s2",
+        "page": 2,
+        "problemId": "calc2-ws3/p4",
+        "rowId": "calc2-ws3/p4/page2/r1",
+        "tool": "pen",
+        "pointerType": "pen",
+        "t0": 20,
+        "t1": 30,
+        "points": [
+          {
+            "x": 1000,
+            "y": 260,
+            "t": 20,
+            "p": 0.5
+          },
+          {
+            "x": 1020,
+            "y": 280,
+            "t": 30,
+            "p": 0.5
+          }
+        ],
+        "bbox": {
+          "x": 1000,
+          "y": 260,
+          "w": 20,
+          "h": 20
+        }
+      }
+    }
+  ],
+  "durationMs": 40
+}

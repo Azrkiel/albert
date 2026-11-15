@@ -62,6 +62,19 @@ describe("P3.3 runHint", () => {
     expect((await collect({ model: { invoke: async () => response(reply) }, repo })).find((event) => event.type === "mark"))
       .toEqual({ type: "mark", mark: { type: "underline", rowId: request.rowId, clusterIds: [`${request.rowId}/c2`, `${request.rowId}/c1`] } });
   });
+  it("repairs a live reply pointing at an empty supplied row before streaming any marks", async () => {
+    const emptyRowRequest = { ...request, rows: request.rows.map((row) => row.index === 3 ? { ...row, clusterLabels: [] } : row) };
+    const repaired = valid();
+    repaired.marks = [];
+    repaired.diagnosis = { status: "stalled", privateNote: "No ink to point at." };
+    repaired.reading.rows = repaired.reading.rows.filter((row) => row.index !== 3);
+    const invoke = vi.fn().mockResolvedValueOnce(response(valid())).mockResolvedValueOnce(response(repaired));
+    const events = await collect({ model: { invoke }, repo }, emptyRowRequest);
+    expect(invoke).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(invoke.mock.calls[1]![0])).toContain("no ink");
+    expect(events.filter((event) => event.type === "mark" || event.type === "error")).toEqual([]);
+    expect(events.at(-1)?.type).toBe("done");
+  });
   it("AC4: retries an over-long rung 1 once with violation text, then emits one hint and no error", async () => {
     const bad = valid();
     bad.hint.segments = [{ type: "text", text: `${"word ".repeat(29)}word?` }];

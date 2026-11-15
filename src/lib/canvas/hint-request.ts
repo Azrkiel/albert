@@ -8,6 +8,7 @@ export type BuildHintRequestOptions = {
    * their own; the default is the local placeholder `local:<worksheetId>`. P2.8 replaces it.
    */
   sessionId?: string;
+  background?: SnapshotArgs["background"];
   /** Omitted for legacy worksheet callers. */
   problemSource?: HintRequest["problemSource"];
   /** Also render image.clean. General handwriting includes it by default to keep labels out of transcription. */
@@ -65,7 +66,7 @@ export async function buildHintRequest(state: SessionState, rowId: string, rung:
   const row = state.rows.find((r) => r.id === rowId);
   if (!row) throw new Error("Unknown row");
   const render = options.render ?? renderSnapshot;
-  const base = { strokes: state.strokes, rows: state.rows, clusters: listClusters(state), problemId: row.problemId, upToRowId: rowId };
+  const base = { strokes: state.strokes, rows: state.rows, clusters: listClusters(state), problemId: row.problemId, upToRowId: rowId, ...(options.background ? { background: options.background } : {}) };
   const marked = await render({ ...base, marked: true });
   const clean = (options.clean ?? options.problemSource === "handwriting") ? await render({ ...base, marked: false }) : undefined;
   const problemOf = (id: string) => state.rows.find((r) => r.id === id)?.problemId;

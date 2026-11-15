@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { PAGE, type Point, type Stroke } from "../contracts";
+import { PAGE, type BBox, type Point, type Stroke } from "../contracts";
 
 type Affine = Readonly<{ a: number; b: number; c: number; d: number; e: number; f: number }>;
 type PointerSample = Pick<PointerEvent, "clientX" | "clientY" | "pressure" | "pointerType">;
@@ -19,6 +19,8 @@ export function toLogicalPoint(sample: PointerSample, inverse: Affine | null, no
 
 type CaptureOptions = {
   problemId: string;
+  page?: number;
+  bounds?: BBox;
   sessionStart: number;
   now?: () => number;
   getTool?: () => Stroke["tool"];
@@ -56,7 +58,9 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
     if (event.pointerType === "mouse" && event.button !== 0) return;
     if (event.pointerType !== "mouse" && event.pointerType !== "pen" && event.pointerType !== "touch") return;
     const point = convert(event);
-    if (!point || point.x >= PAGE.albertCol.x) return;
+    if (!point) return;
+    const bounds = options.bounds;
+    if (bounds ? point.x < bounds.x || point.x > bounds.x + bounds.w || point.y < bounds.y || point.y > bounds.y + bounds.h : point.x >= PAGE.albertCol.x) return;
     try { surface.setPointerCapture(event.pointerId); } catch { return; }
     const tool = event.pointerType === "pen" && (event.buttons & 32) !== 0 ? "eraser" : options.getTool?.() ?? "pen";
     active = { pointerId: event.pointerId, pointerType: event.pointerType, tool, points: [point] };
@@ -67,7 +71,10 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
   function append(event: PointerEvent) {
     if (!active) return;
     const point = convert(event);
-    if (point) active.points.push(point);
+    if (point) {
+      const b = options.bounds;
+      active.points.push(b ? { ...point, x: Math.max(b.x, Math.min(b.x + b.w, point.x)), y: Math.max(b.y, Math.min(b.y + b.h, point.y)) } : point);
+    }
   }
 
   function move(event: PointerEvent) {
@@ -92,7 +99,7 @@ export function attachCapture(surface: SVGSVGElement, options: CaptureOptions): 
       right = Math.max(right, point.x); bottom = Math.max(bottom, point.y);
     }
     options.onStroke({
-      id: `st_${nanoid()}`, problemId: options.problemId, rowId: null,
+      id: `st_${nanoid()}`, problemId: options.problemId, rowId: null, ...(options.page === undefined ? {} : { page: options.page }),
       pointerType: draft.pointerType, tool: draft.tool, points: draft.points,
       t0: draft.points[0]!.t, t1: draft.points[draft.points.length - 1]!.t,
       bbox: { x: left, y: top, w: right - left, h: bottom - top },

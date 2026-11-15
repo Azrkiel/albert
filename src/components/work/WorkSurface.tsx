@@ -1,17 +1,21 @@
 "use client";
 
 import { memo, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { INK, PAGE, type Point, type Stroke } from "@/lib/contracts";
+import { INK, PAGE, type BBox, type Point, type Stroke } from "@/lib/contracts";
 import { attachCapture, strokePath } from "@/lib/canvas";
 
 const FinishedStroke = memo(function FinishedStroke({ stroke }: { stroke: Stroke }) {
   return <path data-stroke-id={stroke.id} data-row-id={stroke.rowId}
-    data-stroke-problem-id={stroke.problemId} d={strokePath(stroke.points)} fill={INK.student} />;
+    data-stroke-problem-id={stroke.problemId} data-page={stroke.page} d={strokePath(stroke.points)} fill={INK.student} />;
 });
 
-export function WorkSurface({ problemId, height = 600, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay, albertLayer }: {
+export function WorkSurface({ problemId, height = 600, page, drawingHeight, disabled = false, onPenDown, onStroke, strokes: completedStrokes, children, getSessionStart, tool = "pen", overlay, svgOverlay, albertLayer }: {
   problemId: string;
   height?: number;
+  page?: number;
+  drawingHeight?: number;
+  disabled?: boolean;
+  onPenDown?: () => void;
   onStroke?: (stroke: Stroke) => void;
   strokes?: Stroke[];
   children?: ReactNode;
@@ -38,8 +42,10 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
     controlled.current = completedStrokes !== undefined;
   }, [onStroke, completedStrokes, tool]);
 
+  const boundsHeight = page === undefined ? undefined : drawingHeight ?? height;
   useEffect(() => {
     const svg = surface.current!;
+    if (disabled) return;
     sessionStart.current ??= getSessionStart?.() ?? performance.now();
     let frame: number | null = null;
     let pending: readonly Point[] = [];
@@ -48,7 +54,7 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
       frame = null;
     };
     const detach = attachCapture(svg, {
-      problemId, sessionStart: sessionStart.current, getTool: () => toolRef.current,
+      problemId, page, ...(page === undefined ? {} : { bounds: { x: 0, y: 0, w: PAGE.width, h: boundsHeight! } as BBox }), sessionStart: sessionStart.current, getTool: () => toolRef.current,
       onPreview(points, previewTool) {
         pending = previewTool === "eraser" ? [] : points;
         if (!pending.length) {
@@ -72,16 +78,16 @@ export function WorkSurface({ problemId, height = 600, onStroke, strokes: comple
       cancelFrame();
       delete svg.dataset.captureReady;
     };
-  }, [problemId, getSessionStart]);
+  }, [problemId, getSessionStart, page, boundsHeight, disabled]);
 
   return (
     <div style={{ position: "relative", marginTop: 24 }}>
-      <svg ref={surface} role="img" aria-label="Worksheet work surface"
+      <svg ref={surface} onPointerDownCapture={onPenDown} data-page={page} role="img" aria-label="Worksheet work surface"
         viewBox={`0 0 ${PAGE.width} ${height}`}
         style={{ display: "block", width: "100%", height: "auto", background: "#fff", touchAction: "none", userSelect: "none", cursor: tool === "eraser" ? "cell" : "crosshair" }}>
         <defs>
           <clipPath id={clipId}>
-            <rect x={PAGE.studentCol.x} y={0} width={PAGE.studentCol.w} height={height} />
+            <rect x={page === undefined ? PAGE.studentCol.x : 0} y={0} width={page === undefined ? PAGE.studentCol.w : PAGE.width} height={drawingHeight ?? height} />
           </clipPath>
         </defs>
         {children}

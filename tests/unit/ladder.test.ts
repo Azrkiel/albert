@@ -80,4 +80,10 @@ describe("P3.3-AC1 ladder rules", () => {
       marks: [{ type: "arrow", fromHint: true, toRowIndex: 97, toClusterLabels: [] }], hint: hint("What now?") };
     expect(checkPointing(reply, [{ rowId: "row3", index: 3, clusterLabels: [1] }])).toHaveLength(3);
   });
+  it.each(["circle", "underline", "cross_out", "arrow"] as const)("rejects %s pointing at a supplied empty row", (type) => {
+    const mark = type === "arrow" ? { type, fromHint: true as const, toRowIndex: 3, toClusterLabels: [] }
+      : { type, rowIndex: 3, clusterLabels: [] };
+    const reply: AlbertReply = { reading: { rows: [] }, diagnosis, marks: [mark], hint: hint("What now?") };
+    expect(checkPointing(reply, [{ rowId: "row3", index: 3, clusterLabels: [] }]).join(" ")).toContain("no ink");
+  });
 });

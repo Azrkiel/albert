@@ -8,6 +8,8 @@ type Edit = { kind: "draw" | "erase"; strokeIds: string[]; rowId: string };
 
 export type SessionState = {
   worksheetId: string;
+  surface?: "pdf";
+  fileId?: string;
   /** "ruled": fixed bands (P2.2). "free": rows are lines inferred from ink (P2.5a). */
   layout: CanvasLayout;
   problems: SessionRecording["problems"];
@@ -83,7 +85,7 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
       stroke.rowId ??= assignLine(stroke, strokes);
       rows = lineRows(state.problems.map(({ id }) => id), [...strokes, stroke]);
     } else stroke.rowId ??= assignRow(stroke, rows);
-    if (!rows.some((row) => row.id === stroke.rowId && row.problemId === stroke.problemId)) throw new Error("Unknown row");
+    if (!rows.some((row) => row.id === stroke.rowId && row.problemId === stroke.problemId && row.page === stroke.page)) throw new Error("Unknown row");
     event = { ...event, stroke };
     const crossed = crossOutClusterIds(stroke, state.clusters[stroke.rowId] ?? []);
     if (crossed.length) crossOuts = { ...crossOuts, [stroke.id]: crossed };
@@ -92,7 +94,7 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     if (stroke.tool === "pen" && stroke.erasedAt === undefined) {
       delete stuckMarks[stroke.problemId];
       undoStack = [...undoStack, { kind: "draw", strokeIds: [stroke.id], rowId: stroke.rowId }];
-      redoStack = [];
+      redoStack = stroke.page === undefined ? [] : redoStack.filter(edit => rows.find(r => r.id === edit.rowId)?.page !== stroke.page);
     }
   } else if (event.type === "erase" || event.type === "undo") {
     const ids = new Set(event.strokeIds);
@@ -100,23 +102,25 @@ function applySessionEvent(state: SessionState, event: SessionEvent): SessionSta
     const row = rows.find((row) => row.id === rowId);
     const affected = strokes.filter((stroke) => ids.has(stroke.id));
     if (!row || !ids.size || ids.size !== event.strokeIds.length || affected.length !== ids.size
-      || affected.some((stroke) => stroke.rowId !== row.id || stroke.problemId !== row.problemId || stroke.tool !== "pen")) {
+      || affected.some((stroke) => stroke.rowId !== row.id || stroke.problemId !== row.problemId || stroke.page !== row.page || stroke.tool !== "pen")) {
       throw new Error("Invalid edit targets");
     }
     let erase = true;
     if (event.type === "erase") {
       if (affected.some((stroke) => stroke.erasedAt !== undefined)) throw new Error("Stroke already erased");
       undoStack = [...undoStack, { kind: "erase", strokeIds: [...event.strokeIds], rowId: event.rowId }];
-      redoStack = [];
+      redoStack = row.page === undefined ? [] : redoStack.filter(edit => rows.find(r => r.id === edit.rowId)?.page !== row.page);
     } else {
       const redo = event.redo === true;
-      const edit = (redo ? redoStack : undoStack).at(-1);
+      const stack = redo ? redoStack : undoStack;
+      const index = stack.findLastIndex(edit => row.page === undefined || rows.find(r => r.id === edit.rowId)?.page === row.page);
+      const edit = stack[index];
       if (!edit || edit.rowId !== event.rowId || edit.strokeIds.length !== ids.size || edit.strokeIds.some((id) => !ids.has(id))) {
         throw new Error("Invalid undo/redo action");
       }
       erase = redo ? edit.kind === "erase" : edit.kind === "draw";
-      if (redo) { redoStack = redoStack.slice(0, -1); undoStack = [...undoStack, edit]; }
-      else { undoStack = undoStack.slice(0, -1); redoStack = [...redoStack, edit]; }
+      if (redo) { redoStack = redoStack.filter((_, i) => i !== index); undoStack = [...undoStack, edit]; }
+      else { undoStack = undoStack.filter((_, i) => i !== index); redoStack = [...redoStack, edit]; }
     }
     const at = event.at;
     strokes = strokes.map((stroke) => {

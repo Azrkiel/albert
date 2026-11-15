@@ -46,7 +46,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
   const params = useSearchParams();
   const fixture = devBuild ? params.get("replay") : null;
   const devTools = devBuild && params.get("dev") === "1";
-  const urlLayout = params.get("layout");
+  const urlLayout = params.get("layout") ?? params.get("surface");
   const layout: CanvasLayout = urlLayout === "free" || urlLayout === "ruled" ? urlLayout : envLayout;
   const autoHint = params.get("auto") === "1" || process.env.NEXT_PUBLIC_AUTO_HINT === "1";
   const urlSpeed = params.get("speed");
@@ -268,7 +268,7 @@ export function WorksheetCanvas({ worksheetId, problems, problemSource = "worksh
     setReplayDone(false);
     setRevision((value) => value + 1); // Discard in-flight pointer drafts on replacement.
     const reset = () => { syncRestart(); conductor.reset(); replace({ ...createSessionState(rec.problems, rec.worksheetId, rec.rows, rec.layout ?? "ruled"),
-      durationMs: rec.durationMs, ...(rec.notes === undefined ? {} : { notes: rec.notes }) }); };
+      durationMs: rec.durationMs, ...(rec.surface ? { surface: rec.surface, fileId: rec.fileId } : {}), ...(rec.notes === undefined ? {} : { notes: rec.notes }) }); };
     reset();
     origin.current = performance.now() - rec.durationMs;
     replayClock.current = { started: performance.now(), speed: playbackSpeed === "4" ? 4 : 1,

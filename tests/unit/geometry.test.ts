@@ -21,12 +21,9 @@ describe("targetBox (P4.1-AC4)", () => {
   it.each([[], ["missing"], [other.id], [a.id, "missing"]].map((ids) => [ids]))("falls back to the whole row's ink for %j", (ids) => {
     expect(targetBox(ids, [other, a, b], row)).toEqual({ x: 100, y: 244, w: 100, h: 70 });
   });
-  it("uses the actual row box when the row has no clusters", () => {
+  it.each([[], ["missing"], [a.id]].map((ids) => [ids]))("has no target when the row has no current ink: %j", (ids) => {
     const free: Row = { ...row, index: 7, bbox: { x: 400, y: 317, w: 360, h: 43 } };
-    const result = targetBox([], [other], free);
-    expect(result).toEqual(free.bbox);
-    result.x = -1;
-    expect(free.bbox.x).toBe(400);
+    expect(targetBox(ids, [other], free)).toBeNull();
   });
 });
 
@@ -85,6 +82,7 @@ describe("current canvas shapes", () => {
     for (const current of state.rows) {
       const targets = clusters.filter((cluster) => cluster.rowId === current.id);
       const box = targetBox([], clusters, current);
+      if (!box) { expect(targets).toHaveLength(0); continue; }
       const ellipse = circleFor(box);
       for (const target of targets) for (const point of corners(target.bbox)) {
         expect(((point.x - ellipse.cx) / ellipse.rx) ** 2 + ((point.y - ellipse.cy) / ellipse.ry) ** 2).toBeLessThanOrEqual(1);
@@ -100,8 +98,8 @@ describe("arrow start (P4.1 build step 3)", () => {
     const anchor = marginAnchor(row);
     expect(anchor.x).toBeGreaterThanOrEqual(PAGE.albertCol.x);
     expect(anchor.x).toBeLessThan(PAGE.albertCol.x + PAGE.albertCol.w);
-    const arrow = arrowFor(anchor, targetBox([b.id], [a, b], row));
+    const arrow = arrowFor(anchor, targetBox([b.id], [a, b], row)!);
     expect(arrow.path.startsWith(`M ${anchor.x} ${anchor.y} `)).toBe(true);
-    expect(arrowFor(anchor, targetBox(["p/r2/missing"], [a, b], row)).path.startsWith(`M ${anchor.x} ${anchor.y} `)).toBe(true);
+    expect(arrowFor(anchor, targetBox(["p/r2/missing"], [a, b], row)!).path.startsWith(`M ${anchor.x} ${anchor.y} `)).toBe(true);
   });
 });
