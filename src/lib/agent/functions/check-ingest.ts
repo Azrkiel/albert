@@ -27,9 +27,9 @@ export function checkIngestData({ outline, cards, worksheets, sources, agent }: 
   check(4, !!u3?.methods.some(m => m.steps.length === 5 && /dx/.test(m.steps[1]!) && /triangle/i.test(m.steps[4]!)), "M3 five-step recipe, dx second, triangle fifth");
   const compact = JSON.stringify([u3?.methods, u3?.notation]).replaceAll("\\\\", "\\").replace(/\s|[{}]/g, "");
   check(5, ["a\\sin\\theta", "a\\tan\\theta", "a\\sec\\theta"].every(s => compact.includes(s)), "M4 all three substitution-table rows");
-  // Entries that name the angle symbol itself: a concept naming the angle whose teacherWrites is one symbol (TeX dollars ignored).
+  // Entries that name the angle symbol itself: a concept naming the angle, theta or new variable whose teacherWrites is one symbol (TeX dollars ignored).
   const bare = (t: string) => t.replace(/[$\s]/g, "");
-  const angles = u3?.notation.filter(n => /\b(angle|new variable)\b/i.test(n.concept) && /^\\?[A-Za-z]+$/.test(bare(n.teacherWrites))) ?? [];
+  const angles = u3?.notation.filter(n => /angle|theta|θ|new variable/i.test(n.concept) && /^\\?[A-Za-z]+$/.test(bare(n.teacherWrites))) ?? [];
   check(6, !!u3?.conventions.some(c => /reference triangle/i.test(c)) && angles.length > 0 && angles.every(n => bare(n.teacherWrites) === "\\theta"), "M5 reference triangle and angle theta");
   check(7, !!u3?.workedExamples.some(e => e.label === "Lecture 9, Example 2"), "M6 Lecture 9, Example 2");
   check(8, !!u3?.pitfalls.some(p => p.errorType.includes("dx")), "Unit 3 dx pitfall");

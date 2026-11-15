@@ -193,3 +193,11 @@ it("golden check 6 judges rows that name the angle symbol itself, ignoring TeX d
   notation.push({ concept: "The angle", teacherWrites: "\\phi", avoid: [], note: "" });
   expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("fail");
 });
+it("golden check 6 also judges a row whose concept names theta, but not a formula row that mentions it", async () => {
+  const { data } = await setup();
+  const notation = data.cards[2]!.notation;
+  notation.push({ concept: "Derivative of x with respect to theta", teacherWrites: "\\frac{dx}{d\\theta}", avoid: [], note: "" });
+  expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("pass");
+  notation.push({ concept: "Variable theta", teacherWrites: "\\phi", avoid: [], note: "" });
+  expect(checkIngestData(data).find(c => c.number === 6)?.status).toBe("fail");
+});
